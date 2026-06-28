@@ -1,1 +1,378 @@
-<h1>Ghar Dekho</h1>
+cat > /mnt/user-data/outputs/index.html << 'HTMLEOF'
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>GHAR DEKHO - घर देखो</title>
+<script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#0D0D0D;color:#F0F0F0;font-family:'Segoe UI',Arial,sans-serif}
+input,select,button{font-family:inherit}
+::-webkit-scrollbar{width:4px}
+::-webkit-scrollbar-track{background:#1A1A1A}
+::-webkit-scrollbar-thumb{background:#FF6B2B;border-radius:2px}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const {useState,useEffect}=React;
+
+const PROJECT="ghar-dekho-9b664";
+const KEY="AIzaSyCESZDLJlfrN00bnwVhr6RKuTV3dpf3hGs";
+const BASE=`https://firestore.googleapis.com/v1/projects/${PROJECT}/databases/(default)/documents`;
+
+const toFS=(obj)=>{const f={};for(const[k,v]of Object.entries(obj)){if(v===null||v===undefined)continue;if(typeof v==="string")f[k]={stringValue:v};else if(typeof v==="number")f[k]={integerValue:String(v)};else if(typeof v==="boolean")f[k]={booleanValue:v};else if(Array.isArray(v))f[k]={arrayValue:{values:v.map(i=>({stringValue:String(i)}))}};}return{fields:f};};
+const fromFS=(doc)=>{const o={id:doc.name?.split("/").pop()};for(const[k,v]of Object.entries(doc.fields||{})){if(v.stringValue!==undefined)o[k]=v.stringValue;else if(v.integerValue!==undefined)o[k]=Number(v.integerValue);else if(v.booleanValue!==undefined)o[k]=v.booleanValue;else if(v.arrayValue)o[k]=(v.arrayValue.values||[]).map(i=>i.stringValue||"");}return o;};
+
+const C={bg:"#0D0D0D",surface:"#1A1A1A",card:"#1E1E1E",border:"#2A2A2A",accent:"#FF6B2B",accentG:"#FFB830",green:"#2ECC71",text:"#F0F0F0",muted:"#888",dim:"#444"};
+const ROOM_TYPES=[{id:"single",icon:"🛏️",label:"Single Room",hi:"एकल कमरा"},{id:"1bhk",icon:"🏠",label:"1 BHK",hi:"1 बीएचके"},{id:"2bhk",icon:"🏡",label:"2 BHK",hi:"2 बीएचके"},{id:"3bhk",icon:"🏘️",label:"3 BHK",hi:"3 बीएचके"},{id:"pg",icon:"🏨",label:"PG / Hostel",hi:"पीजी"},{id:"flat",icon:"🏢",label:"Full Flat",hi:"पूरा फ्लैट"}];
+const AMENITIES=[{id:"wifi",icon:"📶",label:"WiFi"},{id:"ac",icon:"❄️",label:"AC"},{id:"parking",icon:"🚗",label:"Parking"},{id:"geyser",icon:"🚿",label:"Geyser"},{id:"fridge",icon:"🧊",label:"Fridge"},{id:"washing",icon:"🫧",label:"Washing Machine"},{id:"gas",icon:"🍳",label:"Gas Stove"},{id:"cctv",icon:"📹",label:"CCTV"},{id:"lift",icon:"🛗",label:"Lift"},{id:"power",icon:"⚡",label:"Power Backup"},{id:"garden",icon:"🌿",label:"Garden"},{id:"guard",icon:"💂",label:"Security Guard"}];
+const TENANT_TYPES=[{id:"family",icon:"👨‍👩‍👧",label:"Family Only",hi:"सिर्फ परिवार"},{id:"single_male",icon:"👨",label:"Single Male",hi:"अकेला पुरुष"},{id:"single_female",icon:"👩",label:"Single Female",hi:"अकेली महिला"},{id:"working",icon:"💼",label:"Working Professional",hi:"कामकाजी"},{id:"student",icon:"📚",label:"Student",hi:"छात्र"},{id:"any",icon:"🤝",label:"Anyone Welcome",hi:"सभी स्वागत"}];
+const DOCS=[{id:"aadhar",icon:"🪪",label:"Aadhar Card"},{id:"pan",icon:"📄",label:"PAN Card"},{id:"agreement",icon:"📝",label:"Rent Agreement"},{id:"police",icon:"👮",label:"Police Verification"},{id:"employment",icon:"💼",label:"Employment Proof"},{id:"photo",icon:"📸",label:"Passport Photo"}];
+const RC={single:"#FF6B2B","1bhk":"#FFB830","2bhk":"#2ECC71","3bhk":"#3498DB",pg:"#9B59B6",flat:"#E74C3C"};
+const rl=id=>ROOM_TYPES.find(r=>r.id===id);
+const al=id=>AMENITIES.find(a=>a.id===id);
+const tl=id=>TENANT_TYPES.find(t=>t.id===id)?.label||id;
+const EMPTY={title:"",titleHi:"",location:"",area:"",roomType:"",price:"",floor:"",bathrooms:"1",furnished:"Unfurnished",kitchen:false,tenantType:"",amenities:[],docs:[],ownerName:"",phone:"",available:""};
+
+function App(){
+  const[tab,setTab]=useState("browse");
+  const[listings,setListings]=useState([]);
+  const[loading,setLoading]=useState(true);
+  const[posting,setPosting]=useState(false);
+  const[search,setSearch]=useState("");
+  const[filter,setFilter]=useState("all");
+  const[selected,setSelected]=useState(null);
+  const[form,setForm]=useState(EMPTY);
+  const[toast,setToast]=useState(null);
+
+  const msg=(text,type="ok")=>{setToast({text,type});setTimeout(()=>setToast(null),3500);};
+  const upd=(k,v)=>setForm(f=>({...f,[k]:v}));
+  const tog=(k,id)=>setForm(f=>({...f,[k]:f[k].includes(id)?f[k].filter(x=>x!==id):[...f[k],id]}));
+
+  const load=async()=>{
+    setLoading(true);
+    try{
+      const res=await fetch(`${BASE}/listings?key=${KEY}`);
+      const data=await res.json();
+      setListings((data.documents||[]).map(fromFS).reverse());
+    }catch(e){msg("Could not load listings","err");}
+    setLoading(false);
+  };
+
+  useEffect(()=>{load();},[]);
+
+  const submit=async()=>{
+    if(!form.title||!form.location||!form.roomType||!form.price||!form.ownerName||!form.phone){msg("⚠️ Fill all required fields","err");return;}
+    setPosting(true);
+    try{
+      const res=await fetch(`${BASE}/listings?key=${KEY}`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(toFS({...form,price:Number(form.price),bathrooms:Number(form.bathrooms),icon:rl(form.roomType)?.icon||"🏠",createdAt:new Date().toISOString()}))});
+      if(res.ok){msg("✅ Room posted! / कमरा पोस्ट हो गया!");setForm(EMPTY);setTab("browse");await load();}
+      else{const j=await res.json();msg("❌ "+( j.error?.message||"Post failed"),"err");}
+    }catch(e){msg("❌ Network error: "+e.message,"err");}
+    setPosting(false);
+  };
+
+  const filtered=listings.filter(l=>{
+    const q=search.toLowerCase();
+    return(!q||[l.title,l.location,l.area].some(s=>(s||"").toLowerCase().includes(q)))&&(filter==="all"||l.roomType===filter);
+  });
+
+  const S={
+    hdr:{background:C.surface,borderBottom:`1px solid ${C.border}`,padding:"0 14px",position:"sticky",top:0,zIndex:100},
+    hdrIn:{maxWidth:1100,margin:"0 auto",display:"flex",alignItems:"center",justifyContent:"space-between",height:58},
+    logoTxt:{fontSize:18,fontWeight:900,background:`linear-gradient(135deg,${C.accent},${C.accentG})`,WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent"},
+    live:{display:"flex",alignItems:"center",gap:4,background:"#2ECC7122",border:"1px solid #2ECC7144",color:"#2ECC71",padding:"2px 8px",borderRadius:20,fontSize:9,fontWeight:700},
+    navTabs:{display:"flex",gap:3,background:"#111",borderRadius:9,padding:3},
+    navTab:a=>({padding:"6px 13px",borderRadius:7,border:"none",cursor:"pointer",fontSize:11,fontWeight:700,background:a?`linear-gradient(135deg,${C.accent},${C.accentG})`:"transparent",color:a?"#fff":C.muted}),
+    hero:{background:`linear-gradient(160deg,#1A0A00,#0D0D0D 60%,#000D1A)`,padding:"40px 16px 32px",textAlign:"center",borderBottom:`1px solid ${C.border}`},
+    inp:{background:C.card,border:`1px solid ${C.border}`,borderRadius:8,padding:"10px 12px",color:C.text,fontSize:13,outline:"none",width:"100%"},
+    sel:{background:C.card,border:`1px solid ${C.border}`,borderRadius:8,padding:"10px 12px",color:C.text,fontSize:13,outline:"none",width:"100%",cursor:"pointer"},
+    chip:on=>({padding:"7px 12px",borderRadius:18,border:`1px solid ${on?C.accent:C.border}`,background:on?"#FF6B2B22":C.card,color:on?C.accent:C.muted,cursor:"pointer",fontSize:11,fontWeight:600,display:"inline-flex",alignItems:"center",gap:5}),
+    chipG:on=>({padding:"7px 12px",borderRadius:18,border:`1px solid ${on?C.accentG:C.border}`,background:on?"#FFB83022":C.card,color:on?C.accentG:C.muted,cursor:"pointer",fontSize:11,fontWeight:600,display:"inline-flex",alignItems:"center",gap:5}),
+    optC:on=>({background:on?"#FF6B2B22":C.card,border:`2px solid ${on?C.accent:C.border}`,borderRadius:10,padding:"12px 8px",textAlign:"center",cursor:"pointer"}),
+    optCG:on=>({background:on?"#FFB83022":C.card,border:`2px solid ${on?C.accentG:C.border}`,borderRadius:10,padding:"12px 8px",textAlign:"center",cursor:"pointer"}),
+    badge:col=>({padding:"3px 9px",borderRadius:20,fontSize:10,fontWeight:700,textTransform:"uppercase",background:col+"22",color:col}),
+    card:{background:C.card,borderRadius:13,border:`1px solid ${C.border}`,overflow:"hidden",cursor:"pointer"},
+    grid:{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(290px,1fr))",gap:14},
+    secTitle:{fontSize:10,fontWeight:700,color:C.accent,textTransform:"uppercase",letterSpacing:1.5,marginBottom:13},
+    lbl:{fontSize:9,color:C.muted,textTransform:"uppercase",letterSpacing:0.5,marginBottom:4},
+    row2:{display:"grid",gridTemplateColumns:"1fr 1fr",gap:9,marginBottom:9},
+    dbx:{marginBottom:8,padding:12,background:C.card,borderRadius:9,border:`1px solid ${C.border}`},
+    submitBtn:{width:"100%",padding:"13px",background:`linear-gradient(135deg,${C.accent},${C.accentG})`,border:"none",borderRadius:10,color:"#fff",fontSize:14,fontWeight:800,cursor:"pointer",marginTop:6},
+  };
+
+  return(
+    <div style={{minHeight:"100vh",background:C.bg,color:C.text}}>
+      {/* HEADER */}
+      <header style={S.hdr}>
+        <div style={S.hdrIn}>
+          <div style={{display:"flex",alignItems:"center",gap:8}}>
+            <div style={{width:34,height:34,background:`linear-gradient(135deg,${C.accent},${C.accentG})`,borderRadius:9,display:"flex",alignItems:"center",justifyContent:"center",fontSize:17}}>🏠</div>
+            <div>
+              <div style={S.logoTxt}>GHAR DEKHO</div>
+              <div style={{fontSize:9,color:C.muted,letterSpacing:2}}>घर देखो • REAL LISTINGS</div>
+            </div>
+          </div>
+          <div style={{display:"flex",gap:6,alignItems:"center"}}>
+            <div style={S.live}>🔴 LIVE</div>
+            <div style={S.navTabs}>
+              <button style={S.navTab(tab==="browse")} onClick={()=>setTab("browse")}>🔍 Browse</button>
+              <button style={S.navTab(tab==="post")} onClick={()=>setTab("post")}>➕ Post</button>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      {/* HERO */}
+      {tab==="browse"&&(
+        <div style={S.hero}>
+          <div style={{display:"inline-block",background:"#FF6B2B22",border:"1px solid #FF6B2B44",color:C.accent,padding:"3px 12px",borderRadius:20,fontSize:9,fontWeight:700,letterSpacing:2,textTransform:"uppercase",marginBottom:12}}>🇮🇳 India's Own Rental Platform</div>
+          <div style={{fontSize:32,fontWeight:900,background:"linear-gradient(135deg,#fff,#aaa)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent",lineHeight:1.1}}>अपना घर खोजें</div>
+          <div style={{fontSize:24,fontWeight:900,background:`linear-gradient(135deg,${C.accent},${C.accentG})`,WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent",marginBottom:8}}>Find Your Perfect Room</div>
+          <div style={{fontSize:12,color:C.muted,marginBottom:22}}>Direct from owners • No broker fee • Firebase powered</div>
+          <div style={{display:"flex",gap:5,maxWidth:500,margin:"0 auto 18px",background:C.surface,borderRadius:11,padding:4,border:`1px solid ${C.border}`}}>
+            <span style={{color:C.muted,padding:"8px 6px 8px 10px"}}>🔍</span>
+            <input style={{flex:1,background:"transparent",border:"none",outline:"none",color:C.text,fontSize:13,padding:"7px 6px"}} placeholder="City, area... / शहर, इलाका..." value={search} onChange={e=>setSearch(e.target.value)}/>
+            <button style={{background:`linear-gradient(135deg,${C.accent},${C.accentG})`,border:"none",borderRadius:8,padding:"8px 14px",color:"#fff",fontWeight:700,cursor:"pointer",fontSize:12}} onClick={load}>🔄</button>
+          </div>
+          <div style={{display:"flex",justifyContent:"center",gap:24,flexWrap:"wrap"}}>
+            {[[listings.length,"Live Rooms"],["₹0","Broker Fee"],["24/7","Available"]].map(([v,l],i)=>(
+              <div key={i} style={{textAlign:"center"}}>
+                <div style={{fontSize:20,fontWeight:800,color:C.accent}}>{v}</div>
+                <div style={{fontSize:10,color:C.muted,textTransform:"uppercase",letterSpacing:1}}>{l}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <main style={{maxWidth:1100,margin:"0 auto",padding:"22px 14px"}}>
+        {/* BROWSE */}
+        {tab==="browse"&&(<>
+          <div style={{display:"flex",gap:5,marginBottom:18,flexWrap:"wrap",alignItems:"center"}}>
+            <span style={{fontSize:10,color:C.muted,fontWeight:700,textTransform:"uppercase",letterSpacing:1}}>Filter:</span>
+            {[{id:"all",label:"All / सभी"},...ROOM_TYPES].map(f=>(
+              <button key={f.id} onClick={()=>setFilter(f.id)} style={{padding:"5px 12px",borderRadius:18,border:`1px solid ${filter===f.id?C.accent:C.border}`,background:filter===f.id?"#FF6B2B22":C.surface,color:filter===f.id?C.accent:C.muted,cursor:"pointer",fontSize:11,fontWeight:600}}>
+                {f.icon?f.icon+" ":""}{f.label}
+              </button>
+            ))}
+          </div>
+          {loading?(
+            <div style={{textAlign:"center",padding:"60px 20px",color:C.muted}}>
+              <div style={{fontSize:36,marginBottom:12}}>🏠</div>
+              <div>Loading from Firebase... / लोड हो रहा है...</div>
+            </div>
+          ):filtered.length===0?(
+            <div style={{textAlign:"center",padding:"60px 20px",color:C.muted}}>
+              <div style={{fontSize:48,marginBottom:12}}>🏚️</div>
+              <div style={{fontSize:16,fontWeight:700,marginBottom:6,color:C.text}}>No rooms found</div>
+              <div style={{marginBottom:20}}>Be the first to post! / पहले पोस्ट करें!</div>
+              <button style={{padding:"10px 22px",background:`linear-gradient(135deg,${C.accent},${C.accentG})`,border:"none",borderRadius:9,color:"#fff",fontWeight:700,cursor:"pointer",fontSize:13}} onClick={()=>setTab("post")}>➕ Post a Room</button>
+            </div>
+          ):(
+            <>
+              <div style={{marginBottom:12,fontSize:11,color:C.muted}}>{filtered.length} rooms found / {filtered.length} कमरे मिले</div>
+              <div style={S.grid}>
+                {filtered.map(l=>(
+                  <div key={l.id} style={S.card} onClick={()=>setSelected(l)}>
+                    <div style={{height:150,display:"flex",alignItems:"center",justifyContent:"center",fontSize:40,background:"linear-gradient(135deg,#1A1A1A,#0D0D0D)"}}>
+                      {l.icon||rl(l.roomType)?.icon||"🏠"}
+                    </div>
+                    <div style={{padding:13}}>
+                      <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:5}}>
+                        <div>
+                          <div style={{fontSize:13,fontWeight:700}}>{l.title}</div>
+                          {l.titleHi&&<div style={{fontSize:10,color:C.muted}}>{l.titleHi}</div>}
+                          <div style={{fontSize:10,color:C.muted,marginTop:2}}>📍 {l.area?l.area+", ":""}{l.location}</div>
+                        </div>
+                        <div style={S.badge(RC[l.roomType]||C.accent)}>{rl(l.roomType)?.label}</div>
+                      </div>
+                      <div style={{display:"flex",justifyContent:"space-between",margin:"7px 0"}}>
+                        <div>
+                          <div style={{fontSize:17,fontWeight:800,color:C.accentG}}>₹{Number(l.price).toLocaleString()}</div>
+                          <div style={{fontSize:10,color:C.muted}}>per month</div>
+                        </div>
+                        <div style={{textAlign:"right"}}>
+                          <div style={{fontSize:10,color:C.muted}}>Available</div>
+                          <div style={{fontSize:11,color:C.accentG,fontWeight:600}}>{l.available||"Contact Owner"}</div>
+                        </div>
+                      </div>
+                      <div style={{display:"flex",gap:4,flexWrap:"wrap",margin:"8px 0"}}>
+                        {l.kitchen&&<span style={{background:C.surface,border:`1px solid ${C.border}`,borderRadius:5,padding:"2px 6px",fontSize:9,color:C.muted}}>🍳 Kitchen</span>}
+                        {l.bathrooms&&<span style={{background:C.surface,border:`1px solid ${C.border}`,borderRadius:5,padding:"2px 6px",fontSize:9,color:C.muted}}>🚿 {l.bathrooms} Bath</span>}
+                        {l.furnished&&<span style={{background:C.surface,border:`1px solid ${C.border}`,borderRadius:5,padding:"2px 6px",fontSize:9,color:C.muted}}>🛋️ {l.furnished}</span>}
+                        {(l.amenities||[]).slice(0,3).map(a=>{const am=al(a);return am?<span key={a} style={{background:C.surface,border:`1px solid ${C.border}`,borderRadius:5,padding:"2px 6px",fontSize:9,color:C.muted}}>{am.icon} {am.label}</span>:null;})}
+                        {(l.amenities||[]).length>3&&<span style={{background:C.surface,border:`1px solid ${C.border}`,borderRadius:5,padding:"2px 6px",fontSize:9,color:C.accent}}>+{l.amenities.length-3}</span>}
+                      </div>
+                      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginTop:9,paddingTop:9,borderTop:`1px solid ${C.border}`}}>
+                        <div style={{display:"flex",alignItems:"center",gap:6}}>
+                          <div style={{width:28,height:28,borderRadius:"50%",background:`linear-gradient(135deg,${C.accent},${C.accentG})`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:12,fontWeight:700,color:"#fff"}}>{l.ownerName?.[0]||"O"}</div>
+                          <div>
+                            <div style={{fontSize:11,fontWeight:600}}>{l.ownerName}</div>
+                            <div style={{fontSize:9,color:C.muted}}>Owner</div>
+                          </div>
+                        </div>
+                        <button style={{background:"#2ECC7122",border:"1px solid #2ECC7144",color:C.green,padding:"4px 11px",borderRadius:7,fontSize:10,fontWeight:700,cursor:"pointer"}} onClick={e=>{e.stopPropagation();window.open(`tel:${l.phone}`);}}>📞 Call</button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
+        </>)}
+
+        {/* POST FORM */}
+        {tab==="post"&&(
+          <div style={{maxWidth:700,margin:"0 auto"}}>
+            <div style={{marginBottom:18}}>
+              <div style={{fontSize:17,fontWeight:800,marginBottom:3}}>Post Your Room / कमरा पोस्ट करें</div>
+              <div style={{fontSize:11,color:C.muted}}>Free • No broker • Saved to Firebase</div>
+            </div>
+            <div style={{background:C.surface,borderRadius:15,border:`1px solid ${C.border}`,padding:18}}>
+
+              <div style={{marginBottom:20,paddingBottom:20,borderBottom:`1px solid ${C.border}`}}>
+                <div style={S.secTitle}>📋 Basic Details / मूल जानकारी</div>
+                <div style={S.row2}>
+                  <div><div style={S.lbl}>Title (English) *</div><input style={S.inp} placeholder="e.g. 2 BHK near market" value={form.title} onChange={e=>upd("title",e.target.value)}/></div>
+                  <div><div style={S.lbl}>Title (Hindi)</div><input style={S.inp} placeholder="जैसे: बाज़ार के पास कमरा" value={form.titleHi} onChange={e=>upd("titleHi",e.target.value)}/></div>
+                </div>
+                <div style={S.row2}>
+                  <div><div style={S.lbl}>City / शहर *</div><input style={S.inp} placeholder="e.g. Bhopal, MP" value={form.location} onChange={e=>upd("location",e.target.value)}/></div>
+                  <div><div style={S.lbl}>Area / मोहल्ला</div><input style={S.inp} placeholder="e.g. Arera Colony" value={form.area} onChange={e=>upd("area",e.target.value)}/></div>
+                </div>
+              </div>
+
+              <div style={{marginBottom:20,paddingBottom:20,borderBottom:`1px solid ${C.border}`}}>
+                <div style={S.secTitle}>🏠 Room Type *</div>
+                <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(100px,1fr))",gap:7}}>
+                  {ROOM_TYPES.map(rt=>(
+                    <div key={rt.id} style={S.optC(form.roomType===rt.id)} onClick={()=>upd("roomType",rt.id)}>
+                      <div style={{fontSize:20,marginBottom:3}}>{rt.icon}</div>
+                      <div style={{fontSize:10,fontWeight:600,color:form.roomType===rt.id?C.accent:C.muted}}>{rt.label}</div>
+                      <div style={{fontSize:8,color:C.dim,marginTop:2}}>{rt.hi}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {form.roomType==="single"&&(
+                <div style={{marginBottom:20,paddingBottom:20,borderBottom:`1px solid ${C.border}`}}>
+                  <div style={{...S.secTitle,color:C.accentG}}>👥 Preferred Tenant *</div>
+                  <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(100px,1fr))",gap:7}}>
+                    {TENANT_TYPES.map(tt=>(
+                      <div key={tt.id} style={S.optCG(form.tenantType===tt.id)} onClick={()=>upd("tenantType",tt.id)}>
+                        <div style={{fontSize:20,marginBottom:3}}>{tt.icon}</div>
+                        <div style={{fontSize:10,fontWeight:600,color:form.tenantType===tt.id?C.accentG:C.muted}}>{tt.label}</div>
+                        <div style={{fontSize:8,color:C.dim,marginTop:2}}>{tt.hi}</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <div style={{marginBottom:20,paddingBottom:20,borderBottom:`1px solid ${C.border}`}}>
+                <div style={S.secTitle}>📐 Room Details</div>
+                <div style={S.row2}>
+                  <div><div style={S.lbl}>Monthly Rent ₹ *</div><input style={S.inp} type="number" placeholder="e.g. 8000" value={form.price} onChange={e=>upd("price",e.target.value)}/></div>
+                  <div><div style={S.lbl}>Furnished</div><select style={S.sel} value={form.furnished} onChange={e=>upd("furnished",e.target.value)}><option>Unfurnished</option><option>Semi-Furnished</option><option>Fully Furnished</option></select></div>
+                </div>
+                <div style={S.row2}>
+                  <div><div style={S.lbl}>Floor</div><input style={S.inp} placeholder="e.g. 2nd Floor" value={form.floor} onChange={e=>upd("floor",e.target.value)}/></div>
+                  <div><div style={S.lbl}>Bathrooms</div><select style={S.sel} value={form.bathrooms} onChange={e=>upd("bathrooms",e.target.value)}>{[1,2,3,4].map(n=><option key={n}>{n}</option>)}</select></div>
+                </div>
+                <label style={{display:"flex",alignItems:"center",gap:7,cursor:"pointer",marginBottom:9}}>
+                  <input type="checkbox" checked={form.kitchen} onChange={e=>upd("kitchen",e.target.checked)} style={{width:14,height:14,accentColor:C.accent}}/>
+                  <span style={{fontSize:12,color:C.muted}}>🍳 Kitchen Available / रसोई उपलब्ध</span>
+                </label>
+                <div style={S.lbl}>Available From</div>
+                <input style={S.inp} placeholder="Immediate / 1 August 2026" value={form.available} onChange={e=>upd("available",e.target.value)}/>
+              </div>
+
+              <div style={{marginBottom:20,paddingBottom:20,borderBottom:`1px solid ${C.border}`}}>
+                <div style={S.secTitle}>✨ Amenities / सुविधाएं</div>
+                <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
+                  {AMENITIES.map(a=><button key={a.id} style={S.chip(form.amenities.includes(a.id))} onClick={()=>tog("amenities",a.id)}>{a.icon} {a.label}</button>)}
+                </div>
+              </div>
+
+              <div style={{marginBottom:20,paddingBottom:20,borderBottom:`1px solid ${C.border}`}}>
+                <div style={{...S.secTitle,color:C.accentG}}>📄 Required Documents</div>
+                <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
+                  {DOCS.map(d=><button key={d.id} style={S.chipG(form.docs.includes(d.id))} onClick={()=>tog("docs",d.id)}>{d.icon} {d.label}</button>)}
+                </div>
+              </div>
+
+              <div style={{marginBottom:16}}>
+                <div style={S.secTitle}>👤 Owner Details *</div>
+                <div style={S.row2}>
+                  <div><div style={S.lbl}>Your Name *</div><input style={S.inp} placeholder="Full name" value={form.ownerName} onChange={e=>upd("ownerName",e.target.value)}/></div>
+                  <div><div style={S.lbl}>Phone Number *</div><input style={S.inp} placeholder="10-digit" value={form.phone} onChange={e=>upd("phone",e.target.value)}/></div>
+                </div>
+              </div>
+
+              <button disabled={posting} onClick={submit} style={{...S.submitBtn,opacity:posting?0.7:1,cursor:posting?"not-allowed":"pointer"}}>
+                {posting?"⏳ Posting...":"🏠 Post Room to Firebase / फायरबेस पर पोस्ट करें"}
+              </button>
+            </div>
+          </div>
+        )}
+      </main>
+
+      {/* MODAL */}
+      {selected&&(
+        <div style={{position:"fixed",inset:0,background:"#000C",backdropFilter:"blur(5px)",zIndex:200,display:"flex",alignItems:"center",justifyContent:"center",padding:14}} onClick={()=>setSelected(null)}>
+          <div style={{background:C.surface,borderRadius:16,border:`1px solid ${C.border}`,padding:20,maxWidth:480,width:"100%",maxHeight:"90vh",overflowY:"auto"}} onClick={e=>e.stopPropagation()}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
+              <div>
+                <div style={{fontSize:16,fontWeight:800}}>{selected.title}</div>
+                {selected.titleHi&&<div style={{fontSize:11,color:C.muted}}>{selected.titleHi}</div>}
+              </div>
+              <button style={{background:C.card,border:"none",color:C.muted,width:28,height:28,borderRadius:7,cursor:"pointer",fontSize:13}} onClick={()=>setSelected(null)}>✕</button>
+            </div>
+            <div style={{fontSize:38,textAlign:"center",padding:"14px 0",background:"linear-gradient(135deg,#1A1A1A,#0D0D0D)",borderRadius:9,marginBottom:12}}>{selected.icon||rl(selected.roomType)?.icon||"🏠"}</div>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
+              <div>
+                <div style={{fontSize:24,fontWeight:900,color:C.accentG}}>₹{Number(selected.price).toLocaleString()}</div>
+                <div style={{fontSize:10,color:C.muted}}>per month / प्रति माह</div>
+              </div>
+              <div style={S.badge(RC[selected.roomType]||C.accent)}>{rl(selected.roomType)?.icon} {rl(selected.roomType)?.label}</div>
+            </div>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:7,marginBottom:9}}>
+              {[["Location",`${selected.area?selected.area+", ":""}${selected.location}`],["Available",selected.available||"Contact Owner"],["Floor",selected.floor||"N/A"],["Bathrooms",selected.bathrooms||"N/A"],["Kitchen",selected.kitchen?"✅ Yes":"❌ No"],["Furnished",selected.furnished||"N/A"]].map(([l,v])=>(
+                <div key={l} style={S.dbx}><div style={{fontSize:9,color:C.muted,textTransform:"uppercase",letterSpacing:1,marginBottom:3,fontWeight:600}}>{l}</div><div style={{fontSize:12,fontWeight:500}}>{v}</div></div>
+              ))}
+            </div>
+            {selected.tenantType&&<div style={{...S.dbx,marginBottom:9}}><div style={{fontSize:9,color:C.muted,textTransform:"uppercase",letterSpacing:1,marginBottom:3,fontWeight:600}}>Preferred Tenant</div><div style={{fontSize:12}}>{tl(selected.tenantType)}</div></div>}
+            {selected.amenities?.length>0&&<div style={{...S.dbx,marginBottom:9}}><div style={{fontSize:9,color:C.muted,textTransform:"uppercase",letterSpacing:1,marginBottom:6,fontWeight:600}}>Amenities</div><div style={{display:"flex",flexWrap:"wrap",gap:5}}>{selected.amenities.map(a=>{const am=al(a);return am?<span key={a} style={{background:C.surface,border:`1px solid ${C.border}`,borderRadius:5,padding:"2px 7px",fontSize:10,color:C.muted}}>{am.icon} {am.label}</span>:null;})}</div></div>}
+            {selected.docs?.length>0&&<div style={{...S.dbx,marginBottom:9}}><div style={{fontSize:9,color:C.muted,textTransform:"uppercase",letterSpacing:1,marginBottom:6,fontWeight:600}}>Required Docs</div><div style={{display:"flex",flexWrap:"wrap",gap:5}}>{selected.docs.map(d=>{const doc=DOCS.find(x=>x.id===d);return doc?<span key={d} style={{background:C.surface,border:`1px solid ${C.border}`,borderRadius:5,padding:"2px 7px",fontSize:10,color:C.muted}}>{doc.icon} {doc.label}</span>:null;})}</div></div>}
+            <div style={{...S.dbx,marginBottom:12}}>
+              <div style={{fontSize:9,color:C.muted,textTransform:"uppercase",letterSpacing:1,marginBottom:6,fontWeight:600}}>Owner / मालिक</div>
+              <div style={{display:"flex",alignItems:"center",gap:8}}>
+                <div style={{width:32,height:32,borderRadius:"50%",background:`linear-gradient(135deg,${C.accent},${C.accentG})`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:14,fontWeight:700,color:"#fff"}}>{selected.ownerName?.[0]||"O"}</div>
+                <div><div style={{fontWeight:700,fontSize:13}}>{selected.ownerName}</div><div style={{fontSize:11,color:C.muted}}>📞 {selected.phone}</div></div>
+              </div>
+            </div>
+            <button style={{width:"100%",padding:"12px",background:"#2ECC7122",border:"1px solid #2ECC7155",color:C.green,borderRadius:9,fontSize:13,fontWeight:800,cursor:"pointer"}} onClick={()=>window.open(`tel:${selected.phone}`)}>📞 Call Owner / मालिक को कॉल करें</button>
+            <button style={{width:"100%",padding:"12px",background:"#25D36622",border:"1px solid #25D36644",color:"#25D366",borderRadius:9,fontSize:13,fontWeight:800,cursor:"pointer",marginTop:7}} onClick={()=>window.open(`https://wa.me/91${selected.phone}`)}>💬 WhatsApp Owner</button>
+          </div>
+        </div>
+      )}
+
+      {toast&&<div style={{position:"fixed",bottom:18,right:18,background:toast.type==="err"?"#E74C3C":C.green,color:"#fff",padding:"10px 16px",borderRadius:9,fontWeight:700,fontSize:12,zIndex:999,boxShadow:"0 4px 20px #0008",maxWidth:300}}>{toast.text}</div>}
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
+</script>
+</body>
+</html>
+HTMLEOF
+echo "Done - $(wc -c < /mnt/user-data/outputs/index.html) bytes"
