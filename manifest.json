@@ -4,8 +4,8 @@
   "description": "Find rental rooms directly from owners, no broker fee",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#000000",
-  "theme_color": "#EA580C",
+  "background_color": "#F7F5F0",
+"theme_color": "#6B9080",
   "orientation": "portrait",
   "icons": [
     { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" },
