@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -10,11 +9,11 @@
 <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
-body{background:#0D0D0D;color:#F0F0F0;font-family:'Segoe UI',Arial,sans-serif}
+body{background:#F7F5F0;color:#3A3A3A;font-family:'Segoe UI',Arial,sans-serif}
 input,select,button{font-family:inherit}
 ::-webkit-scrollbar{width:4px}
-::-webkit-scrollbar-track{background:#1A1A1A}
-::-webkit-scrollbar-thumb{background:#FF6B2B;border-radius:2px}
+::-webkit-scrollbar-track{background:#FFFFFF}
+::-webkit-scrollbar-thumb{background:#6B9080;border-radius:2px}
 </style>
   <link rel="manifest" href="/manifest.json">
 </head>
@@ -30,12 +29,12 @@ const BASE=`https://firestore.googleapis.com/v1/projects/${PROJECT}/databases/(d
 const toFS=(obj)=>{const f={};for(const[k,v]of Object.entries(obj)){if(v===null||v===undefined)continue;if(typeof v==="string")f[k]={stringValue:v};else if(typeof v==="number")f[k]={integerValue:String(v)};else if(typeof v==="boolean")f[k]={booleanValue:v};else if(Array.isArray(v))f[k]={arrayValue:{values:v.map(i=>({stringValue:String(i)}))}};}return{fields:f};};
 const fromFS=(doc)=>{const o={id:doc.name?.split("/").pop()};for(const[k,v]of Object.entries(doc.fields||{})){if(v.stringValue!==undefined)o[k]=v.stringValue;else if(v.integerValue!==undefined)o[k]=Number(v.integerValue);else if(v.booleanValue!==undefined)o[k]=v.booleanValue;else if(v.arrayValue)o[k]=(v.arrayValue.values||[]).map(i=>i.stringValue||"");}return o;};
 
-const C={bg:"#0D0D0D",surface:"#1A1A1A",card:"#1E1E1E",border:"#2A2A2A",accent:"#FF6B2B",accentG:"#FFB830",green:"#2ECC71",text:"#F0F0F0",muted:"#888",dim:"#444"};
+const C={bg:"#F7F5F0",surface:"#FFFFFF",card:"#FBF9F5",border:"#E6E2D8",accent:"#6B9080",accentG:"#B08968",green:"#588157",text:"#3A3A3A",muted:"#8A8778",dim:"#C9C6BB"};
 const ROOM_TYPES=[{id:"single",icon:"🛏️",label:"Single Room",hi:"एकल कमरा"},{id:"1bhk",icon:"🏠",label:"1 BHK",hi:"1 बीएचके"},{id:"2bhk",icon:"🏡",label:"2 BHK",hi:"2 बीएचके"},{id:"3bhk",icon:"🏘️",label:"3 BHK",hi:"3 बीएचके"},{id:"pg",icon:"🏨",label:"PG / Hostel",hi:"पीजी"},{id:"flat",icon:"🏢",label:"Full Flat",hi:"पूरा फ्लैट"}];
 const AMENITIES=[{id:"wifi",icon:"📶",label:"WiFi"},{id:"ac",icon:"❄️",label:"AC"},{id:"parking",icon:"🚗",label:"Parking"},{id:"geyser",icon:"🚿",label:"Geyser"},{id:"fridge",icon:"🧊",label:"Fridge"},{id:"washing",icon:"🫧",label:"Washing Machine"},{id:"gas",icon:"🍳",label:"Gas Stove"},{id:"cctv",icon:"📹",label:"CCTV"},{id:"lift",icon:"🛗",label:"Lift"},{id:"power",icon:"⚡",label:"Power Backup"},{id:"garden",icon:"🌿",label:"Garden"},{id:"guard",icon:"💂",label:"Security Guard"}];
 const TENANT_TYPES=[{id:"family",icon:"👨‍👩‍👧",label:"Family Only",hi:"सिर्फ परिवार"},{id:"single_male",icon:"👨",label:"Single Male",hi:"अकेला पुरुष"},{id:"single_female",icon:"👩",label:"Single Female",hi:"अकेली महिला"},{id:"working",icon:"💼",label:"Working Professional",hi:"कामकाजी"},{id:"student",icon:"📚",label:"Student",hi:"छात्र"},{id:"any",icon:"🤝",label:"Anyone Welcome",hi:"सभी स्वागत"}];
 const DOCS=[{id:"aadhar",icon:"🪪",label:"Aadhar Card"},{id:"pan",icon:"📄",label:"PAN Card"},{id:"agreement",icon:"📝",label:"Rent Agreement"},{id:"police",icon:"👮",label:"Police Verification"},{id:"employment",icon:"💼",label:"Employment Proof"},{id:"photo",icon:"📸",label:"Passport Photo"}];
-const RC={single:"#FF6B2B","1bhk":"#FFB830","2bhk":"#2ECC71","3bhk":"#3498DB",pg:"#9B59B6",flat:"#E74C3C"};
+const RC={single:"#6B9080","1bhk":"#B08968","2bhk":"#588157","3bhk":"#3498DB",pg:"#9B59B6",flat:"#E74C3C"};
 const rl=id=>ROOM_TYPES.find(r=>r.id===id);
 const al=id=>AMENITIES.find(a=>a.id===id);
 const tl=id=>TENANT_TYPES.find(t=>t.id===id)?.label||id;
@@ -88,16 +87,16 @@ function App(){
     hdr:{background:C.surface,borderBottom:`1px solid ${C.border}`,padding:"0 14px",position:"sticky",top:0,zIndex:100},
     hdrIn:{maxWidth:1100,margin:"0 auto",display:"flex",alignItems:"center",justifyContent:"space-between",height:58},
     logoTxt:{fontSize:18,fontWeight:900,background:`linear-gradient(135deg,${C.accent},${C.accentG})`,WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent"},
-    live:{display:"flex",alignItems:"center",gap:4,background:"#2ECC7122",border:"1px solid #2ECC7144",color:"#2ECC71",padding:"2px 8px",borderRadius:20,fontSize:9,fontWeight:700},
+    live:{display:"flex",alignItems:"center",gap:4,background:"#58815722",border:"1px solid #58815744",color:"#588157",padding:"2px 8px",borderRadius:20,fontSize:9,fontWeight:700},
     navTabs:{display:"flex",gap:3,background:"#111",borderRadius:9,padding:3},
     navTab:a=>({padding:"6px 13px",borderRadius:7,border:"none",cursor:"pointer",fontSize:11,fontWeight:700,background:a?`linear-gradient(135deg,${C.accent},${C.accentG})`:"transparent",color:a?"#fff":C.muted}),
-    hero:{background:`linear-gradient(160deg,#1A0A00,#0D0D0D 60%,#000D1A)`,padding:"40px 16px 32px",textAlign:"center",borderBottom:`1px solid ${C.border}`},
+    hero:{background:`linear-gradient(160deg,#EAF4EF,#F7F5F0 60%,#F0EDE2)`,padding:"40px 16px 32px",textAlign:"center",borderBottom:`1px solid ${C.border}`},
     inp:{background:C.card,border:`1px solid ${C.border}`,borderRadius:8,padding:"10px 12px",color:C.text,fontSize:13,outline:"none",width:"100%"},
     sel:{background:C.card,border:`1px solid ${C.border}`,borderRadius:8,padding:"10px 12px",color:C.text,fontSize:13,outline:"none",width:"100%",cursor:"pointer"},
-    chip:on=>({padding:"7px 12px",borderRadius:18,border:`1px solid ${on?C.accent:C.border}`,background:on?"#FF6B2B22":C.card,color:on?C.accent:C.muted,cursor:"pointer",fontSize:11,fontWeight:600,display:"inline-flex",alignItems:"center",gap:5}),
-    chipG:on=>({padding:"7px 12px",borderRadius:18,border:`1px solid ${on?C.accentG:C.border}`,background:on?"#FFB83022":C.card,color:on?C.accentG:C.muted,cursor:"pointer",fontSize:11,fontWeight:600,display:"inline-flex",alignItems:"center",gap:5}),
-    optC:on=>({background:on?"#FF6B2B22":C.card,border:`2px solid ${on?C.accent:C.border}`,borderRadius:10,padding:"12px 8px",textAlign:"center",cursor:"pointer"}),
-    optCG:on=>({background:on?"#FFB83022":C.card,border:`2px solid ${on?C.accentG:C.border}`,borderRadius:10,padding:"12px 8px",textAlign:"center",cursor:"pointer"}),
+    chip:on=>({padding:"7px 12px",borderRadius:18,border:`1px solid ${on?C.accent:C.border}`,background:on?"#6B908022":C.card,color:on?C.accent:C.muted,cursor:"pointer",fontSize:11,fontWeight:600,display:"inline-flex",alignItems:"center",gap:5}),
+    chipG:on=>({padding:"7px 12px",borderRadius:18,border:`1px solid ${on?C.accentG:C.border}`,background:on?"#B0896822":C.card,color:on?C.accentG:C.muted,cursor:"pointer",fontSize:11,fontWeight:600,display:"inline-flex",alignItems:"center",gap:5}),
+    optC:on=>({background:on?"#6B908022":C.card,border:`2px solid ${on?C.accent:C.border}`,borderRadius:10,padding:"12px 8px",textAlign:"center",cursor:"pointer"}),
+    optCG:on=>({background:on?"#B0896822":C.card,border:`2px solid ${on?C.accentG:C.border}`,borderRadius:10,padding:"12px 8px",textAlign:"center",cursor:"pointer"}),
     badge:col=>({padding:"3px 9px",borderRadius:20,fontSize:10,fontWeight:700,textTransform:"uppercase",background:col+"22",color:col}),
     card:{background:C.card,borderRadius:13,border:`1px solid ${C.border}`,overflow:"hidden",cursor:"pointer"},
     grid:{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(290px,1fr))",gap:14},
@@ -133,8 +132,8 @@ function App(){
       {/* HERO */}
       {tab==="browse"&&(
         <div style={S.hero}>
-          <div style={{display:"inline-block",background:"#FF6B2B22",border:"1px solid #FF6B2B44",color:C.accent,padding:"3px 12px",borderRadius:20,fontSize:9,fontWeight:700,letterSpacing:2,textTransform:"uppercase",marginBottom:12}}>🇮🇳 India's Own Rental Platform</div>
-          <div style={{fontSize:32,fontWeight:900,background:"linear-gradient(135deg,#fff,#aaa)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent",lineHeight:1.1}}>अपना घर खोजें</div>
+          <div style={{display:"inline-block",background:"#6B908022",border:"1px solid #6B908044",color:C.accent,padding:"3px 12px",borderRadius:20,fontSize:9,fontWeight:700,letterSpacing:2,textTransform:"uppercase",marginBottom:12}}>🇮🇳 India's Own Rental Platform</div>
+          <div style={{fontSize:32,fontWeight:900,background:"linear-gradient(135deg,#3A3A3A,#6B6B6B)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent",lineHeight:1.1}}>अपना घर खोजें</div>
           <div style={{fontSize:24,fontWeight:900,background:`linear-gradient(135deg,${C.accent},${C.accentG})`,WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent",marginBottom:8}}>Find Your Perfect Room</div>
           <div style={{fontSize:12,color:C.muted,marginBottom:22}}>Direct from owners • No broker fee • Firebase powered</div>
           <div style={{display:"flex",gap:5,maxWidth:500,margin:"0 auto 18px",background:C.surface,borderRadius:11,padding:4,border:`1px solid ${C.border}`}}>
@@ -159,7 +158,7 @@ function App(){
           <div style={{display:"flex",gap:5,marginBottom:18,flexWrap:"wrap",alignItems:"center"}}>
             <span style={{fontSize:10,color:C.muted,fontWeight:700,textTransform:"uppercase",letterSpacing:1}}>Filter:</span>
             {[{id:"all",label:"All / सभी"},...ROOM_TYPES].map(f=>(
-              <button key={f.id} onClick={()=>setFilter(f.id)} style={{padding:"5px 12px",borderRadius:18,border:`1px solid ${filter===f.id?C.accent:C.border}`,background:filter===f.id?"#FF6B2B22":C.surface,color:filter===f.id?C.accent:C.muted,cursor:"pointer",fontSize:11,fontWeight:600}}>
+              <button key={f.id} onClick={()=>setFilter(f.id)} style={{padding:"5px 12px",borderRadius:18,border:`1px solid ${filter===f.id?C.accent:C.border}`,background:filter===f.id?"#6B908022":C.surface,color:filter===f.id?C.accent:C.muted,cursor:"pointer",fontSize:11,fontWeight:600}}>
                 {f.icon?f.icon+" ":""}{f.label}
               </button>
             ))}
@@ -182,7 +181,7 @@ function App(){
               <div style={S.grid}>
                 {filtered.map(l=>(
                   <div key={l.id} style={S.card} onClick={()=>setSelected(l)}>
-                    <div style={{height:150,display:"flex",alignItems:"center",justifyContent:"center",fontSize:40,background:"linear-gradient(135deg,#1A1A1A,#0D0D0D)"}}>
+                    <div style={{height:150,display:"flex",alignItems:"center",justifyContent:"center",fontSize:40,background:"linear-gradient(135deg,#FFFFFF,#F7F5F0)"}}>
                       {l.icon||rl(l.roomType)?.icon||"🏠"}
                     </div>
                     <div style={{padding:13}}>
@@ -219,7 +218,7 @@ function App(){
                             <div style={{fontSize:9,color:C.muted}}>Owner</div>
                           </div>
                         </div>
-                        <button style={{background:"#2ECC7122",border:"1px solid #2ECC7144",color:C.green,padding:"4px 11px",borderRadius:7,fontSize:10,fontWeight:700,cursor:"pointer"}} onClick={e=>{e.stopPropagation();window.open(`tel:${l.phone}`);}}>📞 Call</button>
+                        <button style={{background:"#58815722",border:"1px solid #58815744",color:C.green,padding:"4px 11px",borderRadius:7,fontSize:10,fontWeight:700,cursor:"pointer"}} onClick={e=>{e.stopPropagation();window.open(`tel:${l.phone}`);}}>📞 Call</button>
                       </div>
                     </div>
                   </div>
@@ -328,7 +327,7 @@ function App(){
 
       {/* MODAL */}
       {selected&&(
-        <div style={{position:"fixed",inset:0,background:"#000C",backdropFilter:"blur(5px)",zIndex:200,display:"flex",alignItems:"center",justifyContent:"center",padding:14}} onClick={()=>setSelected(null)}>
+        <div style={{position:"fixed",inset:0,background:"#00000055",backdropFilter:"blur(5px)",zIndex:200,display:"flex",alignItems:"center",justifyContent:"center",padding:14}} onClick={()=>setSelected(null)}>
           <div style={{background:C.surface,borderRadius:16,border:`1px solid ${C.border}`,padding:20,maxWidth:480,width:"100%",maxHeight:"90vh",overflowY:"auto"}} onClick={e=>e.stopPropagation()}>
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
               <div>
@@ -337,7 +336,7 @@ function App(){
               </div>
               <button style={{background:C.card,border:"none",color:C.muted,width:28,height:28,borderRadius:7,cursor:"pointer",fontSize:13}} onClick={()=>setSelected(null)}>✕</button>
             </div>
-            <div style={{fontSize:38,textAlign:"center",padding:"14px 0",background:"linear-gradient(135deg,#1A1A1A,#0D0D0D)",borderRadius:9,marginBottom:12}}>{selected.icon||rl(selected.roomType)?.icon||"🏠"}</div>
+            <div style={{fontSize:38,textAlign:"center",padding:"14px 0",background:"linear-gradient(135deg,#FFFFFF,#F7F5F0)",borderRadius:9,marginBottom:12}}>{selected.icon||rl(selected.roomType)?.icon||"🏠"}</div>
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
               <div>
                 <div style={{fontSize:24,fontWeight:900,color:C.accentG}}>₹{Number(selected.price).toLocaleString()}</div>
@@ -360,13 +359,13 @@ function App(){
                 <div><div style={{fontWeight:700,fontSize:13}}>{selected.ownerName}</div><div style={{fontSize:11,color:C.muted}}>📞 {selected.phone}</div></div>
               </div>
             </div>
-            <button style={{width:"100%",padding:"12px",background:"#2ECC7122",border:"1px solid #2ECC7155",color:C.green,borderRadius:9,fontSize:13,fontWeight:800,cursor:"pointer"}} onClick={()=>window.open(`tel:${selected.phone}`)}>📞 Call Owner / मालिक को कॉल करें</button>
+            <button style={{width:"100%",padding:"12px",background:"#58815722",border:"1px solid #58815755",color:C.green,borderRadius:9,fontSize:13,fontWeight:800,cursor:"pointer"}} onClick={()=>window.open(`tel:${selected.phone}`)}>📞 Call Owner / मालिक को कॉल करें</button>
             <button style={{width:"100%",padding:"12px",background:"#25D36622",border:"1px solid #25D36644",color:"#25D366",borderRadius:9,fontSize:13,fontWeight:800,cursor:"pointer",marginTop:7}} onClick={()=>window.open(`https://wa.me/91${selected.phone}`)}>💬 WhatsApp Owner</button>
           </div>
         </div>
       )}
 
-      {toast&&<div style={{position:"fixed",bottom:18,right:18,background:toast.type==="err"?"#E74C3C":C.green,color:"#fff",padding:"10px 16px",borderRadius:9,fontWeight:700,fontSize:12,zIndex:999,boxShadow:"0 4px 20px #0008",maxWidth:300}}>{toast.text}</div>}
+      {toast&&<div style={{position:"fixed",bottom:18,right:18,background:toast.type==="err"?"#E74C3C":C.green,color:"#fff",padding:"10px 16px",borderRadius:9,fontWeight:700,fontSize:12,zIndex:999,boxShadow:"0 4px 20px #00000022",maxWidth:300}}>{toast.text}</div>}
     </div>
   );
 }
@@ -375,5 +374,3 @@ ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
 </script>
 </body>
 </html>
-HTMLEOF
-echo "Done - $(wc -c < /mnt/user-data/outputs/index.html) bytes"
