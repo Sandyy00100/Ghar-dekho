@@ -34,14 +34,16 @@ const ROOM_TYPES=[{id:"single",icon:"🛏️",label:"Single Room",hi:"एकल 
 const AMENITIES=[{id:"wifi",icon:"📶",label:"WiFi"},{id:"ac",icon:"❄️",label:"AC"},{id:"parking",icon:"🚗",label:"Parking"},{id:"geyser",icon:"🚿",label:"Geyser"},{id:"fridge",icon:"🧊",label:"Fridge"},{id:"washing",icon:"🫧",label:"Washing Machine"},{id:"gas",icon:"🍳",label:"Gas Stove"},{id:"cctv",icon:"📹",label:"CCTV"},{id:"lift",icon:"🛗",label:"Lift"},{id:"power",icon:"⚡",label:"Power Backup"},{id:"garden",icon:"🌿",label:"Garden"},{id:"guard",icon:"💂",label:"Security Guard"}];
 const TENANT_TYPES=[{id:"family",icon:"👨‍👩‍👧",label:"Family Only",hi:"सिर्फ परिवार"},{id:"single_male",icon:"👨",label:"Single Male",hi:"अकेला पुरुष"},{id:"single_female",icon:"👩",label:"Single Female",hi:"अकेली महिला"},{id:"working",icon:"💼",label:"Working Professional",hi:"कामकाजी"},{id:"student",icon:"📚",label:"Student",hi:"छात्र"},{id:"any",icon:"🤝",label:"Anyone Welcome",hi:"सभी स्वागत"}];
 const DOCS=[{id:"aadhar",icon:"🪪",label:"Aadhar Card"},{id:"pan",icon:"📄",label:"PAN Card"},{id:"agreement",icon:"📝",label:"Rent Agreement"},{id:"police",icon:"👮",label:"Police Verification"},{id:"employment",icon:"💼",label:"Employment Proof"},{id:"photo",icon:"📸",label:"Passport Photo"}];
+const LIBRARY_GUIDES=[{icon:"📝",title:"Rental Agreement Basics",titleHi:"किराया अनुबंध",desc:"What every rent agreement should include, and red flags to watch for."},{icon:"💰",title:"Budgeting for Your First Home",titleHi:"बजट बनाना",desc:"How much rent or EMI you can realistically afford."},{icon:"⚖️",title:"Tenant Rights in India",titleHi:"किरायेदार अधिकार",desc:"Security deposit rules, eviction notice periods, and your basic rights."},{icon:"🏦",title:"Home Loan Basics",titleHi:"होम लोन",desc:"How home loans work if you\u2019re planning to buy."}];
 const RC={single:"#6B9080","1bhk":"#B08968","2bhk":"#588157","3bhk":"#3498DB",pg:"#9B59B6",flat:"#E74C3C"};
 const rl=id=>ROOM_TYPES.find(r=>r.id===id);
 const al=id=>AMENITIES.find(a=>a.id===id);
 const tl=id=>TENANT_TYPES.find(t=>t.id===id)?.label||id;
-const EMPTY={title:"",titleHi:"",location:"",area:"",roomType:"",price:"",floor:"",bathrooms:"1",furnished:"Unfurnished",kitchen:false,tenantType:"",amenities:[],docs:[],ownerName:"",phone:"",available:""};
+const EMPTY={title:"",titleHi:"",location:"",area:"",roomType:"",price:"",floor:"",bathrooms:"1",furnished:"Unfurnished",kitchen:false,tenantType:"",amenities:[],docs:[],ownerName:"",phone:"",available:"",category:"rent"};
 
 function App(){
   const[tab,setTab]=useState("browse");
+  const[section,setSection]=useState("rent");
   const[listings,setListings]=useState([]);
   const[loading,setLoading]=useState(true);
   const[posting,setPosting]=useState(false);
@@ -66,9 +68,10 @@ function App(){
   };
 
   useEffect(()=>{load();},[]);
+  useEffect(()=>{if(tab==="post"&&(section==="rent"||section==="buy"))upd("category",section);},[tab,section]);
 
   const submit=async()=>{
-    if(!form.title||!form.location||!form.roomType||!form.price||!form.ownerName||!form.phone){msg("⚠️ Fill all required fields","err");return;}
+    if(!form.title||!form.location||(form.category!=="library"&&!form.roomType)||!form.price||!form.ownerName||!form.phone){msg("⚠️ Fill all required fields","err");return;}
     setPosting(true);
     try{
       const res=await fetch(`${BASE}/listings?key=${KEY}`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(toFS({...form,price:Number(form.price),bathrooms:Number(form.bathrooms),icon:rl(form.roomType)?.icon||"🏠",createdAt:new Date().toISOString()}))});
@@ -80,7 +83,8 @@ function App(){
 
   const filtered=listings.filter(l=>{
     const q=search.toLowerCase();
-    return(!q||[l.title,l.location,l.area].some(s=>(s||"").toLowerCase().includes(q)))&&(filter==="all"||l.roomType===filter);
+    const cat=l.category||"rent";
+    return cat===section&&(!q||[l.title,l.location,l.area].some(s=>(s||"").toLowerCase().includes(q)))&&(filter==="all"||l.roomType===filter);
   });
 
   const S={
@@ -119,12 +123,14 @@ function App(){
               <div style={{fontSize:9,color:C.muted,letterSpacing:2}}>घर देखो • REAL LISTINGS</div>
             </div>
           </div>
-          <div style={{display:"flex",gap:6,alignItems:"center"}}>
+          <div style={{display:"flex",gap:6,alignItems:"center",flexWrap:"wrap"}}>
             <div style={S.live}>🔴 LIVE</div>
             <div style={S.navTabs}>
-              <button style={S.navTab(tab==="browse")} onClick={()=>setTab("browse")}>🔍 Browse</button>
-              <button style={S.navTab(tab==="post")} onClick={()=>setTab("post")}>➕ Post</button>
+              <button style={S.navTab(section==="rent"&&tab==="browse")} onClick={()=>{setSection("rent");setTab("browse");}}>🏡 Rent</button>
+              <button style={S.navTab(section==="buy"&&tab==="browse")} onClick={()=>{setSection("buy");setTab("browse");}}>🏠 Buy</button>
+              <button style={S.navTab(section==="library"&&tab==="browse")} onClick={()=>{setSection("library");setTab("browse");}}>📚 Library</button>
             </div>
+            <button style={{padding:"6px 13px",borderRadius:7,border:`1px solid ${C.border}`,cursor:"pointer",fontSize:11,fontWeight:700,background:tab==="post"?`linear-gradient(135deg,${C.accent},${C.accentG})`:C.card,color:tab==="post"?"#fff":C.muted}} onClick={()=>setTab("post")}>➕ Post</button>
           </div>
         </div>
       </header>
@@ -132,9 +138,9 @@ function App(){
       {/* HERO */}
       {tab==="browse"&&(
         <div style={S.hero}>
-          <div style={{display:"inline-block",background:"#6B908022",border:"1px solid #6B908044",color:C.accent,padding:"3px 12px",borderRadius:20,fontSize:9,fontWeight:700,letterSpacing:2,textTransform:"uppercase",marginBottom:12}}>🇮🇳 India's Own Rental Platform</div>
+          <div style={{display:"inline-block",background:"#6B908022",border:"1px solid #6B908044",color:C.accent,padding:"3px 12px",borderRadius:20,fontSize:9,fontWeight:700,letterSpacing:2,textTransform:"uppercase",marginBottom:12}}>🇮🇳 India's Own {section==="buy"?"Home Buying":section==="library"?"Study Space":"Rental"} Platform</div>
           <div style={{fontSize:32,fontWeight:900,background:"linear-gradient(135deg,#3A3A3A,#6B6B6B)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent",lineHeight:1.1}}>अपना घर खोजें</div>
-          <div style={{fontSize:24,fontWeight:900,background:`linear-gradient(135deg,${C.accent},${C.accentG})`,WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent",marginBottom:8}}>Find Your Perfect Room</div>
+          <div style={{fontSize:24,fontWeight:900,background:`linear-gradient(135deg,${C.accent},${C.accentG})`,WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent",marginBottom:8}}>{section==="buy"?"Find Your Perfect Home to Buy":section==="library"?"Find a Study Space Near You":"Find Your Perfect Room"}</div>
           <div style={{fontSize:12,color:C.muted,marginBottom:22}}>Direct from owners • No broker fee • Firebase powered</div>
           <div style={{display:"flex",gap:5,maxWidth:500,margin:"0 auto 18px",background:C.surface,borderRadius:11,padding:4,border:`1px solid ${C.border}`}}>
             <span style={{color:C.muted,padding:"8px 6px 8px 10px"}}>🔍</span>
@@ -142,7 +148,7 @@ function App(){
             <button style={{background:`linear-gradient(135deg,${C.accent},${C.accentG})`,border:"none",borderRadius:8,padding:"8px 14px",color:"#fff",fontWeight:700,cursor:"pointer",fontSize:12}} onClick={load}>🔄</button>
           </div>
           <div style={{display:"flex",justifyContent:"center",gap:24,flexWrap:"wrap"}}>
-            {[[listings.length,"Live Rooms"],["₹0","Broker Fee"],["24/7","Available"]].map(([v,l],i)=>(
+            {[[filtered.length,section==="buy"?"Homes for Sale":section==="library"?"Study Spaces":"Live Rooms"],["₹0","Broker Fee"],["24/7","Available"]].map(([v,l],i)=>(
               <div key={i} style={{textAlign:"center"}}>
                 <div style={{fontSize:20,fontWeight:800,color:C.accent}}>{v}</div>
                 <div style={{fontSize:10,color:C.muted,textTransform:"uppercase",letterSpacing:1}}>{l}</div>
@@ -153,8 +159,24 @@ function App(){
       )}
 
       <main style={{maxWidth:1100,margin:"0 auto",padding:"22px 14px"}}>
-        {/* BROWSE */}
+        {/* BROWSE - RENT/BUY */}
         {tab==="browse"&&(<>
+          {section==="library"&&(
+            <div style={{marginBottom:22}}>
+              <div style={S.secTitle}>📖 Self-Study Guides</div>
+              <div style={S.grid}>
+                {LIBRARY_GUIDES.map((g,i)=>(
+                  <div key={i} style={{...S.card,cursor:"default",padding:16}}>
+                    <div style={{fontSize:28,marginBottom:8}}>{g.icon}</div>
+                    <div style={{fontSize:13,fontWeight:700,marginBottom:2}}>{g.title}</div>
+                    <div style={{fontSize:10,color:C.muted,marginBottom:6}}>{g.titleHi}</div>
+                    <div style={{fontSize:11,color:C.muted,lineHeight:1.4}}>{g.desc}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+          {section!=="library"&&(
           <div style={{display:"flex",gap:5,marginBottom:18,flexWrap:"wrap",alignItems:"center"}}>
             <span style={{fontSize:10,color:C.muted,fontWeight:700,textTransform:"uppercase",letterSpacing:1}}>Filter:</span>
             {[{id:"all",label:"All / सभी"},...ROOM_TYPES].map(f=>(
@@ -163,6 +185,8 @@ function App(){
               </button>
             ))}
           </div>
+          )}
+          {section==="library"&&<div style={S.secTitle}>📍 Available Study Spaces</div>}
           {loading?(
             <div style={{textAlign:"center",padding:"60px 20px",color:C.muted}}>
               <div style={{fontSize:36,marginBottom:12}}>🏠</div>
@@ -182,7 +206,7 @@ function App(){
                 {filtered.map(l=>(
                   <div key={l.id} style={S.card} onClick={()=>setSelected(l)}>
                     <div style={{height:150,display:"flex",alignItems:"center",justifyContent:"center",fontSize:40,background:"linear-gradient(135deg,#FFFFFF,#F7F5F0)"}}>
-                      {l.icon||rl(l.roomType)?.icon||"🏠"}
+                      {l.icon||rl(l.roomType)?.icon||(l.category==="library"?"📚":"🏠")}
                     </div>
                     <div style={{padding:13}}>
                       <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:5}}>
@@ -191,12 +215,12 @@ function App(){
                           {l.titleHi&&<div style={{fontSize:10,color:C.muted}}>{l.titleHi}</div>}
                           <div style={{fontSize:10,color:C.muted,marginTop:2}}>📍 {l.area?l.area+", ":""}{l.location}</div>
                         </div>
-                        <div style={S.badge(RC[l.roomType]||C.accent)}>{rl(l.roomType)?.label}</div>
+                        <div style={S.badge(RC[l.roomType]||C.accent)}>{l.category==="library"?"Study Space":rl(l.roomType)?.label}</div>
                       </div>
                       <div style={{display:"flex",justifyContent:"space-between",margin:"7px 0"}}>
                         <div>
                           <div style={{fontSize:17,fontWeight:800,color:C.accentG}}>₹{Number(l.price).toLocaleString()}</div>
-                          <div style={{fontSize:10,color:C.muted}}>per month</div>
+                          <div style={{fontSize:10,color:C.muted}}>{(l.category||"rent")==="buy"?"total price":l.category==="library"?"per seat / month":"per month"}</div>
                         </div>
                         <div style={{textAlign:"right"}}>
                           <div style={{fontSize:10,color:C.muted}}>Available</div>
@@ -228,14 +252,23 @@ function App(){
           )}
         </>)}
 
-        {/* POST FORM */}
+        {/* POST FORM - PROPERTY (rent/buy/library) */}
         {tab==="post"&&(
           <div style={{maxWidth:700,margin:"0 auto"}}>
             <div style={{marginBottom:18}}>
-              <div style={{fontSize:17,fontWeight:800,marginBottom:3}}>Post Your Room / कमरा पोस्ट करें</div>
+              <div style={{fontSize:17,fontWeight:800,marginBottom:3}}>{form.category==="buy"?"Post Your Property for Sale":form.category==="library"?"Post Your Study Space":"Post Your Room"} / पोस्ट करें</div>
               <div style={{fontSize:11,color:C.muted}}>Free • No broker • Saved to Firebase</div>
             </div>
             <div style={{background:C.surface,borderRadius:15,border:`1px solid ${C.border}`,padding:18}}>
+
+              <div style={{marginBottom:20,paddingBottom:20,borderBottom:`1px solid ${C.border}`}}>
+                <div style={S.secTitle}>🏷️ Listing Type</div>
+                <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+                  <button style={{flex:1,minWidth:100,padding:"10px",borderRadius:9,border:`2px solid ${form.category==="rent"?C.accent:C.border}`,background:form.category==="rent"?"#6B908022":C.card,color:form.category==="rent"?C.accent:C.muted,fontWeight:700,cursor:"pointer",fontSize:12}} onClick={()=>upd("category","rent")}>🏡 For Rent</button>
+                  <button style={{flex:1,minWidth:100,padding:"10px",borderRadius:9,border:`2px solid ${form.category==="buy"?C.accent:C.border}`,background:form.category==="buy"?"#6B908022":C.card,color:form.category==="buy"?C.accent:C.muted,fontWeight:700,cursor:"pointer",fontSize:12}} onClick={()=>upd("category","buy")}>🏠 For Sale</button>
+                  <button style={{flex:1,minWidth:100,padding:"10px",borderRadius:9,border:`2px solid ${form.category==="library"?C.accent:C.border}`,background:form.category==="library"?"#6B908022":C.card,color:form.category==="library"?C.accent:C.muted,fontWeight:700,cursor:"pointer",fontSize:12}} onClick={()=>upd("category","library")}>📚 Study Space</button>
+                </div>
+              </div>
 
               <div style={{marginBottom:20,paddingBottom:20,borderBottom:`1px solid ${C.border}`}}>
                 <div style={S.secTitle}>📋 Basic Details / मूल जानकारी</div>
@@ -249,6 +282,7 @@ function App(){
                 </div>
               </div>
 
+              {form.category!=="library"&&(
               <div style={{marginBottom:20,paddingBottom:20,borderBottom:`1px solid ${C.border}`}}>
                 <div style={S.secTitle}>🏠 Room Type *</div>
                 <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(100px,1fr))",gap:7}}>
@@ -261,8 +295,9 @@ function App(){
                   ))}
                 </div>
               </div>
+              )}
 
-              {form.roomType==="single"&&(
+              {form.category!=="library"&&form.roomType==="single"&&(
                 <div style={{marginBottom:20,paddingBottom:20,borderBottom:`1px solid ${C.border}`}}>
                   <div style={{...S.secTitle,color:C.accentG}}>👥 Preferred Tenant *</div>
                   <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(100px,1fr))",gap:7}}>
@@ -277,10 +312,21 @@ function App(){
                 </div>
               )}
 
+              {form.category==="library"?(
+              <div style={{marginBottom:20,paddingBottom:20,borderBottom:`1px solid ${C.border}`}}>
+                <div style={S.secTitle}>📐 Study Space Details</div>
+                <div style={S.row2}>
+                  <div><div style={S.lbl}>Monthly Fee ₹ (per seat) *</div><input style={S.inp} type="number" placeholder="e.g. 1200" value={form.price} onChange={e=>upd("price",e.target.value)}/></div>
+                  <div><div style={S.lbl}>Total Seats</div><input style={S.inp} type="number" placeholder="e.g. 30" value={form.bathrooms} onChange={e=>upd("bathrooms",e.target.value)}/></div>
+                </div>
+                <div style={S.lbl}>Timings</div>
+                <input style={S.inp} placeholder="e.g. 6 AM - 10 PM" value={form.available} onChange={e=>upd("available",e.target.value)}/>
+              </div>
+              ):(
               <div style={{marginBottom:20,paddingBottom:20,borderBottom:`1px solid ${C.border}`}}>
                 <div style={S.secTitle}>📐 Room Details</div>
                 <div style={S.row2}>
-                  <div><div style={S.lbl}>Monthly Rent ₹ *</div><input style={S.inp} type="number" placeholder="e.g. 8000" value={form.price} onChange={e=>upd("price",e.target.value)}/></div>
+                  <div><div style={S.lbl}>{form.category==="buy"?"Sale Price ₹ *":"Monthly Rent ₹ *"}</div><input style={S.inp} type="number" placeholder={form.category==="buy"?"e.g. 2500000":"e.g. 8000"} value={form.price} onChange={e=>upd("price",e.target.value)}/></div>
                   <div><div style={S.lbl}>Furnished</div><select style={S.sel} value={form.furnished} onChange={e=>upd("furnished",e.target.value)}><option>Unfurnished</option><option>Semi-Furnished</option><option>Fully Furnished</option></select></div>
                 </div>
                 <div style={S.row2}>
@@ -294,20 +340,25 @@ function App(){
                 <div style={S.lbl}>Available From</div>
                 <input style={S.inp} placeholder="Immediate / 1 August 2026" value={form.available} onChange={e=>upd("available",e.target.value)}/>
               </div>
+              )}
 
+              {form.category!=="library"&&(
               <div style={{marginBottom:20,paddingBottom:20,borderBottom:`1px solid ${C.border}`}}>
                 <div style={S.secTitle}>✨ Amenities / सुविधाएं</div>
                 <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
                   {AMENITIES.map(a=><button key={a.id} style={S.chip(form.amenities.includes(a.id))} onClick={()=>tog("amenities",a.id)}>{a.icon} {a.label}</button>)}
                 </div>
               </div>
+              )}
 
+              {form.category!=="library"&&(
               <div style={{marginBottom:20,paddingBottom:20,borderBottom:`1px solid ${C.border}`}}>
                 <div style={{...S.secTitle,color:C.accentG}}>📄 Required Documents</div>
                 <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
                   {DOCS.map(d=><button key={d.id} style={S.chipG(form.docs.includes(d.id))} onClick={()=>tog("docs",d.id)}>{d.icon} {d.label}</button>)}
                 </div>
               </div>
+              )}
 
               <div style={{marginBottom:16}}>
                 <div style={S.secTitle}>👤 Owner Details *</div>
@@ -318,11 +369,12 @@ function App(){
               </div>
 
               <button disabled={posting} onClick={submit} style={{...S.submitBtn,opacity:posting?0.7:1,cursor:posting?"not-allowed":"pointer"}}>
-                {posting?"⏳ Posting...":"🏠 Post Room to Firebase / फायरबेस पर पोस्ट करें"}
+                {posting?"⏳ Posting...":(form.category==="buy"?"🏠 Post Property to Firebase":form.category==="library"?"📚 Post Study Space to Firebase":"🏠 Post Room to Firebase")+" / फायरबेस पर पोस्ट करें"}
               </button>
             </div>
           </div>
         )}
+
       </main>
 
       {/* MODAL */}
