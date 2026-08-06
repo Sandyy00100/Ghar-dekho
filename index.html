@@ -39,7 +39,7 @@ const RC={single:"#6B9080","1bhk":"#B08968","2bhk":"#588157","3bhk":"#3498DB",pg
 const rl=id=>ROOM_TYPES.find(r=>r.id===id);
 const al=id=>AMENITIES.find(a=>a.id===id);
 const tl=id=>TENANT_TYPES.find(t=>t.id===id)?.label||id;
-const EMPTY={title:"",titleHi:"",location:"",area:"",roomType:"",price:"",floor:"",bathrooms:"1",furnished:"Unfurnished",kitchen:false,tenantType:"",amenities:[],docs:[],ownerName:"",phone:"",available:"",category:"rent"};
+const EMPTY={title:"",titleHi:"",location:"",area:"",pincode:"",roomType:"",price:"",floor:"",bathrooms:"1",furnished:"Unfurnished",kitchen:false,tenantType:"",amenities:[],docs:[],ownerName:"",phone:"",available:"",category:"rent"};
 
 function App(){
   const[tab,setTab]=useState("browse");
@@ -56,6 +56,36 @@ function App(){
   const msg=(text,type="ok")=>{setToast({text,type});setTimeout(()=>setToast(null),3500);};
   const upd=(k,v)=>setForm(f=>({...f,[k]:v}));
   const tog=(k,id)=>setForm(f=>({...f,[k]:f[k].includes(id)?f[k].filter(x=>x!==id):[...f[k],id]}));
+
+  const[pinStatus,setPinStatus]=useState("idle");
+  const[pinOffices,setPinOffices]=useState([]);
+
+  const lookupPincode=async(pin)=>{
+    if(!/^[0-9]{6}$/.test(pin)){setPinStatus("idle");setPinOffices([]);return;}
+    setPinStatus("loading");
+    try{
+      const res=await fetch(`https://api.postalpincode.in/pincode/${pin}`);
+      const data=await res.json();
+      const rec=data&&data[0];
+      if(rec&&rec.Status==="Success"&&rec.PostOffice&&rec.PostOffice.length>0){
+        const offices=rec.PostOffice;
+        const first=offices[0];
+        upd("location",`${first.District}, ${first.State}`);
+        upd("area",first.Name);
+        setPinOffices(offices.map(o=>o.Name));
+        setPinStatus("ok");
+      }else{
+        setPinStatus("err");setPinOffices([]);
+      }
+    }catch(e){setPinStatus("err");setPinOffices([]);}
+  };
+
+  const updPincode=(v)=>{
+    const digits=v.replace(/[^0-9]/g,"").slice(0,6);
+    upd("pincode",digits);
+    if(digits.length===6)lookupPincode(digits);
+    else{setPinStatus("idle");setPinOffices([]);}
+  };
 
   const load=async()=>{
     setLoading(true);
@@ -213,7 +243,7 @@ function App(){
                         <div>
                           <div style={{fontSize:13,fontWeight:700}}>{l.title}</div>
                           {l.titleHi&&<div style={{fontSize:10,color:C.muted}}>{l.titleHi}</div>}
-                          <div style={{fontSize:10,color:C.muted,marginTop:2}}>📍 {l.area?l.area+", ":""}{l.location}</div>
+                          <div style={{fontSize:10,color:C.muted,marginTop:2}}>📍 {l.area?l.area+", ":""}{l.location}{l.pincode?` - ${l.pincode}`:""}</div>
                         </div>
                         <div style={S.badge(RC[l.roomType]||C.accent)}>{l.category==="library"?"Study Space":rl(l.roomType)?.label}</div>
                       </div>
@@ -277,9 +307,23 @@ function App(){
                   <div><div style={S.lbl}>Title (Hindi)</div><input style={S.inp} placeholder="जैसे: बाज़ार के पास कमरा" value={form.titleHi} onChange={e=>upd("titleHi",e.target.value)}/></div>
                 </div>
                 <div style={S.row2}>
-                  <div><div style={S.lbl}>City / शहर *</div><input style={S.inp} placeholder="e.g. Bhopal, MP" value={form.location} onChange={e=>upd("location",e.target.value)}/></div>
-                  <div><div style={S.lbl}>Area / मोहल्ला</div><input style={S.inp} placeholder="e.g. Arera Colony" value={form.area} onChange={e=>upd("area",e.target.value)}/></div>
+                  <div>
+                    <div style={S.lbl}>PIN Code / पिन कोड</div>
+                    <input style={S.inp} type="tel" placeholder="e.g. 462001" value={form.pincode} onChange={e=>updPincode(e.target.value)}/>
+                    {pinStatus==="loading"&&<div style={{fontSize:10,color:C.muted,marginTop:4}}>🔄 Looking up...</div>}
+                    {pinStatus==="ok"&&<div style={{fontSize:10,color:C.green,marginTop:4}}>✅ Found — check City/Area below</div>}
+                    {pinStatus==="err"&&<div style={{fontSize:10,color:"#E74C3C",marginTop:4}}>❌ Invalid PIN, fill City/Area manually</div>}
+                  </div>
+                  <div><div style={S.lbl}>City / District *</div><input style={S.inp} placeholder="e.g. Bhopal, MP" value={form.location} onChange={e=>upd("location",e.target.value)}/></div>
                 </div>
+                <div style={S.lbl}>Area / Locality</div>
+                {pinOffices.length>1?(
+                  <select style={S.sel} value={form.area} onChange={e=>upd("area",e.target.value)}>
+                    {pinOffices.map(o=><option key={o}>{o}</option>)}
+                  </select>
+                ):(
+                  <input style={S.inp} placeholder="e.g. Arera Colony" value={form.area} onChange={e=>upd("area",e.target.value)}/>
+                )}
               </div>
 
               {form.category!=="library"&&(
@@ -395,7 +439,7 @@ function App(){
               <div style={S.badge(RC[selected.roomType]||C.accent)}>{selected.category==="library"?"📚 Study Space":`${rl(selected.roomType)?.icon||""} ${rl(selected.roomType)?.label||""}`}</div>
             </div>
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:7,marginBottom:9}}>
-              {(selected.category==="library"?[["Location",`${selected.area?selected.area+", ":""}${selected.location}`],["Timings",selected.available||"Contact Owner"],["Total Seats",selected.bathrooms||"N/A"]]:[["Location",`${selected.area?selected.area+", ":""}${selected.location}`],["Available",selected.available||"Contact Owner"],["Floor",selected.floor||"N/A"],["Bathrooms",selected.bathrooms||"N/A"],["Kitchen",selected.kitchen?"✅ Yes":"❌ No"],["Furnished",selected.furnished||"N/A"]]).map(([l,v])=>(
+              {(selected.category==="library"?[["Location",`${selected.area?selected.area+", ":""}${selected.location}${selected.pincode?" - "+selected.pincode:""}`],["Timings",selected.available||"Contact Owner"],["Total Seats",selected.bathrooms||"N/A"]]:[["Location",`${selected.area?selected.area+", ":""}${selected.location}${selected.pincode?" - "+selected.pincode:""}`],["Available",selected.available||"Contact Owner"],["Floor",selected.floor||"N/A"],["Bathrooms",selected.bathrooms||"N/A"],["Kitchen",selected.kitchen?"✅ Yes":"❌ No"],["Furnished",selected.furnished||"N/A"]]).map(([l,v])=>(
                 <div key={l} style={S.dbx}><div style={{fontSize:9,color:C.muted,textTransform:"uppercase",letterSpacing:1,marginBottom:3,fontWeight:600}}>{l}</div><div style={{fontSize:12,fontWeight:500}}>{v}</div></div>
               ))}
             </div>
