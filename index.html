@@ -342,14 +342,12 @@ function App(){
               </div>
               )}
 
-              {form.category!=="library"&&(
               <div style={{marginBottom:20,paddingBottom:20,borderBottom:`1px solid ${C.border}`}}>
-                <div style={S.secTitle}>✨ Amenities / सुविधाएं</div>
+                <div style={S.secTitle}>{form.category==="library"?"✨ Study Features / सुविधाएं":"✨ Amenities / सुविधाएं"}</div>
                 <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
                   {AMENITIES.map(a=><button key={a.id} style={S.chip(form.amenities.includes(a.id))} onClick={()=>tog("amenities",a.id)}>{a.icon} {a.label}</button>)}
                 </div>
               </div>
-              )}
 
               {form.category!=="library"&&(
               <div style={{marginBottom:20,paddingBottom:20,borderBottom:`1px solid ${C.border}`}}>
@@ -392,12 +390,12 @@ function App(){
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
               <div>
                 <div style={{fontSize:24,fontWeight:900,color:C.accentG}}>₹{Number(selected.price).toLocaleString()}</div>
-                <div style={{fontSize:10,color:C.muted}}>per month / प्रति माह</div>
+                <div style={{fontSize:10,color:C.muted}}>{(selected.category||"rent")==="buy"?"total price":selected.category==="library"?"per seat / month":"per month"} / प्रति माह</div>
               </div>
-              <div style={S.badge(RC[selected.roomType]||C.accent)}>{rl(selected.roomType)?.icon} {rl(selected.roomType)?.label}</div>
+              <div style={S.badge(RC[selected.roomType]||C.accent)}>{selected.category==="library"?"📚 Study Space":`${rl(selected.roomType)?.icon||""} ${rl(selected.roomType)?.label||""}`}</div>
             </div>
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:7,marginBottom:9}}>
-              {[["Location",`${selected.area?selected.area+", ":""}${selected.location}`],["Available",selected.available||"Contact Owner"],["Floor",selected.floor||"N/A"],["Bathrooms",selected.bathrooms||"N/A"],["Kitchen",selected.kitchen?"✅ Yes":"❌ No"],["Furnished",selected.furnished||"N/A"]].map(([l,v])=>(
+              {(selected.category==="library"?[["Location",`${selected.area?selected.area+", ":""}${selected.location}`],["Timings",selected.available||"Contact Owner"],["Total Seats",selected.bathrooms||"N/A"]]:[["Location",`${selected.area?selected.area+", ":""}${selected.location}`],["Available",selected.available||"Contact Owner"],["Floor",selected.floor||"N/A"],["Bathrooms",selected.bathrooms||"N/A"],["Kitchen",selected.kitchen?"✅ Yes":"❌ No"],["Furnished",selected.furnished||"N/A"]]).map(([l,v])=>(
                 <div key={l} style={S.dbx}><div style={{fontSize:9,color:C.muted,textTransform:"uppercase",letterSpacing:1,marginBottom:3,fontWeight:600}}>{l}</div><div style={{fontSize:12,fontWeight:500}}>{v}</div></div>
               ))}
             </div>
