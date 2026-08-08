@@ -39,7 +39,10 @@ const RC={single:"#6B9080","1bhk":"#B08968","2bhk":"#588157","3bhk":"#3498DB",pg
 const rl=id=>ROOM_TYPES.find(r=>r.id===id);
 const al=id=>AMENITIES.find(a=>a.id===id);
 const tl=id=>TENANT_TYPES.find(t=>t.id===id)?.label||id;
-const EMPTY={title:"",titleHi:"",location:"",area:"",pincode:"",roomType:"",price:"",floor:"",bathrooms:"1",furnished:"Unfurnished",kitchen:false,tenantType:"",amenities:[],docs:[],ownerName:"",phone:"",available:"",category:"rent"};
+const CLOUD_NAME="xwzoozmh";
+const UPLOAD_PRESET="ghar.dekho.photos";
+const CLOUDINARY_URL=`https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`;
+const EMPTY={title:"",titleHi:"",location:"",area:"",pincode:"",roomType:"",price:"",floor:"",bathrooms:"1",furnished:"Unfurnished",kitchen:false,tenantType:"",amenities:[],docs:[],ownerName:"",phone:"",available:"",category:"rent",photos:[]};
 
 function App(){
   const[tab,setTab]=useState("browse");
@@ -56,6 +59,66 @@ function App(){
   const msg=(text,type="ok")=>{setToast({text,type});setTimeout(()=>setToast(null),3500);};
   const upd=(k,v)=>setForm(f=>({...f,[k]:v}));
   const tog=(k,id)=>setForm(f=>({...f,[k]:f[k].includes(id)?f[k].filter(x=>x!==id):[...f[k],id]}));
+
+  const[uploadingPhotos,setUploadingPhotos]=useState(false);
+  const[photoProgress,setPhotoProgress]=useState("");
+
+  const compressImage=(file)=>new Promise((resolve,reject)=>{
+    const reader=new FileReader();
+    reader.onload=(e)=>{
+      const img=new Image();
+      img.onload=()=>{
+        const maxDim=1280;
+        let{width,height}=img;
+        if(width>maxDim||height>maxDim){
+          if(width>height){height=Math.round(height*maxDim/width);width=maxDim;}
+          else{width=Math.round(width*maxDim/height);height=maxDim;}
+        }
+        const canvas=document.createElement("canvas");
+        canvas.width=width;canvas.height=height;
+        canvas.getContext("2d").drawImage(img,0,0,width,height);
+        canvas.toBlob((blob)=>blob?resolve(blob):reject(new Error("Compression failed")),"image/jpeg",0.72);
+      };
+      img.onerror=()=>reject(new Error("Could not read image"));
+      img.src=e.target.result;
+    };
+    reader.onerror=()=>reject(new Error("Could not read file"));
+    reader.readAsDataURL(file);
+  });
+
+  const uploadToCloudinary=async(blob)=>{
+    const fd=new FormData();
+    fd.append("file",blob);
+    fd.append("upload_preset",UPLOAD_PRESET);
+    const res=await fetch(CLOUDINARY_URL,{method:"POST",body:fd});
+    const data=await res.json();
+    if(data.secure_url)return data.secure_url;
+    throw new Error(data.error?.message||"Upload failed");
+  };
+
+  const handlePhotoSelect=async(e)=>{
+    const files=Array.from(e.target.files||[]);
+    const remaining=10-form.photos.length;
+    const toUpload=files.slice(0,remaining);
+    if(files.length>remaining)msg(`Only ${remaining} more photo(s) allowed (max 10)`,"err");
+    if(toUpload.length===0){e.target.value="";return;}
+    setUploadingPhotos(true);
+    const newUrls=[];
+    for(let i=0;i<toUpload.length;i++){
+      setPhotoProgress(`Uploading ${i+1}/${toUpload.length}...`);
+      try{
+        const blob=await compressImage(toUpload[i]);
+        const url=await uploadToCloudinary(blob);
+        newUrls.push(url);
+      }catch(err){msg("❌ Photo upload failed: "+err.message,"err");}
+    }
+    if(newUrls.length>0)setForm(f=>({...f,photos:[...f.photos,...newUrls]}));
+    setUploadingPhotos(false);
+    setPhotoProgress("");
+    e.target.value="";
+  };
+
+  const removePhoto=(url)=>setForm(f=>({...f,photos:f.photos.filter(p=>p!==url)}));
 
   const[pinStatus,setPinStatus]=useState("idle");
   const[pinOffices,setPinOffices]=useState([]);
@@ -235,8 +298,13 @@ function App(){
               <div style={S.grid}>
                 {filtered.map(l=>(
                   <div key={l.id} style={S.card} onClick={()=>setSelected(l)}>
-                    <div style={{height:150,display:"flex",alignItems:"center",justifyContent:"center",fontSize:40,background:"linear-gradient(135deg,#FFFFFF,#F7F5F0)"}}>
-                      {l.icon||rl(l.roomType)?.icon||(l.category==="library"?"📚":"🏠")}
+                    <div style={{height:150,position:"relative",background:"linear-gradient(135deg,#FFFFFF,#F7F5F0)"}}>
+                      {l.photos&&l.photos.length>0?(
+                        <img src={l.photos[0]} style={{width:"100%",height:"100%",objectFit:"cover"}}/>
+                      ):(
+                        <div style={{height:"100%",display:"flex",alignItems:"center",justifyContent:"center",fontSize:40}}>{l.icon||rl(l.roomType)?.icon||(l.category==="library"?"📚":"🏠")}</div>
+                      )}
+                      {l.photos&&l.photos.length>1&&<div style={{position:"absolute",bottom:6,right:6,background:"#00000088",color:"#fff",fontSize:9,padding:"2px 7px",borderRadius:10}}>📷 +{l.photos.length-1}</div>}
                     </div>
                     <div style={{padding:13}}>
                       <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:5}}>
@@ -323,6 +391,26 @@ function App(){
                   </select>
                 ):(
                   <input style={S.inp} placeholder="e.g. Arera Colony" value={form.area} onChange={e=>upd("area",e.target.value)}/>
+                )}
+              </div>
+
+              <div style={{marginBottom:20,paddingBottom:20,borderBottom:`1px solid ${C.border}`}}>
+                <div style={S.secTitle}>📸 Photos (max 10)</div>
+                {form.photos.length>0&&(
+                  <div style={{display:"flex",flexWrap:"wrap",gap:8,marginBottom:10}}>
+                    {form.photos.map((url)=>(
+                      <div key={url} style={{position:"relative",width:68,height:68}}>
+                        <img src={url} style={{width:68,height:68,objectFit:"cover",borderRadius:8,border:`1px solid ${C.border}`}}/>
+                        <button onClick={()=>removePhoto(url)} style={{position:"absolute",top:-6,right:-6,width:20,height:20,borderRadius:"50%",background:"#E74C3C",color:"#fff",border:"none",fontSize:11,cursor:"pointer",lineHeight:1}}>✕</button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {form.photos.length<10&&(
+                  <label style={{display:"inline-block",padding:"9px 16px",background:C.card,border:`1px dashed ${C.border}`,borderRadius:9,cursor:uploadingPhotos?"not-allowed":"pointer",fontSize:12,color:C.muted}}>
+                    {uploadingPhotos?(photoProgress||"⏳ Uploading..."):`📷 Add Photos (${form.photos.length}/10)`}
+                    <input type="file" accept="image/*" multiple style={{display:"none"}} disabled={uploadingPhotos} onChange={handlePhotoSelect}/>
+                  </label>
                 )}
               </div>
 
@@ -430,7 +518,13 @@ function App(){
               </div>
               <button style={{background:C.card,border:"none",color:C.muted,width:28,height:28,borderRadius:7,cursor:"pointer",fontSize:13}} onClick={()=>setSelected(null)}>✕</button>
             </div>
-            <div style={{fontSize:38,textAlign:"center",padding:"14px 0",background:"linear-gradient(135deg,#FFFFFF,#F7F5F0)",borderRadius:9,marginBottom:12}}>{selected.icon||rl(selected.roomType)?.icon||"🏠"}</div>
+            {selected.photos&&selected.photos.length>0?(
+              <div style={{display:"flex",gap:6,overflowX:"auto",marginBottom:12,paddingBottom:2}}>
+                {selected.photos.map((url,i)=><img key={i} src={url} style={{width:110,height:110,objectFit:"cover",borderRadius:9,flexShrink:0,border:`1px solid ${C.border}`}}/>)}
+              </div>
+            ):(
+              <div style={{fontSize:38,textAlign:"center",padding:"14px 0",background:"linear-gradient(135deg,#FFFFFF,#F7F5F0)",borderRadius:9,marginBottom:12}}>{selected.icon||rl(selected.roomType)?.icon||"🏠"}</div>
+            )}
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
               <div>
                 <div style={{fontSize:24,fontWeight:900,color:C.accentG}}>₹{Number(selected.price).toLocaleString()}</div>
