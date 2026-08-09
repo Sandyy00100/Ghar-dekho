@@ -55,6 +55,10 @@ function App(){
   const[selected,setSelected]=useState(null);
   const[form,setForm]=useState(EMPTY);
   const[toast,setToast]=useState(null);
+  const[editingId,setEditingId]=useState(null);
+  const[lightbox,setLightbox]=useState(null);
+  const[myPhone,setMyPhone]=useState("");
+  const[myPhoneSearched,setMyPhoneSearched]=useState("");
 
   const msg=(text,type="ok")=>{setToast({text,type});setTimeout(()=>setToast(null),3500);};
   const upd=(k,v)=>setForm(f=>({...f,[k]:v}));
@@ -167,11 +171,29 @@ function App(){
     if(!form.title||!form.location||(form.category!=="library"&&!form.roomType)||!form.price||!form.ownerName||!form.phone){msg("⚠️ Fill all required fields","err");return;}
     setPosting(true);
     try{
-      const res=await fetch(`${BASE}/listings?key=${KEY}`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(toFS({...form,price:Number(form.price),bathrooms:Number(form.bathrooms),icon:rl(form.roomType)?.icon||"🏠",createdAt:new Date().toISOString()}))});
-      if(res.ok){msg("✅ Room posted! / कमरा पोस्ट हो गया!");setForm(EMPTY);setTab("browse");await load();}
+      const payload=toFS({...form,price:Number(form.price),bathrooms:Number(form.bathrooms),icon:rl(form.roomType)?.icon||"🏠",createdAt:new Date().toISOString()});
+      const url=editingId?`${BASE}/listings/${editingId}?key=${KEY}`:`${BASE}/listings?key=${KEY}`;
+      const res=await fetch(url,{method:editingId?"PATCH":"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});
+      if(res.ok){msg(editingId?"✅ Listing updated!":"✅ Room posted! / कमरा पोस्ट हो गया!");setForm(EMPTY);setEditingId(null);setTab("browse");await load();}
       else{const j=await res.json();msg("❌ "+( j.error?.message||"Post failed"),"err");}
     }catch(e){msg("❌ Network error: "+e.message,"err");}
     setPosting(false);
+  };
+
+  const startEdit=(listing)=>{
+    setForm({...EMPTY,...listing,amenities:listing.amenities||[],docs:listing.docs||[],photos:listing.photos||[]});
+    setEditingId(listing.id);
+    setSection(listing.category||"rent");
+    setTab("post");
+  };
+
+  const deleteListing=async(id)=>{
+    if(!window.confirm("Delete this listing permanently?"))return;
+    try{
+      const res=await fetch(`${BASE}/listings/${id}?key=${KEY}`,{method:"DELETE"});
+      if(res.ok){msg("🗑️ Listing deleted");await load();}
+      else msg("❌ Delete failed","err");
+    }catch(e){msg("❌ Network error: "+e.message,"err");}
   };
 
   const filtered=listings.filter(l=>{
@@ -223,7 +245,8 @@ function App(){
               <button style={S.navTab(section==="buy"&&tab==="browse")} onClick={()=>{setSection("buy");setTab("browse");}}>🏠 Buy</button>
               <button style={S.navTab(section==="library"&&tab==="browse")} onClick={()=>{setSection("library");setTab("browse");}}>📚 Library</button>
             </div>
-            <button style={{padding:"6px 13px",borderRadius:7,border:`1px solid ${C.border}`,cursor:"pointer",fontSize:11,fontWeight:700,background:tab==="post"?`linear-gradient(135deg,${C.accent},${C.accentG})`:C.card,color:tab==="post"?"#fff":C.muted}} onClick={()=>setTab("post")}>➕ Post</button>
+            <button style={{padding:"6px 13px",borderRadius:7,border:`1px solid ${C.border}`,cursor:"pointer",fontSize:11,fontWeight:700,background:tab==="post"?`linear-gradient(135deg,${C.accent},${C.accentG})`:C.card,color:tab==="post"?"#fff":C.muted}} onClick={()=>{setEditingId(null);setForm(EMPTY);setTab("post");}}>➕ Post</button>
+            <button style={{padding:"6px 13px",borderRadius:7,border:`1px solid ${C.border}`,cursor:"pointer",fontSize:11,fontWeight:700,background:tab==="mylistings"?`linear-gradient(135deg,${C.accent},${C.accentG})`:C.card,color:tab==="mylistings"?"#fff":C.muted}} onClick={()=>setTab("mylistings")}>👤 My Listings</button>
           </div>
         </div>
       </header>
@@ -354,7 +377,7 @@ function App(){
         {tab==="post"&&(
           <div style={{maxWidth:700,margin:"0 auto"}}>
             <div style={{marginBottom:18}}>
-              <div style={{fontSize:17,fontWeight:800,marginBottom:3}}>{form.category==="buy"?"Post Your Property for Sale":form.category==="library"?"Post Your Study Space":"Post Your Room"} / पोस्ट करें</div>
+              <div style={{fontSize:17,fontWeight:800,marginBottom:3}}>{editingId?"Edit Listing":form.category==="buy"?"Post Your Property for Sale":form.category==="library"?"Post Your Study Space":"Post Your Room"} / पोस्ट करें</div>
               <div style={{fontSize:11,color:C.muted}}>Free • No broker • Saved to Firebase</div>
             </div>
             <div style={{background:C.surface,borderRadius:15,border:`1px solid ${C.border}`,padding:18}}>
@@ -499,9 +522,56 @@ function App(){
               </div>
 
               <button disabled={posting} onClick={submit} style={{...S.submitBtn,opacity:posting?0.7:1,cursor:posting?"not-allowed":"pointer"}}>
-                {posting?"⏳ Posting...":(form.category==="buy"?"🏠 Post Property to Firebase":form.category==="library"?"📚 Post Study Space to Firebase":"🏠 Post Room to Firebase")+" / फायरबेस पर पोस्ट करें"}
+                {posting?"⏳ Saving...":editingId?"💾 Save Changes":(form.category==="buy"?"🏠 Post Property to Firebase":form.category==="library"?"📚 Post Study Space to Firebase":"🏠 Post Room to Firebase")+" / फायरबेस पर पोस्ट करें"}
               </button>
+              {editingId&&(
+                <button onClick={()=>{setEditingId(null);setForm(EMPTY);setTab("browse");}} style={{width:"100%",padding:"10px",background:"transparent",border:"none",color:C.muted,fontSize:12,cursor:"pointer",marginTop:8,textDecoration:"underline"}}>Cancel Edit</button>
+              )}
             </div>
+          </div>
+        )}
+
+        {/* MY LISTINGS */}
+        {tab==="mylistings"&&(
+          <div style={{maxWidth:700,margin:"0 auto"}}>
+            <div style={{marginBottom:18}}>
+              <div style={{fontSize:17,fontWeight:800,marginBottom:3}}>My Listings / मेरी लिस्टिंग</div>
+              <div style={{fontSize:11,color:C.muted}}>Enter the phone number you posted with to manage your listings</div>
+            </div>
+            <div style={{display:"flex",gap:6,marginBottom:20}}>
+              <input style={S.inp} placeholder="Your 10-digit phone number" value={myPhone} onChange={e=>setMyPhone(e.target.value)}/>
+              <button style={{padding:"10px 16px",background:`linear-gradient(135deg,${C.accent},${C.accentG})`,border:"none",borderRadius:8,color:"#fff",fontWeight:700,cursor:"pointer",fontSize:12,whiteSpace:"nowrap"}} onClick={()=>setMyPhoneSearched(myPhone)}>Find</button>
+            </div>
+            {myPhoneSearched&&(
+              listings.filter(l=>l.phone===myPhoneSearched).length===0?(
+                <div style={{textAlign:"center",padding:"40px 20px",color:C.muted}}>
+                  <div style={{fontSize:36,marginBottom:10}}>🔍</div>
+                  <div>No listings found for this phone number</div>
+                </div>
+              ):(
+                <div style={S.grid}>
+                  {listings.filter(l=>l.phone===myPhoneSearched).map(l=>(
+                    <div key={l.id} style={S.card}>
+                      <div style={{height:120,position:"relative",background:"linear-gradient(135deg,#FFFFFF,#F7F5F0)"}}>
+                        {l.photos&&l.photos.length>0?(
+                          <img src={l.photos[0]} style={{width:"100%",height:"100%",objectFit:"cover"}}/>
+                        ):(
+                          <div style={{height:"100%",display:"flex",alignItems:"center",justifyContent:"center",fontSize:32}}>{l.icon||"🏠"}</div>
+                        )}
+                      </div>
+                      <div style={{padding:12}}>
+                        <div style={{fontSize:13,fontWeight:700,marginBottom:2}}>{l.title}</div>
+                        <div style={{fontSize:10,color:C.muted,marginBottom:9}}>₹{Number(l.price).toLocaleString()} • {l.category==="library"?"Study Space":l.category==="buy"?"For Sale":"For Rent"}</div>
+                        <div style={{display:"flex",gap:6}}>
+                          <button onClick={()=>startEdit(l)} style={{flex:1,padding:"7px",background:"#6B908022",border:"1px solid #6B908044",color:C.accent,borderRadius:7,fontSize:11,fontWeight:700,cursor:"pointer"}}>✏️ Edit</button>
+                          <button onClick={()=>deleteListing(l.id)} style={{flex:1,padding:"7px",background:"#E74C3C22",border:"1px solid #E74C3C44",color:"#E74C3C",borderRadius:7,fontSize:11,fontWeight:700,cursor:"pointer"}}>🗑️ Delete</button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )
+            )}
           </div>
         )}
 
@@ -520,7 +590,7 @@ function App(){
             </div>
             {selected.photos&&selected.photos.length>0?(
               <div style={{display:"flex",gap:6,overflowX:"auto",marginBottom:12,paddingBottom:2}}>
-                {selected.photos.map((url,i)=><img key={i} src={url} style={{width:110,height:110,objectFit:"cover",borderRadius:9,flexShrink:0,border:`1px solid ${C.border}`}}/>)}
+                {selected.photos.map((url,i)=><img key={i} src={url} onClick={()=>setLightbox({photos:selected.photos,index:i})} style={{width:110,height:110,objectFit:"cover",borderRadius:9,flexShrink:0,border:`1px solid ${C.border}`,cursor:"pointer"}}/>)}
               </div>
             ):(
               <div style={{fontSize:38,textAlign:"center",padding:"14px 0",background:"linear-gradient(135deg,#FFFFFF,#F7F5F0)",borderRadius:9,marginBottom:12}}>{selected.icon||rl(selected.roomType)?.icon||"🏠"}</div>
@@ -550,6 +620,20 @@ function App(){
             <button style={{width:"100%",padding:"12px",background:"#58815722",border:"1px solid #58815755",color:C.green,borderRadius:9,fontSize:13,fontWeight:800,cursor:"pointer"}} onClick={()=>window.open(`tel:${selected.phone}`)}>📞 Call Owner / मालिक को कॉल करें</button>
             <button style={{width:"100%",padding:"12px",background:"#25D36622",border:"1px solid #25D36644",color:"#25D366",borderRadius:9,fontSize:13,fontWeight:800,cursor:"pointer",marginTop:7}} onClick={()=>window.open(`https://wa.me/91${selected.phone}`)}>💬 WhatsApp Owner</button>
           </div>
+        </div>
+      )}
+
+      {lightbox&&(
+        <div style={{position:"fixed",inset:0,background:"#000D",zIndex:400,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center"}} onClick={()=>setLightbox(null)}>
+          <button style={{position:"absolute",top:16,right:16,width:36,height:36,borderRadius:"50%",background:"#FFFFFF33",color:"#fff",border:"none",fontSize:18,cursor:"pointer"}} onClick={()=>setLightbox(null)}>✕</button>
+          {lightbox.photos.length>1&&(
+            <button style={{position:"absolute",left:10,top:"50%",transform:"translateY(-50%)",width:40,height:40,borderRadius:"50%",background:"#FFFFFF33",color:"#fff",border:"none",fontSize:18,cursor:"pointer"}} onClick={e=>{e.stopPropagation();setLightbox(l=>({...l,index:(l.index-1+l.photos.length)%l.photos.length}));}}>‹</button>
+          )}
+          <img src={lightbox.photos[lightbox.index]} onClick={e=>e.stopPropagation()} style={{maxWidth:"92vw",maxHeight:"80vh",objectFit:"contain",borderRadius:8}}/>
+          {lightbox.photos.length>1&&(
+            <button style={{position:"absolute",right:10,top:"50%",transform:"translateY(-50%)",width:40,height:40,borderRadius:"50%",background:"#FFFFFF33",color:"#fff",border:"none",fontSize:18,cursor:"pointer"}} onClick={e=>{e.stopPropagation();setLightbox(l=>({...l,index:(l.index+1)%l.photos.length}));}}>›</button>
+          )}
+          {lightbox.photos.length>1&&<div style={{color:"#fff",fontSize:11,marginTop:12}}>{lightbox.index+1} / {lightbox.photos.length}</div>}
         </div>
       )}
 
