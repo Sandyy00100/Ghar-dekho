@@ -619,7 +619,8 @@ function App(){
             </div>
             <button style={{width:"100%",padding:"12px",background:"#58815722",border:"1px solid #58815755",color:C.green,borderRadius:9,fontSize:13,fontWeight:800,cursor:"pointer"}} onClick={()=>window.open(`tel:${selected.phone}`)}>📞 Call Owner / मालिक को कॉल करें</button>
             <button style={{width:"100%",padding:"12px",background:"#25D36622",border:"1px solid #25D36644",color:"#25D366",borderRadius:9,fontSize:13,fontWeight:800,cursor:"pointer",marginTop:7}} onClick={()=>window.open(`https://wa.me/91${selected.phone}`)}>💬 WhatsApp Owner</button>
-            <button style={{width:"100%",padding:"12px",background:"#3498DB22",border:"1px solid #3498DB44",color:"#3498DB",borderRadius:9,fontSize:13,fontWeight:800,cursor:"pointer",marginTop:7}} onClick={()=>window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${selected.area?selected.area+", ":""}${selected.location}${selected.pincode?" "+selected.pincode:""}`)}`)}>📍 View on Map</button>
+            <button style={{width:"100%",padding:"12px",background:"#3498DB22",border:"1px solid #3498DB44",color:"#3498DB",borderRadius:9,fontSize:13,fontWeight:800,cursor:"pointer",marginTop:7}} onClick={()=>{const addr=(selected.area?selected.area+", ":"")+selected.location+(selected.pincode?" "+selected.pincode:"");window.open("https://www.google.com/maps/search/?api=1&query="+encodeURIComponent(addr));}}>📍 View on Map</button>
+          </div>
         </div>
       )}
 
