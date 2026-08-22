@@ -7,6 +7,8 @@
 <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
 <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
 <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 body{background:#F7F5F0;color:#3A3A3A;font-family:'Segoe UI',Arial,sans-serif}
@@ -25,6 +27,8 @@ const {useState,useEffect}=React;
 const PROJECT="ghar-dekho-9b664";
 const KEY="AIzaSyCESZDLJlfrN00bnwVhr6RKuTV3dpf3hGs";
 const BASE=`https://firestore.googleapis.com/v1/projects/${PROJECT}/databases/(default)/documents`;
+firebase.initializeApp({apiKey:KEY,authDomain:`${PROJECT}.firebaseapp.com`,projectId:PROJECT});
+const auth=firebase.auth();
 
 const toFS=(obj)=>{const f={};for(const[k,v]of Object.entries(obj)){if(v===null||v===undefined)continue;if(typeof v==="string")f[k]={stringValue:v};else if(typeof v==="number")f[k]={integerValue:String(v)};else if(typeof v==="boolean")f[k]={booleanValue:v};else if(Array.isArray(v))f[k]={arrayValue:{values:v.map(i=>({stringValue:String(i)}))}};}return{fields:f};};
 const fromFS=(doc)=>{const o={id:doc.name?.split("/").pop()};for(const[k,v]of Object.entries(doc.fields||{})){if(v.stringValue!==undefined)o[k]=v.stringValue;else if(v.integerValue!==undefined)o[k]=Number(v.integerValue);else if(v.booleanValue!==undefined)o[k]=v.booleanValue;else if(v.arrayValue)o[k]=(v.arrayValue.values||[]).map(i=>i.stringValue||"");}return o;};
@@ -57,8 +61,11 @@ function App(){
   const[toast,setToast]=useState(null);
   const[editingId,setEditingId]=useState(null);
   const[lightbox,setLightbox]=useState(null);
-  const[myPhone,setMyPhone]=useState("");
-  const[myPhoneSearched,setMyPhoneSearched]=useState("");
+  const[user,setUser]=useState(null);
+  const[authMode,setAuthMode]=useState("login");
+  const[authForm,setAuthForm]=useState({name:"",email:"",password:"",role:"seeker"});
+  const[authError,setAuthError]=useState("");
+  const[authBusy,setAuthBusy]=useState(false);
 
   const msg=(text,type="ok")=>{setToast({text,type});setTimeout(()=>setToast(null),3500);};
   const upd=(k,v)=>setForm(f=>({...f,[k]:v}));
@@ -165,15 +172,67 @@ function App(){
   };
 
   useEffect(()=>{load();},[]);
-  useEffect(()=>{if(tab==="post"&&(section==="rent"||section==="buy"))upd("category",section);},[tab,section]);
+
+  useEffect(()=>{
+    const unsub=auth.onAuthStateChanged(async(fbUser)=>{
+      if(fbUser){
+        try{
+          const token=await fbUser.getIdToken();
+          const res=await fetch(`${BASE}/users/${fbUser.uid}?key=${KEY}`,{headers:{Authorization:`Bearer ${token}`}});
+          if(res.ok){
+            const profile=fromFS(await res.json());
+            setUser({uid:fbUser.uid,email:fbUser.email,name:profile.name||fbUser.email,role:profile.role||"seeker"});
+          }else{
+            setUser({uid:fbUser.uid,email:fbUser.email,name:fbUser.email,role:"seeker"});
+          }
+        }catch(e){setUser({uid:fbUser.uid,email:fbUser.email,name:fbUser.email,role:"seeker"});}
+      }else{setUser(null);}
+    });
+    return unsub;
+  },[]);
+
+  const authHeader=async()=>{
+    if(!auth.currentUser)return{};
+    const token=await auth.currentUser.getIdToken();
+    return{Authorization:`Bearer ${token}`};
+  };
+
+  const doSignup=async()=>{
+    if(!authForm.name||!authForm.email||!authForm.password){setAuthError("Fill all fields");return;}
+    if(authForm.password.length<6){setAuthError("Password must be at least 6 characters");return;}
+    setAuthBusy(true);setAuthError("");
+    try{
+      const cred=await auth.createUserWithEmailAndPassword(authForm.email,authForm.password);
+      const token=await cred.user.getIdToken();
+      await fetch(`${BASE}/users/${cred.user.uid}?key=${KEY}`,{method:"PATCH",headers:{"Content-Type":"application/json",Authorization:`Bearer ${token}`},body:JSON.stringify(toFS({name:authForm.name,email:authForm.email,role:authForm.role}))});
+      setAuthForm({name:"",email:"",password:"",role:"seeker"});
+      setTab("browse");
+    }catch(e){setAuthError((e.message||"Signup failed").replace("Firebase: ",""));}
+    setAuthBusy(false);
+  };
+
+  const doLogin=async()=>{
+    if(!authForm.email||!authForm.password){setAuthError("Fill all fields");return;}
+    setAuthBusy(true);setAuthError("");
+    try{
+      await auth.signInWithEmailAndPassword(authForm.email,authForm.password);
+      setAuthForm({name:"",email:"",password:"",role:"seeker"});
+      setTab("browse");
+    }catch(e){setAuthError((e.message||"Login failed").replace("Firebase: ",""));}
+    setAuthBusy(false);
+  };
+
+  const doLogout=()=>{auth.signOut();setTab("browse");};
 
   const submit=async()=>{
+    if(!user){msg("⚠️ Please log in to post a listing","err");setTab("login");return;}
     if(!form.title||!form.location||(form.category!=="library"&&!form.roomType)||!form.price||!form.ownerName||!form.phone){msg("⚠️ Fill all required fields","err");return;}
     setPosting(true);
     try{
-      const payload=toFS({...form,price:Number(form.price),bathrooms:Number(form.bathrooms),icon:rl(form.roomType)?.icon||"🏠",createdAt:new Date().toISOString()});
+      const hdr=await authHeader();
+      const payload=toFS({...form,ownerId:user.uid,price:Number(form.price),bathrooms:Number(form.bathrooms),icon:rl(form.roomType)?.icon||"🏠",createdAt:new Date().toISOString()});
       const url=editingId?`${BASE}/listings/${editingId}?key=${KEY}`:`${BASE}/listings?key=${KEY}`;
-      const res=await fetch(url,{method:editingId?"PATCH":"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});
+      const res=await fetch(url,{method:editingId?"PATCH":"POST",headers:{"Content-Type":"application/json",...hdr},body:JSON.stringify(payload)});
       if(res.ok){msg(editingId?"✅ Listing updated!":"✅ Room posted! / कमरा पोस्ट हो गया!");setForm(EMPTY);setEditingId(null);setTab("browse");await load();}
       else{const j=await res.json();msg("❌ "+( j.error?.message||"Post failed"),"err");}
     }catch(e){msg("❌ Network error: "+e.message,"err");}
@@ -190,9 +249,10 @@ function App(){
   const deleteListing=async(id)=>{
     if(!window.confirm("Delete this listing permanently?"))return;
     try{
-      const res=await fetch(`${BASE}/listings/${id}?key=${KEY}`,{method:"DELETE"});
+      const hdr=await authHeader();
+      const res=await fetch(`${BASE}/listings/${id}?key=${KEY}`,{method:"DELETE",headers:hdr});
       if(res.ok){msg("🗑️ Listing deleted");await load();}
-      else msg("❌ Delete failed","err");
+      else msg("❌ Delete failed — you may not own this listing","err");
     }catch(e){msg("❌ Network error: "+e.message,"err");}
   };
 
@@ -245,8 +305,13 @@ function App(){
               <button style={S.navTab(section==="buy"&&tab==="browse")} onClick={()=>{setSection("buy");setTab("browse");}}>🏠 Buy</button>
               <button style={S.navTab(section==="library"&&tab==="browse")} onClick={()=>{setSection("library");setTab("browse");}}>📚 Library</button>
             </div>
-            <button style={{padding:"6px 13px",borderRadius:7,border:`1px solid ${C.border}`,cursor:"pointer",fontSize:11,fontWeight:700,background:tab==="post"?`linear-gradient(135deg,${C.accent},${C.accentG})`:C.card,color:tab==="post"?"#fff":C.muted}} onClick={()=>{setEditingId(null);setForm(EMPTY);setTab("post");}}>➕ Post</button>
-            <button style={{padding:"6px 13px",borderRadius:7,border:`1px solid ${C.border}`,cursor:"pointer",fontSize:11,fontWeight:700,background:tab==="mylistings"?`linear-gradient(135deg,${C.accent},${C.accentG})`:C.card,color:tab==="mylistings"?"#fff":C.muted}} onClick={()=>setTab("mylistings")}>👤 My Listings</button>
+            <button style={{padding:"6px 13px",borderRadius:7,border:`1px solid ${C.border}`,cursor:"pointer",fontSize:11,fontWeight:700,background:tab==="post"?`linear-gradient(135deg,${C.accent},${C.accentG})`:C.card,color:tab==="post"?"#fff":C.muted}} onClick={()=>{if(!user){setTab("login");return;}setEditingId(null);setForm(EMPTY);setTab("post");}}>➕ Post</button>
+            {user?(<>
+              <button style={{padding:"6px 13px",borderRadius:7,border:`1px solid ${C.border}`,cursor:"pointer",fontSize:11,fontWeight:700,background:tab==="mylistings"?`linear-gradient(135deg,${C.accent},${C.accentG})`:C.card,color:tab==="mylistings"?"#fff":C.muted}} onClick={()=>setTab("mylistings")}>👤 {(user.name||"My").split(" ")[0]}</button>
+              <button style={{padding:"6px 13px",borderRadius:7,border:`1px solid ${C.border}`,cursor:"pointer",fontSize:11,fontWeight:700,background:C.card,color:C.muted}} onClick={doLogout}>Logout</button>
+            </>):(
+              <button style={{padding:"6px 13px",borderRadius:7,border:`1px solid ${C.border}`,cursor:"pointer",fontSize:11,fontWeight:700,background:tab==="login"?`linear-gradient(135deg,${C.accent},${C.accentG})`:C.card,color:tab==="login"?"#fff":C.muted}} onClick={()=>setTab("login")}>👤 Login</button>
+            )}
           </div>
         </div>
       </header>
@@ -536,42 +601,69 @@ function App(){
           <div style={{maxWidth:700,margin:"0 auto"}}>
             <div style={{marginBottom:18}}>
               <div style={{fontSize:17,fontWeight:800,marginBottom:3}}>My Listings / मेरी लिस्टिंग</div>
-              <div style={{fontSize:11,color:C.muted}}>Enter the phone number you posted with to manage your listings</div>
+              <div style={{fontSize:11,color:C.muted}}>Only visible and editable by you, {user?.name}</div>
             </div>
-            <div style={{display:"flex",gap:6,marginBottom:20}}>
-              <input style={S.inp} placeholder="Your 10-digit phone number" value={myPhone} onChange={e=>setMyPhone(e.target.value)}/>
-              <button style={{padding:"10px 16px",background:`linear-gradient(135deg,${C.accent},${C.accentG})`,border:"none",borderRadius:8,color:"#fff",fontWeight:700,cursor:"pointer",fontSize:12,whiteSpace:"nowrap"}} onClick={()=>setMyPhoneSearched(myPhone)}>Find</button>
-            </div>
-            {myPhoneSearched&&(
-              listings.filter(l=>l.phone===myPhoneSearched).length===0?(
-                <div style={{textAlign:"center",padding:"40px 20px",color:C.muted}}>
-                  <div style={{fontSize:36,marginBottom:10}}>🔍</div>
-                  <div>No listings found for this phone number</div>
-                </div>
-              ):(
-                <div style={S.grid}>
-                  {listings.filter(l=>l.phone===myPhoneSearched).map(l=>(
-                    <div key={l.id} style={S.card}>
-                      <div style={{height:120,position:"relative",background:"linear-gradient(135deg,#FFFFFF,#F7F5F0)"}}>
-                        {l.photos&&l.photos.length>0?(
-                          <img src={l.photos[0]} style={{width:"100%",height:"100%",objectFit:"cover"}}/>
-                        ):(
-                          <div style={{height:"100%",display:"flex",alignItems:"center",justifyContent:"center",fontSize:32}}>{l.icon||"🏠"}</div>
-                        )}
-                      </div>
-                      <div style={{padding:12}}>
-                        <div style={{fontSize:13,fontWeight:700,marginBottom:2}}>{l.title}</div>
-                        <div style={{fontSize:10,color:C.muted,marginBottom:9}}>₹{Number(l.price).toLocaleString()} • {l.category==="library"?"Study Space":l.category==="buy"?"For Sale":"For Rent"}</div>
-                        <div style={{display:"flex",gap:6}}>
-                          <button onClick={()=>startEdit(l)} style={{flex:1,padding:"7px",background:"#6B908022",border:"1px solid #6B908044",color:C.accent,borderRadius:7,fontSize:11,fontWeight:700,cursor:"pointer"}}>✏️ Edit</button>
-                          <button onClick={()=>deleteListing(l.id)} style={{flex:1,padding:"7px",background:"#E74C3C22",border:"1px solid #E74C3C44",color:"#E74C3C",borderRadius:7,fontSize:11,fontWeight:700,cursor:"pointer"}}>🗑️ Delete</button>
-                        </div>
+            {listings.filter(l=>l.ownerId===user?.uid).length===0?(
+              <div style={{textAlign:"center",padding:"40px 20px",color:C.muted}}>
+                <div style={{fontSize:36,marginBottom:10}}>🔍</div>
+                <div>You haven't posted any listings yet</div>
+              </div>
+            ):(
+              <div style={S.grid}>
+                {listings.filter(l=>l.ownerId===user?.uid).map(l=>(
+                  <div key={l.id} style={S.card}>
+                    <div style={{height:120,position:"relative",background:"linear-gradient(135deg,#FFFFFF,#F7F5F0)"}}>
+                      {l.photos&&l.photos.length>0?(
+                        <img src={l.photos[0]} style={{width:"100%",height:"100%",objectFit:"cover"}}/>
+                      ):(
+                        <div style={{height:"100%",display:"flex",alignItems:"center",justifyContent:"center",fontSize:32}}>{l.icon||"🏠"}</div>
+                      )}
+                    </div>
+                    <div style={{padding:12}}>
+                      <div style={{fontSize:13,fontWeight:700,marginBottom:2}}>{l.title}</div>
+                      <div style={{fontSize:10,color:C.muted,marginBottom:9}}>₹{Number(l.price).toLocaleString()} • {l.category==="library"?"Study Space":l.category==="buy"?"For Sale":"For Rent"}</div>
+                      <div style={{display:"flex",gap:6}}>
+                        <button onClick={()=>startEdit(l)} style={{flex:1,padding:"7px",background:"#6B908022",border:"1px solid #6B908044",color:C.accent,borderRadius:7,fontSize:11,fontWeight:700,cursor:"pointer"}}>✏️ Edit</button>
+                        <button onClick={()=>deleteListing(l.id)} style={{flex:1,padding:"7px",background:"#E74C3C22",border:"1px solid #E74C3C44",color:"#E74C3C",borderRadius:7,fontSize:11,fontWeight:700,cursor:"pointer"}}>🗑️ Delete</button>
                       </div>
                     </div>
-                  ))}
-                </div>
-              )
+                  </div>
+                ))}
+              </div>
             )}
+          </div>
+        )}
+
+        {/* LOGIN / SIGNUP */}
+        {tab==="login"&&(
+          <div style={{maxWidth:420,margin:"0 auto"}}>
+            <div style={{textAlign:"center",marginBottom:20}}>
+              <div style={{fontSize:20,fontWeight:800}}>{authMode==="login"?"Welcome Back!":"Create Account"}</div>
+              <div style={{fontSize:12,color:C.muted}}>{authMode==="login"?"Sign in to post & manage listings":"Sign up to post & manage listings"}</div>
+            </div>
+            <div style={{background:C.surface,borderRadius:15,border:`1px solid ${C.border}`,padding:20}}>
+              {authMode==="signup"&&(<>
+                <div style={S.lbl}>I am a</div>
+                <div style={{display:"flex",gap:8,marginBottom:14}}>
+                  <button onClick={()=>setAuthForm(f=>({...f,role:"owner"}))} style={{flex:1,padding:10,borderRadius:9,border:`2px solid ${authForm.role==="owner"?C.accent:C.border}`,background:authForm.role==="owner"?"#6B908022":C.card,color:authForm.role==="owner"?C.accent:C.muted,fontWeight:700,cursor:"pointer",fontSize:12}}>🏠 Owner</button>
+                  <button onClick={()=>setAuthForm(f=>({...f,role:"seeker"}))} style={{flex:1,padding:10,borderRadius:9,border:`2px solid ${authForm.role==="seeker"?C.accent:C.border}`,background:authForm.role==="seeker"?"#6B908022":C.card,color:authForm.role==="seeker"?C.accent:C.muted,fontWeight:700,cursor:"pointer",fontSize:12}}>🔍 Seeker</button>
+                </div>
+                <div style={S.lbl}>Full Name</div>
+                <input style={{...S.inp,marginBottom:12}} value={authForm.name} onChange={e=>setAuthForm(f=>({...f,name:e.target.value}))}/>
+              </>)}
+              <div style={S.lbl}>Email</div>
+              <input style={{...S.inp,marginBottom:12}} type="email" value={authForm.email} onChange={e=>setAuthForm(f=>({...f,email:e.target.value}))}/>
+              <div style={S.lbl}>Password</div>
+              <input style={S.inp} type="password" value={authForm.password} onChange={e=>setAuthForm(f=>({...f,password:e.target.value}))}/>
+              {authError&&<div style={{color:"#E74C3C",fontSize:11,marginTop:10}}>{authError}</div>}
+              <button disabled={authBusy} onClick={authMode==="login"?doLogin:doSignup} style={{...S.submitBtn,opacity:authBusy?0.7:1,cursor:authBusy?"not-allowed":"pointer"}}>
+                {authBusy?"⏳ Please wait...":authMode==="login"?"Sign In":"Sign Up"}
+              </button>
+              <div style={{textAlign:"center",marginTop:14,fontSize:12,color:C.muted}}>
+                {authMode==="login"?"Don't have an account? ":"Already have an account? "}
+                <span style={{color:C.accent,fontWeight:700,cursor:"pointer"}} onClick={()=>{setAuthMode(authMode==="login"?"signup":"login");setAuthError("");}}>{authMode==="login"?"Sign Up":"Sign In"}</span>
+              </div>
+            </div>
           </div>
         )}
 
