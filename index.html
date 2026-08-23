@@ -66,6 +66,10 @@ function App(){
   const[authForm,setAuthForm]=useState({name:"",email:"",password:"",role:"seeker"});
   const[authError,setAuthError]=useState("");
   const[authBusy,setAuthBusy]=useState(false);
+  const[drawerOpen,setDrawerOpen]=useState(false);
+  const[profileForm,setProfileForm]=useState({name:"",phone:"",bio:"",picture:""});
+  const[profileBusy,setProfileBusy]=useState(false);
+  const[uploadingPic,setUploadingPic]=useState(false);
 
   const msg=(text,type="ok")=>{setToast({text,type});setTimeout(()=>setToast(null),3500);};
   const upd=(k,v)=>setForm(f=>({...f,[k]:v}));
@@ -181,9 +185,13 @@ function App(){
           const res=await fetch(`${BASE}/users/${fbUser.uid}?key=${KEY}`,{headers:{Authorization:`Bearer ${token}`}});
           if(res.ok){
             const profile=fromFS(await res.json());
-            setUser({uid:fbUser.uid,email:fbUser.email,name:profile.name||fbUser.email,role:profile.role||"seeker"});
+            const u={uid:fbUser.uid,email:fbUser.email,name:profile.name||fbUser.email,role:profile.role||"seeker",picture:profile.picture||"",phone:profile.phone||"",bio:profile.bio||""};
+            setUser(u);
+            setProfileForm({name:u.name,phone:u.phone,bio:u.bio,picture:u.picture});
           }else{
-            setUser({uid:fbUser.uid,email:fbUser.email,name:fbUser.email,role:"seeker"});
+            const u={uid:fbUser.uid,email:fbUser.email,name:fbUser.email,role:"seeker",picture:"",phone:"",bio:""};
+            setUser(u);
+            setProfileForm({name:u.name,phone:"",bio:"",picture:""});
           }
         }catch(e){setUser({uid:fbUser.uid,email:fbUser.email,name:fbUser.email,role:"seeker"});}
       }else{setUser(null);}
@@ -222,7 +230,35 @@ function App(){
     setAuthBusy(false);
   };
 
-  const doLogout=()=>{auth.signOut();setTab("browse");};
+  const doLogout=()=>{auth.signOut();setTab("browse");setDrawerOpen(false);};
+
+  const handleProfilePic=async(e)=>{
+    const file=e.target.files&&e.target.files[0];
+    if(!file)return;
+    setUploadingPic(true);
+    try{
+      const blob=await compressImage(file);
+      const url=await uploadToCloudinary(blob);
+      setProfileForm(f=>({...f,picture:url}));
+    }catch(err){msg("❌ Picture upload failed: "+err.message,"err");}
+    setUploadingPic(false);
+    e.target.value="";
+  };
+
+  const saveProfile=async()=>{
+    if(!user)return;
+    if(!profileForm.name){msg("⚠️ Name is required","err");return;}
+    setProfileBusy(true);
+    try{
+      const hdr=await authHeader();
+      await fetch(`${BASE}/users/${user.uid}?key=${KEY}`,{method:"PATCH",headers:{"Content-Type":"application/json",...hdr},body:JSON.stringify(toFS({name:profileForm.name,phone:profileForm.phone,bio:profileForm.bio,picture:profileForm.picture,role:user.role,email:user.email}))});
+      setUser(u=>({...u,name:profileForm.name,phone:profileForm.phone,bio:profileForm.bio,picture:profileForm.picture}));
+      msg("✅ Profile updated!");
+      setTab("browse");
+    }catch(e){msg("❌ Network error: "+e.message,"err");}
+    setProfileBusy(false);
+  };
+  useEffect(()=>{if(tab==="post"&&(section==="rent"||section==="buy"))upd("category",section);},[tab,section]);
 
   const submit=async()=>{
     if(!user){msg("⚠️ Please log in to post a listing","err");setTab("login");return;}
@@ -291,28 +327,17 @@ function App(){
       {/* HEADER */}
       <header style={S.hdr}>
         <div style={S.hdrIn}>
-          <div style={{display:"flex",alignItems:"center",gap:8}}>
-            <div style={{width:34,height:34,background:`linear-gradient(135deg,${C.accent},${C.accentG})`,borderRadius:9,display:"flex",alignItems:"center",justifyContent:"center",fontSize:17}}>🏠</div>
-            <div>
-              <div style={S.logoTxt}>GHAR DEKHO</div>
-              <div style={{fontSize:9,color:C.muted,letterSpacing:2}}>घर देखो • REAL LISTINGS</div>
+          <div style={{display:"flex",alignItems:"center",gap:10}}>
+            <button onClick={()=>setDrawerOpen(true)} style={{width:36,height:36,borderRadius:9,border:`1px solid ${C.border}`,background:C.card,color:C.text,fontSize:16,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}>☰</button>
+            <div style={{display:"flex",alignItems:"center",gap:8}}>
+              <div style={{width:34,height:34,background:`linear-gradient(135deg,${C.accent},${C.accentG})`,borderRadius:9,display:"flex",alignItems:"center",justifyContent:"center",fontSize:17}}>🏠</div>
+              <div>
+                <div style={S.logoTxt}>GHAR DEKHO</div>
+                <div style={{fontSize:9,color:C.muted,letterSpacing:2}}>घर देखो • REAL LISTINGS</div>
+              </div>
             </div>
           </div>
-          <div style={{display:"flex",gap:6,alignItems:"center",flexWrap:"wrap"}}>
-            <div style={S.live}>🔴 LIVE</div>
-            <div style={S.navTabs}>
-              <button style={S.navTab(section==="rent"&&tab==="browse")} onClick={()=>{setSection("rent");setTab("browse");}}>🏡 Rent</button>
-              <button style={S.navTab(section==="buy"&&tab==="browse")} onClick={()=>{setSection("buy");setTab("browse");}}>🏠 Buy</button>
-              <button style={S.navTab(section==="library"&&tab==="browse")} onClick={()=>{setSection("library");setTab("browse");}}>📚 Library</button>
-            </div>
-            <button style={{padding:"6px 13px",borderRadius:7,border:`1px solid ${C.border}`,cursor:"pointer",fontSize:11,fontWeight:700,background:tab==="post"?`linear-gradient(135deg,${C.accent},${C.accentG})`:C.card,color:tab==="post"?"#fff":C.muted}} onClick={()=>{if(!user){setTab("login");return;}setEditingId(null);setForm(EMPTY);setTab("post");}}>➕ Post</button>
-            {user?(<>
-              <button style={{padding:"6px 13px",borderRadius:7,border:`1px solid ${C.border}`,cursor:"pointer",fontSize:11,fontWeight:700,background:tab==="mylistings"?`linear-gradient(135deg,${C.accent},${C.accentG})`:C.card,color:tab==="mylistings"?"#fff":C.muted}} onClick={()=>setTab("mylistings")}>👤 {(user.name||"My").split(" ")[0]}</button>
-              <button style={{padding:"6px 13px",borderRadius:7,border:`1px solid ${C.border}`,cursor:"pointer",fontSize:11,fontWeight:700,background:C.card,color:C.muted}} onClick={doLogout}>Logout</button>
-            </>):(
-              <button style={{padding:"6px 13px",borderRadius:7,border:`1px solid ${C.border}`,cursor:"pointer",fontSize:11,fontWeight:700,background:tab==="login"?`linear-gradient(135deg,${C.accent},${C.accentG})`:C.card,color:tab==="login"?"#fff":C.muted}} onClick={()=>setTab("login")}>👤 Login</button>
-            )}
-          </div>
+          <div style={S.live}>🔴 LIVE</div>
         </div>
       </header>
 
@@ -339,7 +364,7 @@ function App(){
         </div>
       )}
 
-      <main style={{maxWidth:1100,margin:"0 auto",padding:"22px 14px"}}>
+      <main style={{maxWidth:1100,margin:"0 auto",padding:"22px 14px 78px"}}>
         {/* BROWSE - RENT/BUY */}
         {tab==="browse"&&(<>
           {section==="library"&&(
@@ -634,6 +659,40 @@ function App(){
           </div>
         )}
 
+        {/* EDIT PROFILE */}
+        {tab==="profile"&&user&&(
+          <div style={{maxWidth:420,margin:"0 auto"}}>
+            <div style={{marginBottom:18}}>
+              <div style={{fontSize:17,fontWeight:800,marginBottom:3}}>Edit Profile / प्रोफ़ाइल संपादित करें</div>
+              <div style={{fontSize:11,color:C.muted}}>{user.email}</div>
+            </div>
+            <div style={{background:C.surface,borderRadius:15,border:`1px solid ${C.border}`,padding:20}}>
+              <div style={{display:"flex",justifyContent:"center",marginBottom:18}}>
+                <div style={{position:"relative"}}>
+                  {profileForm.picture?(
+                    <img src={profileForm.picture} style={{width:84,height:84,borderRadius:"50%",objectFit:"cover",border:`2px solid ${C.border}`}}/>
+                  ):(
+                    <div style={{width:84,height:84,borderRadius:"50%",background:`linear-gradient(135deg,${C.accent},${C.accentG})`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:32,fontWeight:800,color:"#fff"}}>{(profileForm.name||user.email||"?")[0].toUpperCase()}</div>
+                  )}
+                  <label style={{position:"absolute",bottom:0,right:0,width:28,height:28,borderRadius:"50%",background:C.accent,color:"#fff",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",fontSize:13,border:`2px solid ${C.surface}`}}>
+                    {uploadingPic?"⏳":"📷"}
+                    <input type="file" accept="image/*" style={{display:"none"}} disabled={uploadingPic} onChange={handleProfilePic}/>
+                  </label>
+                </div>
+              </div>
+              <div style={S.lbl}>Full Name</div>
+              <input style={{...S.inp,marginBottom:12}} value={profileForm.name} onChange={e=>setProfileForm(f=>({...f,name:e.target.value}))}/>
+              <div style={S.lbl}>Phone (optional)</div>
+              <input style={{...S.inp,marginBottom:12}} value={profileForm.phone} onChange={e=>setProfileForm(f=>({...f,phone:e.target.value}))}/>
+              <div style={S.lbl}>About / Bio (optional)</div>
+              <input style={S.inp} placeholder="A short line about you" value={profileForm.bio} onChange={e=>setProfileForm(f=>({...f,bio:e.target.value}))}/>
+              <button disabled={profileBusy} onClick={saveProfile} style={{...S.submitBtn,opacity:profileBusy?0.7:1,cursor:profileBusy?"not-allowed":"pointer"}}>
+                {profileBusy?"⏳ Saving...":"💾 Save Profile"}
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* LOGIN / SIGNUP */}
         {tab==="login"&&(
           <div style={{maxWidth:420,margin:"0 auto"}}>
@@ -730,7 +789,57 @@ function App(){
         </div>
       )}
 
-      {toast&&<div style={{position:"fixed",bottom:18,right:18,background:toast.type==="err"?"#E74C3C":C.green,color:"#fff",padding:"10px 16px",borderRadius:9,fontWeight:700,fontSize:12,zIndex:999,boxShadow:"0 4px 20px #00000022",maxWidth:300}}>{toast.text}</div>}
+      {/* BOTTOM NAV */}
+      <div style={{position:"fixed",bottom:0,left:0,right:0,background:C.surface,borderTop:`1px solid ${C.border}`,display:"flex",zIndex:150,boxShadow:"0 -2px 12px #00000011"}}>
+        {[
+          {id:"rent",icon:"🏡",label:"Rent",onClick:()=>{setSection("rent");setTab("browse");},active:section==="rent"&&tab==="browse"},
+          {id:"buy",icon:"🏠",label:"Buy",onClick:()=>{setSection("buy");setTab("browse");},active:section==="buy"&&tab==="browse"},
+          {id:"library",icon:"📚",label:"Study",onClick:()=>{setSection("library");setTab("browse");},active:section==="library"&&tab==="browse"},
+          {id:"post",icon:"➕",label:"Post",onClick:()=>{if(!user){setTab("login");return;}setEditingId(null);setForm(EMPTY);setTab("post");},active:tab==="post"},
+        ].map(item=>(
+          <button key={item.id} onClick={item.onClick} style={{flex:1,padding:"9px 4px 8px",background:"transparent",border:"none",cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:2}}>
+            <span style={{fontSize:19,opacity:item.active?1:0.55}}>{item.icon}</span>
+            <span style={{fontSize:9,fontWeight:700,color:item.active?C.accent:C.muted}}>{item.label}</span>
+          </button>
+        ))}
+      </div>
+
+      {/* DRAWER */}
+      {drawerOpen&&(
+        <div style={{position:"fixed",inset:0,background:"#00000055",zIndex:250}} onClick={()=>setDrawerOpen(false)}>
+          <div style={{position:"absolute",top:0,bottom:0,left:0,width:270,background:C.surface,boxShadow:"3px 0 20px #00000022",padding:20,overflowY:"auto"}} onClick={e=>e.stopPropagation()}>
+            <button onClick={()=>setDrawerOpen(false)} style={{background:C.card,border:"none",color:C.muted,width:28,height:28,borderRadius:7,cursor:"pointer",fontSize:13,marginBottom:16}}>✕</button>
+            {user?(
+              <>
+                <div style={{textAlign:"center",marginBottom:18}}>
+                  {user.picture?(
+                    <img src={user.picture} style={{width:72,height:72,borderRadius:"50%",objectFit:"cover",border:`2px solid ${C.border}`,margin:"0 auto 10px"}}/>
+                  ):(
+                    <div style={{width:72,height:72,borderRadius:"50%",background:`linear-gradient(135deg,${C.accent},${C.accentG})`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:28,fontWeight:800,color:"#fff",margin:"0 auto 10px"}}>{(user.name||user.email||"?")[0].toUpperCase()}</div>
+                  )}
+                  <div style={{fontWeight:800,fontSize:15}}>{user.name}</div>
+                  <div style={{fontSize:11,color:C.muted,marginBottom:6}}>{user.email}</div>
+                  <div style={{display:"inline-block"}}><div style={S.badge(user.role==="owner"?C.accent:C.accentG)}>{user.role==="owner"?"🏠 Owner":"🔍 Seeker"}</div></div>
+                  {user.bio&&<div style={{fontSize:11,color:C.muted,marginTop:8,lineHeight:1.4}}>{user.bio}</div>}
+                </div>
+                <div style={{borderTop:`1px solid ${C.border}`,paddingTop:14,display:"flex",flexDirection:"column",gap:4}}>
+                  <button onClick={()=>{setTab("profile");setDrawerOpen(false);}} style={{textAlign:"left",padding:"10px 8px",background:"transparent",border:"none",borderRadius:8,color:C.text,fontSize:13,fontWeight:600,cursor:"pointer"}}>✏️ Edit Profile</button>
+                  <button onClick={()=>{setTab("mylistings");setDrawerOpen(false);}} style={{textAlign:"left",padding:"10px 8px",background:"transparent",border:"none",borderRadius:8,color:C.text,fontSize:13,fontWeight:600,cursor:"pointer"}}>📋 My Listings</button>
+                  <button onClick={doLogout} style={{textAlign:"left",padding:"10px 8px",background:"transparent",border:"none",borderRadius:8,color:"#E74C3C",fontSize:13,fontWeight:600,cursor:"pointer"}}>🚪 Logout</button>
+                </div>
+              </>
+            ):(
+              <div style={{textAlign:"center",paddingTop:30}}>
+                <div style={{fontSize:36,marginBottom:10}}>👤</div>
+                <div style={{fontSize:13,color:C.muted,marginBottom:16}}>Log in to post listings and manage your profile</div>
+                <button onClick={()=>{setTab("login");setDrawerOpen(false);}} style={{...S.submitBtn,marginTop:0}}>Login / Sign Up</button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {toast&&<div style={{position:"fixed",bottom:78,right:18,background:toast.type==="err"?"#E74C3C":C.green,color:"#fff",padding:"10px 16px",borderRadius:9,fontWeight:700,fontSize:12,zIndex:999,boxShadow:"0 4px 20px #00000022",maxWidth:300}}>{toast.text}</div>}
     </div>
   );
 }
@@ -738,4 +847,4 @@ function App(){
 ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
 </script>
 </body>
-</html>
+  </html>
