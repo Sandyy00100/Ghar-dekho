@@ -301,25 +301,25 @@ function App(){
   const S={
     hdr:{background:C.surface,borderBottom:`1px solid ${C.border}`,padding:"0 14px",position:"sticky",top:0,zIndex:100},
     hdrIn:{maxWidth:1100,margin:"0 auto",display:"flex",alignItems:"center",justifyContent:"space-between",height:58},
-    logoTxt:{fontSize:18,fontWeight:900,background:`linear-gradient(135deg,${C.accent},${C.accentG})`,WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent"},
-    live:{display:"flex",alignItems:"center",gap:4,background:"#58815722",border:"1px solid #58815744",color:"#588157",padding:"2px 8px",borderRadius:20,fontSize:9,fontWeight:700},
+    logoTxt:{fontSize:22,fontWeight:900,background:`linear-gradient(135deg,${C.accent},${C.accentG})`,WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent"},
+    live:{display:"flex",alignItems:"center",gap:4,background:"#58815722",border:"1px solid #58815744",color:"#588157",padding:"2px 8px",borderRadius:20,fontSize:11,fontWeight:700},
     navTabs:{display:"flex",gap:3,background:C.border,borderRadius:9,padding:3},
-    navTab:a=>({padding:"6px 13px",borderRadius:7,border:"none",cursor:"pointer",fontSize:11,fontWeight:700,background:a?`linear-gradient(135deg,${C.accent},${C.accentG})`:"transparent",color:a?"#fff":C.muted}),
+    navTab:a=>({padding:"6px 13px",borderRadius:7,border:"none",cursor:"pointer",fontSize:13,fontWeight:700,background:a?`linear-gradient(135deg,${C.accent},${C.accentG})`:"transparent",color:a?"#fff":C.muted}),
     hero:{background:`linear-gradient(160deg,#EAF4EF,#F7F5F0 60%,#F0EDE2)`,padding:"40px 16px 32px",textAlign:"center",borderBottom:`1px solid ${C.border}`},
-    inp:{background:C.card,border:`1px solid ${C.border}`,borderRadius:8,padding:"10px 12px",color:C.text,fontSize:13,outline:"none",width:"100%"},
-    sel:{background:C.card,border:`1px solid ${C.border}`,borderRadius:8,padding:"10px 12px",color:C.text,fontSize:13,outline:"none",width:"100%",cursor:"pointer"},
-    chip:on=>({padding:"7px 12px",borderRadius:18,border:`1px solid ${on?C.accent:C.border}`,background:on?"#6B908022":C.card,color:on?C.accent:C.muted,cursor:"pointer",fontSize:11,fontWeight:600,display:"inline-flex",alignItems:"center",gap:5}),
-    chipG:on=>({padding:"7px 12px",borderRadius:18,border:`1px solid ${on?C.accentG:C.border}`,background:on?"#B0896822":C.card,color:on?C.accentG:C.muted,cursor:"pointer",fontSize:11,fontWeight:600,display:"inline-flex",alignItems:"center",gap:5}),
+    inp:{background:C.card,border:`1px solid ${C.border}`,borderRadius:8,padding:"10px 12px",color:C.text,fontSize:16,outline:"none",width:"100%"},
+    sel:{background:C.card,border:`1px solid ${C.border}`,borderRadius:8,padding:"10px 12px",color:C.text,fontSize:16,outline:"none",width:"100%",cursor:"pointer"},
+    chip:on=>({padding:"7px 12px",borderRadius:18,border:`1px solid ${on?C.accent:C.border}`,background:on?"#6B908022":C.card,color:on?C.accent:C.muted,cursor:"pointer",fontSize:13,fontWeight:600,display:"inline-flex",alignItems:"center",gap:5}),
+    chipG:on=>({padding:"7px 12px",borderRadius:18,border:`1px solid ${on?C.accentG:C.border}`,background:on?"#B0896822":C.card,color:on?C.accentG:C.muted,cursor:"pointer",fontSize:13,fontWeight:600,display:"inline-flex",alignItems:"center",gap:5}),
     optC:on=>({background:on?"#6B908022":C.card,border:`2px solid ${on?C.accent:C.border}`,borderRadius:10,padding:"12px 8px",textAlign:"center",cursor:"pointer"}),
     optCG:on=>({background:on?"#B0896822":C.card,border:`2px solid ${on?C.accentG:C.border}`,borderRadius:10,padding:"12px 8px",textAlign:"center",cursor:"pointer"}),
-    badge:col=>({padding:"3px 9px",borderRadius:20,fontSize:10,fontWeight:700,textTransform:"uppercase",background:col+"22",color:col}),
+    badge:col=>({padding:"3px 9px",borderRadius:20,fontSize:12,fontWeight:700,textTransform:"uppercase",background:col+"22",color:col}),
     card:{background:C.card,borderRadius:13,border:`1px solid ${C.border}`,overflow:"hidden",cursor:"pointer"},
     grid:{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(290px,1fr))",gap:14},
-    secTitle:{fontSize:10,fontWeight:700,color:C.accent,textTransform:"uppercase",letterSpacing:1.5,marginBottom:13},
-    lbl:{fontSize:9,color:C.muted,textTransform:"uppercase",letterSpacing:0.5,marginBottom:4},
+    secTitle:{fontSize:12,fontWeight:700,color:C.accent,textTransform:"uppercase",letterSpacing:1.5,marginBottom:13},
+    lbl:{fontSize:11,color:C.muted,textTransform:"uppercase",letterSpacing:0.5,marginBottom:4},
     row2:{display:"grid",gridTemplateColumns:"1fr 1fr",gap:9,marginBottom:9},
     dbx:{marginBottom:8,padding:12,background:C.card,borderRadius:9,border:`1px solid ${C.border}`},
-    submitBtn:{width:"100%",padding:"13px",background:`linear-gradient(135deg,${C.accent},${C.accentG})`,border:"none",borderRadius:10,color:"#fff",fontSize:14,fontWeight:800,cursor:"pointer",marginTop:6},
+    submitBtn:{width:"100%",padding:"13px",background:`linear-gradient(135deg,${C.accent},${C.accentG})`,border:"none",borderRadius:10,color:"#fff",fontSize:17,fontWeight:800,cursor:"pointer",marginTop:6},
   };
 
   return(
@@ -328,12 +328,12 @@ function App(){
       <header style={S.hdr}>
         <div style={S.hdrIn}>
           <div style={{display:"flex",alignItems:"center",gap:10}}>
-            <button onClick={()=>setDrawerOpen(true)} style={{width:36,height:36,borderRadius:9,border:`1px solid ${C.border}`,background:C.card,color:C.text,fontSize:16,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}>☰</button>
+            <button onClick={()=>setDrawerOpen(true)} style={{width:36,height:36,borderRadius:9,border:`1px solid ${C.border}`,background:C.card,color:C.text,fontSize:19,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}>☰</button>
             <div style={{display:"flex",alignItems:"center",gap:8}}>
-              <div style={{width:34,height:34,background:`linear-gradient(135deg,${C.accent},${C.accentG})`,borderRadius:9,display:"flex",alignItems:"center",justifyContent:"center",fontSize:17}}>🏠</div>
+              <div style={{width:34,height:34,background:`linear-gradient(135deg,${C.accent},${C.accentG})`,borderRadius:9,display:"flex",alignItems:"center",justifyContent:"center",fontSize:20}}>🏠</div>
               <div>
                 <div style={S.logoTxt}>GHAR DEKHO</div>
-                <div style={{fontSize:9,color:C.muted,letterSpacing:2}}>घर देखो • REAL LISTINGS</div>
+                <div style={{fontSize:11,color:C.muted,letterSpacing:2}}>घर देखो • REAL LISTINGS</div>
               </div>
             </div>
           </div>
@@ -344,20 +344,20 @@ function App(){
       {/* HERO */}
       {tab==="browse"&&(
         <div style={S.hero}>
-          <div style={{display:"inline-block",background:"#6B908022",border:"1px solid #6B908044",color:C.accent,padding:"3px 12px",borderRadius:20,fontSize:9,fontWeight:700,letterSpacing:2,textTransform:"uppercase",marginBottom:12}}>🇮🇳 India's Own {section==="buy"?"Home Buying":section==="library"?"Study Space":"Rental"} Platform</div>
-          <div style={{fontSize:32,fontWeight:900,background:"linear-gradient(135deg,#3A3A3A,#6B6B6B)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent",lineHeight:1.1}}>अपना घर खोजें</div>
-          <div style={{fontSize:24,fontWeight:900,background:`linear-gradient(135deg,${C.accent},${C.accentG})`,WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent",marginBottom:8}}>{section==="buy"?"Find Your Perfect Home to Buy":section==="library"?"Find a Study Space Near You":"Find Your Perfect Room"}</div>
-          <div style={{fontSize:12,color:C.muted,marginBottom:22}}>Direct from owners • No broker fee • Firebase powered</div>
+          <div style={{display:"inline-block",background:"#6B908022",border:"1px solid #6B908044",color:C.accent,padding:"3px 12px",borderRadius:20,fontSize:11,fontWeight:700,letterSpacing:2,textTransform:"uppercase",marginBottom:12}}>🇮🇳 India's Own {section==="buy"?"Home Buying":section==="library"?"Study Space":"Rental"} Platform</div>
+          <div style={{fontSize:38,fontWeight:900,background:"linear-gradient(135deg,#3A3A3A,#6B6B6B)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent",lineHeight:1.1}}>अपना घर खोजें</div>
+          <div style={{fontSize:29,fontWeight:900,background:`linear-gradient(135deg,${C.accent},${C.accentG})`,WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent",marginBottom:8}}>{section==="buy"?"Find Your Perfect Home to Buy":section==="library"?"Find a Study Space Near You":"Find Your Perfect Room"}</div>
+          <div style={{fontSize:14,color:C.muted,marginBottom:22}}>Direct from owners • No broker fee • Firebase powered</div>
           <div style={{display:"flex",gap:5,maxWidth:500,margin:"0 auto 18px",background:C.surface,borderRadius:11,padding:4,border:`1px solid ${C.border}`}}>
             <span style={{color:C.muted,padding:"8px 6px 8px 10px"}}>🔍</span>
-            <input style={{flex:1,background:"transparent",border:"none",outline:"none",color:C.text,fontSize:13,padding:"7px 6px"}} placeholder="City, area... / शहर, इलाका..." value={search} onChange={e=>setSearch(e.target.value)}/>
-            <button style={{background:`linear-gradient(135deg,${C.accent},${C.accentG})`,border:"none",borderRadius:8,padding:"8px 14px",color:"#fff",fontWeight:700,cursor:"pointer",fontSize:12}} onClick={load}>🔄</button>
+            <input style={{flex:1,background:"transparent",border:"none",outline:"none",color:C.text,fontSize:16,padding:"7px 6px"}} placeholder="City, area... / शहर, इलाका..." value={search} onChange={e=>setSearch(e.target.value)}/>
+            <button style={{background:`linear-gradient(135deg,${C.accent},${C.accentG})`,border:"none",borderRadius:8,padding:"8px 14px",color:"#fff",fontWeight:700,cursor:"pointer",fontSize:14}} onClick={load}>🔄</button>
           </div>
           <div style={{display:"flex",justifyContent:"center",gap:24,flexWrap:"wrap"}}>
             {[[filtered.length,section==="buy"?"Homes for Sale":section==="library"?"Study Spaces":"Live Rooms"],["₹0","Broker Fee"],["24/7","Available"]].map(([v,l],i)=>(
               <div key={i} style={{textAlign:"center"}}>
-                <div style={{fontSize:20,fontWeight:800,color:C.accent}}>{v}</div>
-                <div style={{fontSize:10,color:C.muted,textTransform:"uppercase",letterSpacing:1}}>{l}</div>
+                <div style={{fontSize:24,fontWeight:800,color:C.accent}}>{v}</div>
+                <div style={{fontSize:12,color:C.muted,textTransform:"uppercase",letterSpacing:1}}>{l}</div>
               </div>
             ))}
           </div>
@@ -373,10 +373,10 @@ function App(){
               <div style={S.grid}>
                 {LIBRARY_GUIDES.map((g,i)=>(
                   <div key={i} style={{...S.card,cursor:"default",padding:16}}>
-                    <div style={{fontSize:28,marginBottom:8}}>{g.icon}</div>
-                    <div style={{fontSize:13,fontWeight:700,marginBottom:2}}>{g.title}</div>
-                    <div style={{fontSize:10,color:C.muted,marginBottom:6}}>{g.titleHi}</div>
-                    <div style={{fontSize:11,color:C.muted,lineHeight:1.4}}>{g.desc}</div>
+                    <div style={{fontSize:34,marginBottom:8}}>{g.icon}</div>
+                    <div style={{fontSize:16,fontWeight:700,marginBottom:2}}>{g.title}</div>
+                    <div style={{fontSize:12,color:C.muted,marginBottom:6}}>{g.titleHi}</div>
+                    <div style={{fontSize:13,color:C.muted,lineHeight:1.4}}>{g.desc}</div>
                   </div>
                 ))}
               </div>
@@ -384,9 +384,9 @@ function App(){
           )}
           {section!=="library"&&(
           <div style={{display:"flex",gap:5,marginBottom:18,flexWrap:"wrap",alignItems:"center"}}>
-            <span style={{fontSize:10,color:C.muted,fontWeight:700,textTransform:"uppercase",letterSpacing:1}}>Filter:</span>
+            <span style={{fontSize:12,color:C.muted,fontWeight:700,textTransform:"uppercase",letterSpacing:1}}>Filter:</span>
             {[{id:"all",label:"All / सभी"},...ROOM_TYPES].map(f=>(
-              <button key={f.id} onClick={()=>setFilter(f.id)} style={{padding:"5px 12px",borderRadius:18,border:`1px solid ${filter===f.id?C.accent:C.border}`,background:filter===f.id?"#6B908022":C.surface,color:filter===f.id?C.accent:C.muted,cursor:"pointer",fontSize:11,fontWeight:600}}>
+              <button key={f.id} onClick={()=>setFilter(f.id)} style={{padding:"5px 12px",borderRadius:18,border:`1px solid ${filter===f.id?C.accent:C.border}`,background:filter===f.id?"#6B908022":C.surface,color:filter===f.id?C.accent:C.muted,cursor:"pointer",fontSize:13,fontWeight:600}}>
                 {f.icon?f.icon+" ":""}{f.label}
               </button>
             ))}
@@ -395,19 +395,19 @@ function App(){
           {section==="library"&&<div style={S.secTitle}>📍 Available Study Spaces</div>}
           {loading?(
             <div style={{textAlign:"center",padding:"60px 20px",color:C.muted}}>
-              <div style={{fontSize:36,marginBottom:12}}>🏠</div>
+              <div style={{fontSize:43,marginBottom:12}}>🏠</div>
               <div>Loading from Firebase... / लोड हो रहा है...</div>
             </div>
           ):filtered.length===0?(
             <div style={{textAlign:"center",padding:"60px 20px",color:C.muted}}>
-              <div style={{fontSize:48,marginBottom:12}}>🏚️</div>
-              <div style={{fontSize:16,fontWeight:700,marginBottom:6,color:C.text}}>No rooms found</div>
+              <div style={{fontSize:58,marginBottom:12}}>🏚️</div>
+              <div style={{fontSize:19,fontWeight:700,marginBottom:6,color:C.text}}>No rooms found</div>
               <div style={{marginBottom:20}}>Be the first to post! / पहले पोस्ट करें!</div>
-              <button style={{padding:"10px 22px",background:`linear-gradient(135deg,${C.accent},${C.accentG})`,border:"none",borderRadius:9,color:"#fff",fontWeight:700,cursor:"pointer",fontSize:13}} onClick={()=>setTab("post")}>➕ Post a Room</button>
+              <button style={{padding:"10px 22px",background:`linear-gradient(135deg,${C.accent},${C.accentG})`,border:"none",borderRadius:9,color:"#fff",fontWeight:700,cursor:"pointer",fontSize:16}} onClick={()=>setTab("post")}>➕ Post a Room</button>
             </div>
           ):(
             <>
-              <div style={{marginBottom:12,fontSize:11,color:C.muted}}>{filtered.length} rooms found / {filtered.length} कमरे मिले</div>
+              <div style={{marginBottom:12,fontSize:13,color:C.muted}}>{filtered.length} rooms found / {filtered.length} कमरे मिले</div>
               <div style={S.grid}>
                 {filtered.map(l=>(
                   <div key={l.id} style={S.card} onClick={()=>setSelected(l)}>
@@ -415,45 +415,45 @@ function App(){
                       {l.photos&&l.photos.length>0?(
                         <img src={l.photos[0]} style={{width:"100%",height:"100%",objectFit:"cover"}}/>
                       ):(
-                        <div style={{height:"100%",display:"flex",alignItems:"center",justifyContent:"center",fontSize:40}}>{l.icon||rl(l.roomType)?.icon||(l.category==="library"?"📚":"🏠")}</div>
+                        <div style={{height:"100%",display:"flex",alignItems:"center",justifyContent:"center",fontSize:46}}>{l.icon||rl(l.roomType)?.icon||(l.category==="library"?"📚":"🏠")}</div>
                       )}
-                      {l.photos&&l.photos.length>1&&<div style={{position:"absolute",bottom:6,right:6,background:"#00000088",color:"#fff",fontSize:9,padding:"2px 7px",borderRadius:10}}>📷 +{l.photos.length-1}</div>}
+                      {l.photos&&l.photos.length>1&&<div style={{position:"absolute",bottom:6,right:6,background:"#00000088",color:"#fff",fontSize:11,padding:"2px 7px",borderRadius:10}}>📷 +{l.photos.length-1}</div>}
                     </div>
                     <div style={{padding:13}}>
                       <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:5}}>
                         <div>
-                          <div style={{fontSize:13,fontWeight:700}}>{l.title}</div>
-                          {l.titleHi&&<div style={{fontSize:10,color:C.muted}}>{l.titleHi}</div>}
-                          <div style={{fontSize:10,color:C.muted,marginTop:2}}>📍 {l.area?l.area+", ":""}{l.location}{l.pincode?` - ${l.pincode}`:""}</div>
+                          <div style={{fontSize:16,fontWeight:700}}>{l.title}</div>
+                          {l.titleHi&&<div style={{fontSize:12,color:C.muted}}>{l.titleHi}</div>}
+                          <div style={{fontSize:12,color:C.muted,marginTop:2}}>📍 {l.area?l.area+", ":""}{l.location}{l.pincode?` - ${l.pincode}`:""}</div>
                         </div>
                         <div style={S.badge(RC[l.roomType]||C.accent)}>{l.category==="library"?"Study Space":rl(l.roomType)?.label}</div>
                       </div>
                       <div style={{display:"flex",justifyContent:"space-between",margin:"7px 0"}}>
                         <div>
-                          <div style={{fontSize:17,fontWeight:800,color:C.accentG}}>₹{Number(l.price).toLocaleString()}</div>
-                          <div style={{fontSize:10,color:C.muted}}>{(l.category||"rent")==="buy"?"total price":l.category==="library"?"per seat / month":"per month"}</div>
+                          <div style={{fontSize:20,fontWeight:800,color:C.accentG}}>₹{Number(l.price).toLocaleString()}</div>
+                          <div style={{fontSize:12,color:C.muted}}>{(l.category||"rent")==="buy"?"total price":l.category==="library"?"per seat / month":"per month"}</div>
                         </div>
                         <div style={{textAlign:"right"}}>
-                          <div style={{fontSize:10,color:C.muted}}>Available</div>
-                          <div style={{fontSize:11,color:C.accentG,fontWeight:600}}>{l.available||"Contact Owner"}</div>
+                          <div style={{fontSize:12,color:C.muted}}>Available</div>
+                          <div style={{fontSize:13,color:C.accentG,fontWeight:600}}>{l.available||"Contact Owner"}</div>
                         </div>
                       </div>
                       <div style={{display:"flex",gap:4,flexWrap:"wrap",margin:"8px 0"}}>
-                        {l.kitchen&&<span style={{background:C.surface,border:`1px solid ${C.border}`,borderRadius:5,padding:"2px 6px",fontSize:9,color:C.muted}}>🍳 Kitchen</span>}
-                        {l.bathrooms&&<span style={{background:C.surface,border:`1px solid ${C.border}`,borderRadius:5,padding:"2px 6px",fontSize:9,color:C.muted}}>🚿 {l.bathrooms} Bath</span>}
-                        {l.furnished&&<span style={{background:C.surface,border:`1px solid ${C.border}`,borderRadius:5,padding:"2px 6px",fontSize:9,color:C.muted}}>🛋️ {l.furnished}</span>}
-                        {(l.amenities||[]).slice(0,3).map(a=>{const am=al(a);return am?<span key={a} style={{background:C.surface,border:`1px solid ${C.border}`,borderRadius:5,padding:"2px 6px",fontSize:9,color:C.muted}}>{am.icon} {am.label}</span>:null;})}
-                        {(l.amenities||[]).length>3&&<span style={{background:C.surface,border:`1px solid ${C.border}`,borderRadius:5,padding:"2px 6px",fontSize:9,color:C.accent}}>+{l.amenities.length-3}</span>}
+                        {l.kitchen&&<span style={{background:C.surface,border:`1px solid ${C.border}`,borderRadius:5,padding:"2px 6px",fontSize:11,color:C.muted}}>🍳 Kitchen</span>}
+                        {l.bathrooms&&<span style={{background:C.surface,border:`1px solid ${C.border}`,borderRadius:5,padding:"2px 6px",fontSize:11,color:C.muted}}>🚿 {l.bathrooms} Bath</span>}
+                        {l.furnished&&<span style={{background:C.surface,border:`1px solid ${C.border}`,borderRadius:5,padding:"2px 6px",fontSize:11,color:C.muted}}>🛋️ {l.furnished}</span>}
+                        {(l.amenities||[]).slice(0,3).map(a=>{const am=al(a);return am?<span key={a} style={{background:C.surface,border:`1px solid ${C.border}`,borderRadius:5,padding:"2px 6px",fontSize:11,color:C.muted}}>{am.icon} {am.label}</span>:null;})}
+                        {(l.amenities||[]).length>3&&<span style={{background:C.surface,border:`1px solid ${C.border}`,borderRadius:5,padding:"2px 6px",fontSize:11,color:C.accent}}>+{l.amenities.length-3}</span>}
                       </div>
                       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginTop:9,paddingTop:9,borderTop:`1px solid ${C.border}`}}>
                         <div style={{display:"flex",alignItems:"center",gap:6}}>
-                          <div style={{width:28,height:28,borderRadius:"50%",background:`linear-gradient(135deg,${C.accent},${C.accentG})`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:12,fontWeight:700,color:"#fff"}}>{l.ownerName?.[0]||"O"}</div>
+                          <div style={{width:28,height:28,borderRadius:"50%",background:`linear-gradient(135deg,${C.accent},${C.accentG})`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:14,fontWeight:700,color:"#fff"}}>{l.ownerName?.[0]||"O"}</div>
                           <div>
-                            <div style={{fontSize:11,fontWeight:600}}>{l.ownerName}</div>
-                            <div style={{fontSize:9,color:C.muted}}>Owner</div>
+                            <div style={{fontSize:13,fontWeight:600}}>{l.ownerName}</div>
+                            <div style={{fontSize:11,color:C.muted}}>Owner</div>
                           </div>
                         </div>
-                        <button style={{background:"#58815722",border:"1px solid #58815744",color:C.green,padding:"4px 11px",borderRadius:7,fontSize:10,fontWeight:700,cursor:"pointer"}} onClick={e=>{e.stopPropagation();window.open(`tel:${l.phone}`);}}>📞 Call</button>
+                        <button style={{background:"#58815722",border:"1px solid #58815744",color:C.green,padding:"4px 11px",borderRadius:7,fontSize:12,fontWeight:700,cursor:"pointer"}} onClick={e=>{e.stopPropagation();window.open(`tel:${l.phone}`);}}>📞 Call</button>
                       </div>
                     </div>
                   </div>
@@ -467,17 +467,17 @@ function App(){
         {tab==="post"&&(
           <div style={{maxWidth:700,margin:"0 auto"}}>
             <div style={{marginBottom:18}}>
-              <div style={{fontSize:17,fontWeight:800,marginBottom:3}}>{editingId?"Edit Listing":form.category==="buy"?"Post Your Property for Sale":form.category==="library"?"Post Your Study Space":"Post Your Room"} / पोस्ट करें</div>
-              <div style={{fontSize:11,color:C.muted}}>Free • No broker • Saved to Firebase</div>
+              <div style={{fontSize:20,fontWeight:800,marginBottom:3}}>{editingId?"Edit Listing":form.category==="buy"?"Post Your Property for Sale":form.category==="library"?"Post Your Study Space":"Post Your Room"} / पोस्ट करें</div>
+              <div style={{fontSize:13,color:C.muted}}>Free • No broker • Saved to Firebase</div>
             </div>
             <div style={{background:C.surface,borderRadius:15,border:`1px solid ${C.border}`,padding:18}}>
 
               <div style={{marginBottom:20,paddingBottom:20,borderBottom:`1px solid ${C.border}`}}>
                 <div style={S.secTitle}>🏷️ Listing Type</div>
                 <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
-                  <button style={{flex:1,minWidth:100,padding:"10px",borderRadius:9,border:`2px solid ${form.category==="rent"?C.accent:C.border}`,background:form.category==="rent"?"#6B908022":C.card,color:form.category==="rent"?C.accent:C.muted,fontWeight:700,cursor:"pointer",fontSize:12}} onClick={()=>upd("category","rent")}>🏡 For Rent</button>
-                  <button style={{flex:1,minWidth:100,padding:"10px",borderRadius:9,border:`2px solid ${form.category==="buy"?C.accent:C.border}`,background:form.category==="buy"?"#6B908022":C.card,color:form.category==="buy"?C.accent:C.muted,fontWeight:700,cursor:"pointer",fontSize:12}} onClick={()=>upd("category","buy")}>🏠 For Sale</button>
-                  <button style={{flex:1,minWidth:100,padding:"10px",borderRadius:9,border:`2px solid ${form.category==="library"?C.accent:C.border}`,background:form.category==="library"?"#6B908022":C.card,color:form.category==="library"?C.accent:C.muted,fontWeight:700,cursor:"pointer",fontSize:12}} onClick={()=>upd("category","library")}>📚 Study Space</button>
+                  <button style={{flex:1,minWidth:100,padding:"10px",borderRadius:9,border:`2px solid ${form.category==="rent"?C.accent:C.border}`,background:form.category==="rent"?"#6B908022":C.card,color:form.category==="rent"?C.accent:C.muted,fontWeight:700,cursor:"pointer",fontSize:14}} onClick={()=>upd("category","rent")}>🏡 For Rent</button>
+                  <button style={{flex:1,minWidth:100,padding:"10px",borderRadius:9,border:`2px solid ${form.category==="buy"?C.accent:C.border}`,background:form.category==="buy"?"#6B908022":C.card,color:form.category==="buy"?C.accent:C.muted,fontWeight:700,cursor:"pointer",fontSize:14}} onClick={()=>upd("category","buy")}>🏠 For Sale</button>
+                  <button style={{flex:1,minWidth:100,padding:"10px",borderRadius:9,border:`2px solid ${form.category==="library"?C.accent:C.border}`,background:form.category==="library"?"#6B908022":C.card,color:form.category==="library"?C.accent:C.muted,fontWeight:700,cursor:"pointer",fontSize:14}} onClick={()=>upd("category","library")}>📚 Study Space</button>
                 </div>
               </div>
 
@@ -491,9 +491,9 @@ function App(){
                   <div>
                     <div style={S.lbl}>PIN Code / पिन कोड</div>
                     <input style={S.inp} type="tel" placeholder="e.g. 462001" value={form.pincode} onChange={e=>updPincode(e.target.value)}/>
-                    {pinStatus==="loading"&&<div style={{fontSize:10,color:C.muted,marginTop:4}}>🔄 Looking up...</div>}
-                    {pinStatus==="ok"&&<div style={{fontSize:10,color:C.green,marginTop:4}}>✅ Found — check City/Area below</div>}
-                    {pinStatus==="err"&&<div style={{fontSize:10,color:"#E74C3C",marginTop:4}}>❌ Invalid PIN, fill City/Area manually</div>}
+                    {pinStatus==="loading"&&<div style={{fontSize:12,color:C.muted,marginTop:4}}>🔄 Looking up...</div>}
+                    {pinStatus==="ok"&&<div style={{fontSize:12,color:C.green,marginTop:4}}>✅ Found — check City/Area below</div>}
+                    {pinStatus==="err"&&<div style={{fontSize:12,color:"#E74C3C",marginTop:4}}>❌ Invalid PIN, fill City/Area manually</div>}
                   </div>
                   <div><div style={S.lbl}>City / District *</div><input style={S.inp} placeholder="e.g. Bhopal, MP" value={form.location} onChange={e=>upd("location",e.target.value)}/></div>
                 </div>
@@ -514,13 +514,13 @@ function App(){
                     {form.photos.map((url)=>(
                       <div key={url} style={{position:"relative",width:68,height:68}}>
                         <img src={url} style={{width:68,height:68,objectFit:"cover",borderRadius:8,border:`1px solid ${C.border}`}}/>
-                        <button onClick={()=>removePhoto(url)} style={{position:"absolute",top:-6,right:-6,width:20,height:20,borderRadius:"50%",background:"#E74C3C",color:"#fff",border:"none",fontSize:11,cursor:"pointer",lineHeight:1}}>✕</button>
+                        <button onClick={()=>removePhoto(url)} style={{position:"absolute",top:-6,right:-6,width:20,height:20,borderRadius:"50%",background:"#E74C3C",color:"#fff",border:"none",fontSize:13,cursor:"pointer",lineHeight:1}}>✕</button>
                       </div>
                     ))}
                   </div>
                 )}
                 {form.photos.length<10&&(
-                  <label style={{display:"inline-block",padding:"9px 16px",background:C.card,border:`1px dashed ${C.border}`,borderRadius:9,cursor:uploadingPhotos?"not-allowed":"pointer",fontSize:12,color:C.muted}}>
+                  <label style={{display:"inline-block",padding:"9px 16px",background:C.card,border:`1px dashed ${C.border}`,borderRadius:9,cursor:uploadingPhotos?"not-allowed":"pointer",fontSize:14,color:C.muted}}>
                     {uploadingPhotos?(photoProgress||"⏳ Uploading..."):`📷 Add Photos (${form.photos.length}/10)`}
                     <input type="file" accept="image/*" multiple style={{display:"none"}} disabled={uploadingPhotos} onChange={handlePhotoSelect}/>
                   </label>
@@ -533,9 +533,9 @@ function App(){
                 <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(100px,1fr))",gap:7}}>
                   {ROOM_TYPES.map(rt=>(
                     <div key={rt.id} style={S.optC(form.roomType===rt.id)} onClick={()=>upd("roomType",rt.id)}>
-                      <div style={{fontSize:20,marginBottom:3}}>{rt.icon}</div>
-                      <div style={{fontSize:10,fontWeight:600,color:form.roomType===rt.id?C.accent:C.muted}}>{rt.label}</div>
-                      <div style={{fontSize:8,color:C.dim,marginTop:2}}>{rt.hi}</div>
+                      <div style={{fontSize:24,marginBottom:3}}>{rt.icon}</div>
+                      <div style={{fontSize:12,fontWeight:600,color:form.roomType===rt.id?C.accent:C.muted}}>{rt.label}</div>
+                      <div style={{fontSize:10,color:C.dim,marginTop:2}}>{rt.hi}</div>
                     </div>
                   ))}
                 </div>
@@ -548,9 +548,9 @@ function App(){
                   <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(100px,1fr))",gap:7}}>
                     {TENANT_TYPES.map(tt=>(
                       <div key={tt.id} style={S.optCG(form.tenantType===tt.id)} onClick={()=>upd("tenantType",tt.id)}>
-                        <div style={{fontSize:20,marginBottom:3}}>{tt.icon}</div>
-                        <div style={{fontSize:10,fontWeight:600,color:form.tenantType===tt.id?C.accentG:C.muted}}>{tt.label}</div>
-                        <div style={{fontSize:8,color:C.dim,marginTop:2}}>{tt.hi}</div>
+                        <div style={{fontSize:24,marginBottom:3}}>{tt.icon}</div>
+                        <div style={{fontSize:12,fontWeight:600,color:form.tenantType===tt.id?C.accentG:C.muted}}>{tt.label}</div>
+                        <div style={{fontSize:10,color:C.dim,marginTop:2}}>{tt.hi}</div>
                       </div>
                     ))}
                   </div>
@@ -580,7 +580,7 @@ function App(){
                 </div>
                 <label style={{display:"flex",alignItems:"center",gap:7,cursor:"pointer",marginBottom:9}}>
                   <input type="checkbox" checked={form.kitchen} onChange={e=>upd("kitchen",e.target.checked)} style={{width:14,height:14,accentColor:C.accent}}/>
-                  <span style={{fontSize:12,color:C.muted}}>🍳 Kitchen Available / रसोई उपलब्ध</span>
+                  <span style={{fontSize:14,color:C.muted}}>🍳 Kitchen Available / रसोई उपलब्ध</span>
                 </label>
                 <div style={S.lbl}>Available From</div>
                 <input style={S.inp} placeholder="Immediate / 1 August 2026" value={form.available} onChange={e=>upd("available",e.target.value)}/>
@@ -615,7 +615,7 @@ function App(){
                 {posting?"⏳ Saving...":editingId?"💾 Save Changes":(form.category==="buy"?"🏠 Post Property to Firebase":form.category==="library"?"📚 Post Study Space to Firebase":"🏠 Post Room to Firebase")+" / फायरबेस पर पोस्ट करें"}
               </button>
               {editingId&&(
-                <button onClick={()=>{setEditingId(null);setForm(EMPTY);setTab("browse");}} style={{width:"100%",padding:"10px",background:"transparent",border:"none",color:C.muted,fontSize:12,cursor:"pointer",marginTop:8,textDecoration:"underline"}}>Cancel Edit</button>
+                <button onClick={()=>{setEditingId(null);setForm(EMPTY);setTab("browse");}} style={{width:"100%",padding:"10px",background:"transparent",border:"none",color:C.muted,fontSize:14,cursor:"pointer",marginTop:8,textDecoration:"underline"}}>Cancel Edit</button>
               )}
             </div>
           </div>
@@ -625,12 +625,12 @@ function App(){
         {tab==="mylistings"&&(
           <div style={{maxWidth:700,margin:"0 auto"}}>
             <div style={{marginBottom:18}}>
-              <div style={{fontSize:17,fontWeight:800,marginBottom:3}}>My Listings / मेरी लिस्टिंग</div>
-              <div style={{fontSize:11,color:C.muted}}>Only visible and editable by you, {user?.name}</div>
+              <div style={{fontSize:20,fontWeight:800,marginBottom:3}}>My Listings / मेरी लिस्टिंग</div>
+              <div style={{fontSize:13,color:C.muted}}>Only visible and editable by you, {user?.name}</div>
             </div>
             {listings.filter(l=>l.ownerId===user?.uid).length===0?(
               <div style={{textAlign:"center",padding:"40px 20px",color:C.muted}}>
-                <div style={{fontSize:36,marginBottom:10}}>🔍</div>
+                <div style={{fontSize:43,marginBottom:10}}>🔍</div>
                 <div>You haven't posted any listings yet</div>
               </div>
             ):(
@@ -641,15 +641,15 @@ function App(){
                       {l.photos&&l.photos.length>0?(
                         <img src={l.photos[0]} style={{width:"100%",height:"100%",objectFit:"cover"}}/>
                       ):(
-                        <div style={{height:"100%",display:"flex",alignItems:"center",justifyContent:"center",fontSize:32}}>{l.icon||"🏠"}</div>
+                        <div style={{height:"100%",display:"flex",alignItems:"center",justifyContent:"center",fontSize:38}}>{l.icon||"🏠"}</div>
                       )}
                     </div>
                     <div style={{padding:12}}>
-                      <div style={{fontSize:13,fontWeight:700,marginBottom:2}}>{l.title}</div>
-                      <div style={{fontSize:10,color:C.muted,marginBottom:9}}>₹{Number(l.price).toLocaleString()} • {l.category==="library"?"Study Space":l.category==="buy"?"For Sale":"For Rent"}</div>
+                      <div style={{fontSize:16,fontWeight:700,marginBottom:2}}>{l.title}</div>
+                      <div style={{fontSize:12,color:C.muted,marginBottom:9}}>₹{Number(l.price).toLocaleString()} • {l.category==="library"?"Study Space":l.category==="buy"?"For Sale":"For Rent"}</div>
                       <div style={{display:"flex",gap:6}}>
-                        <button onClick={()=>startEdit(l)} style={{flex:1,padding:"7px",background:"#6B908022",border:"1px solid #6B908044",color:C.accent,borderRadius:7,fontSize:11,fontWeight:700,cursor:"pointer"}}>✏️ Edit</button>
-                        <button onClick={()=>deleteListing(l.id)} style={{flex:1,padding:"7px",background:"#E74C3C22",border:"1px solid #E74C3C44",color:"#E74C3C",borderRadius:7,fontSize:11,fontWeight:700,cursor:"pointer"}}>🗑️ Delete</button>
+                        <button onClick={()=>startEdit(l)} style={{flex:1,padding:"7px",background:"#6B908022",border:"1px solid #6B908044",color:C.accent,borderRadius:7,fontSize:13,fontWeight:700,cursor:"pointer"}}>✏️ Edit</button>
+                        <button onClick={()=>deleteListing(l.id)} style={{flex:1,padding:"7px",background:"#E74C3C22",border:"1px solid #E74C3C44",color:"#E74C3C",borderRadius:7,fontSize:13,fontWeight:700,cursor:"pointer"}}>🗑️ Delete</button>
                       </div>
                     </div>
                   </div>
@@ -663,8 +663,8 @@ function App(){
         {tab==="profile"&&user&&(
           <div style={{maxWidth:420,margin:"0 auto"}}>
             <div style={{marginBottom:18}}>
-              <div style={{fontSize:17,fontWeight:800,marginBottom:3}}>Edit Profile / प्रोफ़ाइल संपादित करें</div>
-              <div style={{fontSize:11,color:C.muted}}>{user.email}</div>
+              <div style={{fontSize:20,fontWeight:800,marginBottom:3}}>Edit Profile / प्रोफ़ाइल संपादित करें</div>
+              <div style={{fontSize:13,color:C.muted}}>{user.email}</div>
             </div>
             <div style={{background:C.surface,borderRadius:15,border:`1px solid ${C.border}`,padding:20}}>
               <div style={{display:"flex",justifyContent:"center",marginBottom:18}}>
@@ -672,9 +672,9 @@ function App(){
                   {profileForm.picture?(
                     <img src={profileForm.picture} style={{width:84,height:84,borderRadius:"50%",objectFit:"cover",border:`2px solid ${C.border}`}}/>
                   ):(
-                    <div style={{width:84,height:84,borderRadius:"50%",background:`linear-gradient(135deg,${C.accent},${C.accentG})`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:32,fontWeight:800,color:"#fff"}}>{(profileForm.name||user.email||"?")[0].toUpperCase()}</div>
+                    <div style={{width:84,height:84,borderRadius:"50%",background:`linear-gradient(135deg,${C.accent},${C.accentG})`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:38,fontWeight:800,color:"#fff"}}>{(profileForm.name||user.email||"?")[0].toUpperCase()}</div>
                   )}
-                  <label style={{position:"absolute",bottom:0,right:0,width:28,height:28,borderRadius:"50%",background:C.accent,color:"#fff",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",fontSize:13,border:`2px solid ${C.surface}`}}>
+                  <label style={{position:"absolute",bottom:0,right:0,width:28,height:28,borderRadius:"50%",background:C.accent,color:"#fff",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",fontSize:15,border:`2px solid ${C.surface}`}}>
                     {uploadingPic?"⏳":"📷"}
                     <input type="file" accept="image/*" style={{display:"none"}} disabled={uploadingPic} onChange={handleProfilePic}/>
                   </label>
@@ -697,15 +697,15 @@ function App(){
         {tab==="login"&&(
           <div style={{maxWidth:420,margin:"0 auto"}}>
             <div style={{textAlign:"center",marginBottom:20}}>
-              <div style={{fontSize:20,fontWeight:800}}>{authMode==="login"?"Welcome Back!":"Create Account"}</div>
-              <div style={{fontSize:12,color:C.muted}}>{authMode==="login"?"Sign in to post & manage listings":"Sign up to post & manage listings"}</div>
+              <div style={{fontSize:24,fontWeight:800}}>{authMode==="login"?"Welcome Back!":"Create Account"}</div>
+              <div style={{fontSize:14,color:C.muted}}>{authMode==="login"?"Sign in to post & manage listings":"Sign up to post & manage listings"}</div>
             </div>
             <div style={{background:C.surface,borderRadius:15,border:`1px solid ${C.border}`,padding:20}}>
               {authMode==="signup"&&(<>
                 <div style={S.lbl}>I am a</div>
                 <div style={{display:"flex",gap:8,marginBottom:14}}>
-                  <button onClick={()=>setAuthForm(f=>({...f,role:"owner"}))} style={{flex:1,padding:10,borderRadius:9,border:`2px solid ${authForm.role==="owner"?C.accent:C.border}`,background:authForm.role==="owner"?"#6B908022":C.card,color:authForm.role==="owner"?C.accent:C.muted,fontWeight:700,cursor:"pointer",fontSize:12}}>🏠 Owner</button>
-                  <button onClick={()=>setAuthForm(f=>({...f,role:"seeker"}))} style={{flex:1,padding:10,borderRadius:9,border:`2px solid ${authForm.role==="seeker"?C.accent:C.border}`,background:authForm.role==="seeker"?"#6B908022":C.card,color:authForm.role==="seeker"?C.accent:C.muted,fontWeight:700,cursor:"pointer",fontSize:12}}>🔍 Seeker</button>
+                  <button onClick={()=>setAuthForm(f=>({...f,role:"owner"}))} style={{flex:1,padding:10,borderRadius:9,border:`2px solid ${authForm.role==="owner"?C.accent:C.border}`,background:authForm.role==="owner"?"#6B908022":C.card,color:authForm.role==="owner"?C.accent:C.muted,fontWeight:700,cursor:"pointer",fontSize:14}}>🏠 Owner</button>
+                  <button onClick={()=>setAuthForm(f=>({...f,role:"seeker"}))} style={{flex:1,padding:10,borderRadius:9,border:`2px solid ${authForm.role==="seeker"?C.accent:C.border}`,background:authForm.role==="seeker"?"#6B908022":C.card,color:authForm.role==="seeker"?C.accent:C.muted,fontWeight:700,cursor:"pointer",fontSize:14}}>🔍 Seeker</button>
                 </div>
                 <div style={S.lbl}>Full Name</div>
                 <input style={{...S.inp,marginBottom:12}} value={authForm.name} onChange={e=>setAuthForm(f=>({...f,name:e.target.value}))}/>
@@ -714,11 +714,11 @@ function App(){
               <input style={{...S.inp,marginBottom:12}} type="email" value={authForm.email} onChange={e=>setAuthForm(f=>({...f,email:e.target.value}))}/>
               <div style={S.lbl}>Password</div>
               <input style={S.inp} type="password" value={authForm.password} onChange={e=>setAuthForm(f=>({...f,password:e.target.value}))}/>
-              {authError&&<div style={{color:"#E74C3C",fontSize:11,marginTop:10}}>{authError}</div>}
+              {authError&&<div style={{color:"#E74C3C",fontSize:13,marginTop:10}}>{authError}</div>}
               <button disabled={authBusy} onClick={authMode==="login"?doLogin:doSignup} style={{...S.submitBtn,opacity:authBusy?0.7:1,cursor:authBusy?"not-allowed":"pointer"}}>
                 {authBusy?"⏳ Please wait...":authMode==="login"?"Sign In":"Sign Up"}
               </button>
-              <div style={{textAlign:"center",marginTop:14,fontSize:12,color:C.muted}}>
+              <div style={{textAlign:"center",marginTop:14,fontSize:14,color:C.muted}}>
                 {authMode==="login"?"Don't have an account? ":"Already have an account? "}
                 <span style={{color:C.accent,fontWeight:700,cursor:"pointer"}} onClick={()=>{setAuthMode(authMode==="login"?"signup":"login");setAuthError("");}}>{authMode==="login"?"Sign Up":"Sign In"}</span>
               </div>
@@ -734,58 +734,58 @@ function App(){
           <div style={{background:C.surface,borderRadius:16,border:`1px solid ${C.border}`,padding:20,maxWidth:480,width:"100%",maxHeight:"90vh",overflowY:"auto"}} onClick={e=>e.stopPropagation()}>
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
               <div>
-                <div style={{fontSize:16,fontWeight:800}}>{selected.title}</div>
-                {selected.titleHi&&<div style={{fontSize:11,color:C.muted}}>{selected.titleHi}</div>}
+                <div style={{fontSize:19,fontWeight:800}}>{selected.title}</div>
+                {selected.titleHi&&<div style={{fontSize:13,color:C.muted}}>{selected.titleHi}</div>}
               </div>
-              <button style={{background:C.card,border:"none",color:C.muted,width:28,height:28,borderRadius:7,cursor:"pointer",fontSize:13}} onClick={()=>setSelected(null)}>✕</button>
+              <button style={{background:C.card,border:"none",color:C.muted,width:28,height:28,borderRadius:7,cursor:"pointer",fontSize:16}} onClick={()=>setSelected(null)}>✕</button>
             </div>
             {selected.photos&&selected.photos.length>0?(
               <div style={{display:"flex",gap:6,overflowX:"auto",marginBottom:12,paddingBottom:2}}>
                 {selected.photos.map((url,i)=><img key={i} src={url} onClick={()=>setLightbox({photos:selected.photos,index:i})} style={{width:110,height:110,objectFit:"cover",borderRadius:9,flexShrink:0,border:`1px solid ${C.border}`,cursor:"pointer"}}/>)}
               </div>
             ):(
-              <div style={{fontSize:38,textAlign:"center",padding:"14px 0",background:"linear-gradient(135deg,#FFFFFF,#F7F5F0)",borderRadius:9,marginBottom:12}}>{selected.icon||rl(selected.roomType)?.icon||"🏠"}</div>
+              <div style={{fontSize:46,textAlign:"center",padding:"14px 0",background:"linear-gradient(135deg,#FFFFFF,#F7F5F0)",borderRadius:9,marginBottom:12}}>{selected.icon||rl(selected.roomType)?.icon||"🏠"}</div>
             )}
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
               <div>
-                <div style={{fontSize:24,fontWeight:900,color:C.accentG}}>₹{Number(selected.price).toLocaleString()}</div>
-                <div style={{fontSize:10,color:C.muted}}>{(selected.category||"rent")==="buy"?"total price":selected.category==="library"?"per seat / month":"per month"} / प्रति माह</div>
+                <div style={{fontSize:29,fontWeight:900,color:C.accentG}}>₹{Number(selected.price).toLocaleString()}</div>
+                <div style={{fontSize:12,color:C.muted}}>{(selected.category||"rent")==="buy"?"total price":selected.category==="library"?"per seat / month":"per month"} / प्रति माह</div>
               </div>
               <div style={S.badge(RC[selected.roomType]||C.accent)}>{selected.category==="library"?"📚 Study Space":`${rl(selected.roomType)?.icon||""} ${rl(selected.roomType)?.label||""}`}</div>
             </div>
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:7,marginBottom:9}}>
               {(selected.category==="library"?[["Location",`${selected.area?selected.area+", ":""}${selected.location}${selected.pincode?" - "+selected.pincode:""}`],["Timings",selected.available||"Contact Owner"],["Total Seats",selected.bathrooms||"N/A"]]:[["Location",`${selected.area?selected.area+", ":""}${selected.location}${selected.pincode?" - "+selected.pincode:""}`],["Available",selected.available||"Contact Owner"],["Floor",selected.floor||"N/A"],["Bathrooms",selected.bathrooms||"N/A"],["Kitchen",selected.kitchen?"✅ Yes":"❌ No"],["Furnished",selected.furnished||"N/A"]]).map(([l,v])=>(
-                <div key={l} style={S.dbx}><div style={{fontSize:9,color:C.muted,textTransform:"uppercase",letterSpacing:1,marginBottom:3,fontWeight:600}}>{l}</div><div style={{fontSize:12,fontWeight:500}}>{v}</div></div>
+                <div key={l} style={S.dbx}><div style={{fontSize:11,color:C.muted,textTransform:"uppercase",letterSpacing:1,marginBottom:3,fontWeight:600}}>{l}</div><div style={{fontSize:14,fontWeight:500}}>{v}</div></div>
               ))}
             </div>
-            {selected.tenantType&&<div style={{...S.dbx,marginBottom:9}}><div style={{fontSize:9,color:C.muted,textTransform:"uppercase",letterSpacing:1,marginBottom:3,fontWeight:600}}>Preferred Tenant</div><div style={{fontSize:12}}>{tl(selected.tenantType)}</div></div>}
-            {selected.amenities?.length>0&&<div style={{...S.dbx,marginBottom:9}}><div style={{fontSize:9,color:C.muted,textTransform:"uppercase",letterSpacing:1,marginBottom:6,fontWeight:600}}>Amenities</div><div style={{display:"flex",flexWrap:"wrap",gap:5}}>{selected.amenities.map(a=>{const am=al(a);return am?<span key={a} style={{background:C.surface,border:`1px solid ${C.border}`,borderRadius:5,padding:"2px 7px",fontSize:10,color:C.muted}}>{am.icon} {am.label}</span>:null;})}</div></div>}
-            {selected.docs?.length>0&&<div style={{...S.dbx,marginBottom:9}}><div style={{fontSize:9,color:C.muted,textTransform:"uppercase",letterSpacing:1,marginBottom:6,fontWeight:600}}>Required Docs</div><div style={{display:"flex",flexWrap:"wrap",gap:5}}>{selected.docs.map(d=>{const doc=DOCS.find(x=>x.id===d);return doc?<span key={d} style={{background:C.surface,border:`1px solid ${C.border}`,borderRadius:5,padding:"2px 7px",fontSize:10,color:C.muted}}>{doc.icon} {doc.label}</span>:null;})}</div></div>}
+            {selected.tenantType&&<div style={{...S.dbx,marginBottom:9}}><div style={{fontSize:11,color:C.muted,textTransform:"uppercase",letterSpacing:1,marginBottom:3,fontWeight:600}}>Preferred Tenant</div><div style={{fontSize:14}}>{tl(selected.tenantType)}</div></div>}
+            {selected.amenities?.length>0&&<div style={{...S.dbx,marginBottom:9}}><div style={{fontSize:11,color:C.muted,textTransform:"uppercase",letterSpacing:1,marginBottom:6,fontWeight:600}}>Amenities</div><div style={{display:"flex",flexWrap:"wrap",gap:5}}>{selected.amenities.map(a=>{const am=al(a);return am?<span key={a} style={{background:C.surface,border:`1px solid ${C.border}`,borderRadius:5,padding:"2px 7px",fontSize:12,color:C.muted}}>{am.icon} {am.label}</span>:null;})}</div></div>}
+            {selected.docs?.length>0&&<div style={{...S.dbx,marginBottom:9}}><div style={{fontSize:11,color:C.muted,textTransform:"uppercase",letterSpacing:1,marginBottom:6,fontWeight:600}}>Required Docs</div><div style={{display:"flex",flexWrap:"wrap",gap:5}}>{selected.docs.map(d=>{const doc=DOCS.find(x=>x.id===d);return doc?<span key={d} style={{background:C.surface,border:`1px solid ${C.border}`,borderRadius:5,padding:"2px 7px",fontSize:12,color:C.muted}}>{doc.icon} {doc.label}</span>:null;})}</div></div>}
             <div style={{...S.dbx,marginBottom:12}}>
-              <div style={{fontSize:9,color:C.muted,textTransform:"uppercase",letterSpacing:1,marginBottom:6,fontWeight:600}}>Owner / मालिक</div>
+              <div style={{fontSize:11,color:C.muted,textTransform:"uppercase",letterSpacing:1,marginBottom:6,fontWeight:600}}>Owner / मालिक</div>
               <div style={{display:"flex",alignItems:"center",gap:8}}>
-                <div style={{width:32,height:32,borderRadius:"50%",background:`linear-gradient(135deg,${C.accent},${C.accentG})`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:14,fontWeight:700,color:"#fff"}}>{selected.ownerName?.[0]||"O"}</div>
-                <div><div style={{fontWeight:700,fontSize:13}}>{selected.ownerName}</div><div style={{fontSize:11,color:C.muted}}>📞 {selected.phone}</div></div>
+                <div style={{width:32,height:32,borderRadius:"50%",background:`linear-gradient(135deg,${C.accent},${C.accentG})`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:17,fontWeight:700,color:"#fff"}}>{selected.ownerName?.[0]||"O"}</div>
+                <div><div style={{fontWeight:700,fontSize:16}}>{selected.ownerName}</div><div style={{fontSize:13,color:C.muted}}>📞 {selected.phone}</div></div>
               </div>
             </div>
-            <button style={{width:"100%",padding:"12px",background:"#58815722",border:"1px solid #58815755",color:C.green,borderRadius:9,fontSize:13,fontWeight:800,cursor:"pointer"}} onClick={()=>window.open(`tel:${selected.phone}`)}>📞 Call Owner / मालिक को कॉल करें</button>
-            <button style={{width:"100%",padding:"12px",background:"#25D36622",border:"1px solid #25D36644",color:"#25D366",borderRadius:9,fontSize:13,fontWeight:800,cursor:"pointer",marginTop:7}} onClick={()=>window.open(`https://wa.me/91${selected.phone}`)}>💬 WhatsApp Owner</button>
-            <button style={{width:"100%",padding:"12px",background:"#3498DB22",border:"1px solid #3498DB44",color:"#3498DB",borderRadius:9,fontSize:13,fontWeight:800,cursor:"pointer",marginTop:7}} onClick={()=>{const addr=(selected.area?selected.area+", ":"")+selected.location+(selected.pincode?" "+selected.pincode:"");window.open("https://www.google.com/maps/search/?api=1&query="+encodeURIComponent(addr));}}>📍 View on Map</button>
+            <button style={{width:"100%",padding:"12px",background:"#58815722",border:"1px solid #58815755",color:C.green,borderRadius:9,fontSize:16,fontWeight:800,cursor:"pointer"}} onClick={()=>window.open(`tel:${selected.phone}`)}>📞 Call Owner / मालिक को कॉल करें</button>
+            <button style={{width:"100%",padding:"12px",background:"#25D36622",border:"1px solid #25D36644",color:"#25D366",borderRadius:9,fontSize:16,fontWeight:800,cursor:"pointer",marginTop:7}} onClick={()=>window.open(`https://wa.me/91${selected.phone}`)}>💬 WhatsApp Owner</button>
+            <button style={{width:"100%",padding:"12px",background:"#3498DB22",border:"1px solid #3498DB44",color:"#3498DB",borderRadius:9,fontSize:16,fontWeight:800,cursor:"pointer",marginTop:7}} onClick={()=>{const addr=(selected.area?selected.area+", ":"")+selected.location+(selected.pincode?" "+selected.pincode:"");window.open("https://www.google.com/maps/search/?api=1&query="+encodeURIComponent(addr));}}>📍 View on Map</button>
           </div>
         </div>
       )}
 
       {lightbox&&(
         <div style={{position:"fixed",inset:0,background:"#000D",zIndex:400,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center"}} onClick={()=>setLightbox(null)}>
-          <button style={{position:"absolute",top:16,right:16,width:36,height:36,borderRadius:"50%",background:"#FFFFFF33",color:"#fff",border:"none",fontSize:18,cursor:"pointer"}} onClick={()=>setLightbox(null)}>✕</button>
+          <button style={{position:"absolute",top:16,right:16,width:36,height:36,borderRadius:"50%",background:"#FFFFFF33",color:"#fff",border:"none",fontSize:21,cursor:"pointer"}} onClick={()=>setLightbox(null)}>✕</button>
           {lightbox.photos.length>1&&(
-            <button style={{position:"absolute",left:10,top:"50%",transform:"translateY(-50%)",width:40,height:40,borderRadius:"50%",background:"#FFFFFF33",color:"#fff",border:"none",fontSize:18,cursor:"pointer"}} onClick={e=>{e.stopPropagation();setLightbox(l=>({...l,index:(l.index-1+l.photos.length)%l.photos.length}));}}>‹</button>
+            <button style={{position:"absolute",left:10,top:"50%",transform:"translateY(-50%)",width:40,height:40,borderRadius:"50%",background:"#FFFFFF33",color:"#fff",border:"none",fontSize:21,cursor:"pointer"}} onClick={e=>{e.stopPropagation();setLightbox(l=>({...l,index:(l.index-1+l.photos.length)%l.photos.length}));}}>‹</button>
           )}
           <img src={lightbox.photos[lightbox.index]} onClick={e=>e.stopPropagation()} style={{maxWidth:"92vw",maxHeight:"80vh",objectFit:"contain",borderRadius:8}}/>
           {lightbox.photos.length>1&&(
-            <button style={{position:"absolute",right:10,top:"50%",transform:"translateY(-50%)",width:40,height:40,borderRadius:"50%",background:"#FFFFFF33",color:"#fff",border:"none",fontSize:18,cursor:"pointer"}} onClick={e=>{e.stopPropagation();setLightbox(l=>({...l,index:(l.index+1)%l.photos.length}));}}>›</button>
+            <button style={{position:"absolute",right:10,top:"50%",transform:"translateY(-50%)",width:40,height:40,borderRadius:"50%",background:"#FFFFFF33",color:"#fff",border:"none",fontSize:21,cursor:"pointer"}} onClick={e=>{e.stopPropagation();setLightbox(l=>({...l,index:(l.index+1)%l.photos.length}));}}>›</button>
           )}
-          {lightbox.photos.length>1&&<div style={{color:"#fff",fontSize:11,marginTop:12}}>{lightbox.index+1} / {lightbox.photos.length}</div>}
+          {lightbox.photos.length>1&&<div style={{color:"#fff",fontSize:13,marginTop:12}}>{lightbox.index+1} / {lightbox.photos.length}</div>}
         </div>
       )}
 
@@ -798,8 +798,8 @@ function App(){
           {id:"post",icon:"➕",label:"Post",onClick:()=>{if(!user){setTab("login");return;}setEditingId(null);setForm(EMPTY);setTab("post");},active:tab==="post"},
         ].map(item=>(
           <button key={item.id} onClick={item.onClick} style={{flex:1,padding:"9px 4px 8px",background:"transparent",border:"none",cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:2}}>
-            <span style={{fontSize:19,opacity:item.active?1:0.55}}>{item.icon}</span>
-            <span style={{fontSize:9,fontWeight:700,color:item.active?C.accent:C.muted}}>{item.label}</span>
+            <span style={{fontSize:23,opacity:item.active?1:0.55}}>{item.icon}</span>
+            <span style={{fontSize:11,fontWeight:700,color:item.active?C.accent:C.muted}}>{item.label}</span>
           </button>
         ))}
       </div>
@@ -815,23 +815,23 @@ function App(){
                   {user.picture?(
                     <img src={user.picture} style={{width:72,height:72,borderRadius:"50%",objectFit:"cover",border:`2px solid ${C.border}`,margin:"0 auto 10px"}}/>
                   ):(
-                    <div style={{width:72,height:72,borderRadius:"50%",background:`linear-gradient(135deg,${C.accent},${C.accentG})`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:28,fontWeight:800,color:"#fff",margin:"0 auto 10px"}}>{(user.name||user.email||"?")[0].toUpperCase()}</div>
+                    <div style={{width:72,height:72,borderRadius:"50%",background:`linear-gradient(135deg,${C.accent},${C.accentG})`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:34,fontWeight:800,color:"#fff",margin:"0 auto 10px"}}>{(user.name||user.email||"?")[0].toUpperCase()}</div>
                   )}
-                  <div style={{fontWeight:800,fontSize:15}}>{user.name}</div>
-                  <div style={{fontSize:11,color:C.muted,marginBottom:6}}>{user.email}</div>
+                  <div style={{fontWeight:800,fontSize:18}}>{user.name}</div>
+                  <div style={{fontSize:13,color:C.muted,marginBottom:6}}>{user.email}</div>
                   <div style={{display:"inline-block"}}><div style={S.badge(user.role==="owner"?C.accent:C.accentG)}>{user.role==="owner"?"🏠 Owner":"🔍 Seeker"}</div></div>
-                  {user.bio&&<div style={{fontSize:11,color:C.muted,marginTop:8,lineHeight:1.4}}>{user.bio}</div>}
+                  {user.bio&&<div style={{fontSize:13,color:C.muted,marginTop:8,lineHeight:1.4}}>{user.bio}</div>}
                 </div>
                 <div style={{borderTop:`1px solid ${C.border}`,paddingTop:14,display:"flex",flexDirection:"column",gap:4}}>
-                  <button onClick={()=>{setTab("profile");setDrawerOpen(false);}} style={{textAlign:"left",padding:"10px 8px",background:"transparent",border:"none",borderRadius:8,color:C.text,fontSize:13,fontWeight:600,cursor:"pointer"}}>✏️ Edit Profile</button>
-                  <button onClick={()=>{setTab("mylistings");setDrawerOpen(false);}} style={{textAlign:"left",padding:"10px 8px",background:"transparent",border:"none",borderRadius:8,color:C.text,fontSize:13,fontWeight:600,cursor:"pointer"}}>📋 My Listings</button>
-                  <button onClick={doLogout} style={{textAlign:"left",padding:"10px 8px",background:"transparent",border:"none",borderRadius:8,color:"#E74C3C",fontSize:13,fontWeight:600,cursor:"pointer"}}>🚪 Logout</button>
+                  <button onClick={()=>{setTab("profile");setDrawerOpen(false);}} style={{textAlign:"left",padding:"10px 8px",background:"transparent",border:"none",borderRadius:8,color:C.text,fontSize:16,fontWeight:600,cursor:"pointer"}}>✏️ Edit Profile</button>
+                  <button onClick={()=>{setTab("mylistings");setDrawerOpen(false);}} style={{textAlign:"left",padding:"10px 8px",background:"transparent",border:"none",borderRadius:8,color:C.text,fontSize:16,fontWeight:600,cursor:"pointer"}}>📋 My Listings</button>
+                  <button onClick={doLogout} style={{textAlign:"left",padding:"10px 8px",background:"transparent",border:"none",borderRadius:8,color:"#E74C3C",fontSize:16,fontWeight:600,cursor:"pointer"}}>🚪 Logout</button>
                 </div>
               </>
             ):(
               <div style={{textAlign:"center",paddingTop:30}}>
-                <div style={{fontSize:36,marginBottom:10}}>👤</div>
-                <div style={{fontSize:13,color:C.muted,marginBottom:16}}>Log in to post listings and manage your profile</div>
+                <div style={{fontSize:43,marginBottom:10}}>👤</div>
+                <div style={{fontSize:16,color:C.muted,marginBottom:16}}>Log in to post listings and manage your profile</div>
                 <button onClick={()=>{setTab("login");setDrawerOpen(false);}} style={{...S.submitBtn,marginTop:0}}>Login / Sign Up</button>
               </div>
             )}
@@ -839,7 +839,7 @@ function App(){
         </div>
       )}
 
-      {toast&&<div style={{position:"fixed",bottom:78,right:18,background:toast.type==="err"?"#E74C3C":C.green,color:"#fff",padding:"10px 16px",borderRadius:9,fontWeight:700,fontSize:12,zIndex:999,boxShadow:"0 4px 20px #00000022",maxWidth:300}}>{toast.text}</div>}
+      {toast&&<div style={{position:"fixed",bottom:78,right:18,background:toast.type==="err"?"#E74C3C":C.green,color:"#fff",padding:"10px 16px",borderRadius:9,fontWeight:700,fontSize:14,zIndex:999,boxShadow:"0 4px 20px #00000022",maxWidth:300}}>{toast.text}</div>}
     </div>
   );
 }
@@ -847,4 +847,4 @@ function App(){
 ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
 </script>
 </body>
-  </html>
+</html>
