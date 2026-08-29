@@ -135,6 +135,58 @@ function App(){
 
   const removePhoto=(url)=>setForm(f=>({...f,photos:f.photos.filter(p=>p!==url)}));
 
+  const[myLocation,setMyLocation]=useState("");
+  const[locationPicker,setLocationPicker]=useState(false);
+  const[locSearch,setLocSearch]=useState("");
+  const[locResults,setLocResults]=useState([]);
+  const[locBusy,setLocBusy]=useState(false);
+  const[locAskedOnce,setLocAskedOnce]=useState(false);
+
+  const saveCityToProfile=async(label)=>{
+    if(!user)return;
+    try{
+      const hdr=await authHeader();
+      fetch(`${BASE}/users/${user.uid}?key=${KEY}`,{method:"PATCH",headers:{"Content-Type":"application/json",...hdr},body:JSON.stringify(toFS({city:label}))});
+    }catch(e){}
+  };
+
+  const detectLocation=()=>{
+    if(!navigator.geolocation){msg("Location not supported on this browser","err");return;}
+    setLocBusy(true);
+    navigator.geolocation.getCurrentPosition(async(pos)=>{
+      try{
+        const{latitude,longitude}=pos.coords;
+        const res=await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`);
+        const data=await res.json();
+        const addr=data.address||{};
+        const city=addr.city||addr.town||addr.village||addr.county||addr.state_district||"";
+        const state=addr.state||"";
+        const label=city&&state?`${city}, ${state}`:(city||state||"");
+        if(label){setMyLocation(label);saveCityToProfile(label);}
+        setLocationPicker(false);
+      }catch(e){msg("Could not detect location","err");}
+      setLocBusy(false);
+    },()=>{setLocBusy(false);msg("Location permission denied — search manually instead","err");},{enableHighAccuracy:false,timeout:10000});
+  };
+
+  const searchLocation=async(q)=>{
+    setLocSearch(q);
+    if(q.length<3){setLocResults([]);return;}
+    try{
+      const res=await fetch(`https://nominatim.openstreetmap.org/search?format=json&countrycodes=in&q=${encodeURIComponent(q)}&limit=6`);
+      setLocResults(await res.json());
+    }catch(e){}
+  };
+
+  const selectLocationResult=(r)=>{
+    const label=r.display_name.split(",").slice(0,2).join(",").trim();
+    setMyLocation(label);
+    saveCityToProfile(label);
+    setLocationPicker(false);
+    setLocSearch("");
+    setLocResults([]);
+  };
+
   const[pinStatus,setPinStatus]=useState("idle");
   const[pinOffices,setPinOffices]=useState([]);
 
@@ -188,6 +240,8 @@ function App(){
             const u={uid:fbUser.uid,email:fbUser.email,name:profile.name||fbUser.email,role:profile.role||"seeker",picture:profile.picture||"",phone:profile.phone||"",bio:profile.bio||""};
             setUser(u);
             setProfileForm({name:u.name,phone:u.phone,bio:u.bio,picture:u.picture});
+            if(profile.city){setMyLocation(profile.city);}
+            else if(!locAskedOnce){setLocAskedOnce(true);detectLocation();}
           }else{
             const u={uid:fbUser.uid,email:fbUser.email,name:fbUser.email,role:"seeker",picture:"",phone:"",bio:""};
             setUser(u);
@@ -341,6 +395,36 @@ function App(){
         </div>
       </header>
 
+      {/* LOCATION BAR */}
+      <div onClick={()=>setLocationPicker(true)} style={{background:C.card,borderBottom:`1px solid ${C.border}`,padding:"9px 14px",display:"flex",alignItems:"center",justifyContent:"center",gap:6,cursor:"pointer"}}>
+        <span style={{fontSize:15}}>📍</span>
+        <span style={{fontSize:14,fontWeight:700,color:C.text}}>{myLocation||"Set your location"}</span>
+        <span style={{fontSize:12,color:C.muted}}>▾</span>
+      </div>
+
+      {/* LOCATION PICKER */}
+      {locationPicker&&(
+        <div style={{position:"fixed",inset:0,background:"#00000055",zIndex:260,display:"flex",alignItems:"flex-start",justifyContent:"center",padding:14,paddingTop:60}} onClick={()=>setLocationPicker(false)}>
+          <div style={{background:C.surface,borderRadius:15,border:`1px solid ${C.border}`,padding:18,maxWidth:420,width:"100%",maxHeight:"75vh",overflowY:"auto"}} onClick={e=>e.stopPropagation()}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
+              <div style={{fontSize:17,fontWeight:800}}>Choose Location</div>
+              <button onClick={()=>setLocationPicker(false)} style={{background:C.card,border:"none",color:C.muted,width:28,height:28,borderRadius:7,cursor:"pointer",fontSize:14}}>✕</button>
+            </div>
+            <button disabled={locBusy} onClick={detectLocation} style={{width:"100%",padding:"11px",background:"#6B908022",border:`1px solid ${C.accent}`,borderRadius:9,color:C.accent,fontWeight:700,fontSize:14,cursor:locBusy?"not-allowed":"pointer",marginBottom:14}}>
+              {locBusy?"⏳ Detecting...":"📍 Use Current Location"}
+            </button>
+            <input style={S.inp} placeholder="Search city or area..." value={locSearch} onChange={e=>searchLocation(e.target.value)}/>
+            {locResults.length>0&&(
+              <div style={{marginTop:10,display:"flex",flexDirection:"column",gap:2}}>
+                {locResults.map((r,i)=>(
+                  <button key={i} onClick={()=>selectLocationResult(r)} style={{textAlign:"left",padding:"10px 8px",background:"transparent",border:"none",borderBottom:`1px solid ${C.border}`,color:C.text,fontSize:13,cursor:"pointer"}}>📍 {r.display_name}</button>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* HERO */}
       {tab==="browse"&&(
         <div style={S.hero}>
@@ -415,7 +499,7 @@ function App(){
                       {l.photos&&l.photos.length>0?(
                         <img src={l.photos[0]} style={{width:"100%",height:"100%",objectFit:"cover"}}/>
                       ):(
-                        <div style={{height:"100%",display:"flex",alignItems:"center",justifyContent:"center",fontSize:46}}>{l.icon||rl(l.roomType)?.icon||(l.category==="library"?"📚":"🏠")}</div>
+                        <div style={{height:"100%",display:"flex",alignItems:"center",justifyContent:"center",fontSize:48}}>{l.icon||rl(l.roomType)?.icon||(l.category==="library"?"📚":"🏠")}</div>
                       )}
                       {l.photos&&l.photos.length>1&&<div style={{position:"absolute",bottom:6,right:6,background:"#00000088",color:"#fff",fontSize:11,padding:"2px 7px",borderRadius:10}}>📷 +{l.photos.length-1}</div>}
                     </div>
@@ -674,7 +758,7 @@ function App(){
                   ):(
                     <div style={{width:84,height:84,borderRadius:"50%",background:`linear-gradient(135deg,${C.accent},${C.accentG})`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:38,fontWeight:800,color:"#fff"}}>{(profileForm.name||user.email||"?")[0].toUpperCase()}</div>
                   )}
-                  <label style={{position:"absolute",bottom:0,right:0,width:28,height:28,borderRadius:"50%",background:C.accent,color:"#fff",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",fontSize:15,border:`2px solid ${C.surface}`}}>
+                  <label style={{position:"absolute",bottom:0,right:0,width:28,height:28,borderRadius:"50%",background:C.accent,color:"#fff",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",fontSize:16,border:`2px solid ${C.surface}`}}>
                     {uploadingPic?"⏳":"📷"}
                     <input type="file" accept="image/*" style={{display:"none"}} disabled={uploadingPic} onChange={handleProfilePic}/>
                   </label>
@@ -777,13 +861,13 @@ function App(){
 
       {lightbox&&(
         <div style={{position:"fixed",inset:0,background:"#000D",zIndex:400,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center"}} onClick={()=>setLightbox(null)}>
-          <button style={{position:"absolute",top:16,right:16,width:36,height:36,borderRadius:"50%",background:"#FFFFFF33",color:"#fff",border:"none",fontSize:21,cursor:"pointer"}} onClick={()=>setLightbox(null)}>✕</button>
+          <button style={{position:"absolute",top:16,right:16,width:36,height:36,borderRadius:"50%",background:"#FFFFFF33",color:"#fff",border:"none",fontSize:22,cursor:"pointer"}} onClick={()=>setLightbox(null)}>✕</button>
           {lightbox.photos.length>1&&(
-            <button style={{position:"absolute",left:10,top:"50%",transform:"translateY(-50%)",width:40,height:40,borderRadius:"50%",background:"#FFFFFF33",color:"#fff",border:"none",fontSize:21,cursor:"pointer"}} onClick={e=>{e.stopPropagation();setLightbox(l=>({...l,index:(l.index-1+l.photos.length)%l.photos.length}));}}>‹</button>
+            <button style={{position:"absolute",left:10,top:"50%",transform:"translateY(-50%)",width:40,height:40,borderRadius:"50%",background:"#FFFFFF33",color:"#fff",border:"none",fontSize:22,cursor:"pointer"}} onClick={e=>{e.stopPropagation();setLightbox(l=>({...l,index:(l.index-1+l.photos.length)%l.photos.length}));}}>‹</button>
           )}
           <img src={lightbox.photos[lightbox.index]} onClick={e=>e.stopPropagation()} style={{maxWidth:"92vw",maxHeight:"80vh",objectFit:"contain",borderRadius:8}}/>
           {lightbox.photos.length>1&&(
-            <button style={{position:"absolute",right:10,top:"50%",transform:"translateY(-50%)",width:40,height:40,borderRadius:"50%",background:"#FFFFFF33",color:"#fff",border:"none",fontSize:21,cursor:"pointer"}} onClick={e=>{e.stopPropagation();setLightbox(l=>({...l,index:(l.index+1)%l.photos.length}));}}>›</button>
+            <button style={{position:"absolute",right:10,top:"50%",transform:"translateY(-50%)",width:40,height:40,borderRadius:"50%",background:"#FFFFFF33",color:"#fff",border:"none",fontSize:22,cursor:"pointer"}} onClick={e=>{e.stopPropagation();setLightbox(l=>({...l,index:(l.index+1)%l.photos.length}));}}>›</button>
           )}
           {lightbox.photos.length>1&&<div style={{color:"#fff",fontSize:13,marginTop:12}}>{lightbox.index+1} / {lightbox.photos.length}</div>}
         </div>
@@ -808,7 +892,7 @@ function App(){
       {drawerOpen&&(
         <div style={{position:"fixed",inset:0,background:"#00000055",zIndex:250}} onClick={()=>setDrawerOpen(false)}>
           <div style={{position:"absolute",top:0,bottom:0,left:0,width:270,background:C.surface,boxShadow:"3px 0 20px #00000022",padding:20,overflowY:"auto"}} onClick={e=>e.stopPropagation()}>
-            <button onClick={()=>setDrawerOpen(false)} style={{background:C.card,border:"none",color:C.muted,width:28,height:28,borderRadius:7,cursor:"pointer",fontSize:13,marginBottom:16}}>✕</button>
+            <button onClick={()=>setDrawerOpen(false)} style={{background:C.card,border:"none",color:C.muted,width:28,height:28,borderRadius:7,cursor:"pointer",fontSize:16,marginBottom:16}}>✕</button>
             {user?(
               <>
                 <div style={{textAlign:"center",marginBottom:18}}>
