@@ -9,6 +9,7 @@
 <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 body{background:#F7F5F0;color:#3A3A3A;font-family:'Segoe UI',Arial,sans-serif}
@@ -29,6 +30,7 @@ const KEY="AIzaSyCESZDLJlfrN00bnwVhr6RKuTV3dpf3hGs";
 const BASE=`https://firestore.googleapis.com/v1/projects/${PROJECT}/databases/(default)/documents`;
 firebase.initializeApp({apiKey:KEY,authDomain:`${PROJECT}.firebaseapp.com`,projectId:PROJECT});
 const auth=firebase.auth();
+const db=firebase.firestore();
 
 const toFS=(obj)=>{const f={};for(const[k,v]of Object.entries(obj)){if(v===null||v===undefined)continue;if(typeof v==="string")f[k]={stringValue:v};else if(typeof v==="number")f[k]={integerValue:String(v)};else if(typeof v==="boolean")f[k]={booleanValue:v};else if(Array.isArray(v))f[k]={arrayValue:{values:v.map(i=>({stringValue:String(i)}))}};}return{fields:f};};
 const fromFS=(doc)=>{const o={id:doc.name?.split("/").pop()};for(const[k,v]of Object.entries(doc.fields||{})){if(v.stringValue!==undefined)o[k]=v.stringValue;else if(v.integerValue!==undefined)o[k]=Number(v.integerValue);else if(v.booleanValue!==undefined)o[k]=v.booleanValue;else if(v.arrayValue)o[k]=(v.arrayValue.values||[]).map(i=>i.stringValue||"");}return o;};
@@ -61,6 +63,12 @@ function App(){
   const[toast,setToast]=useState(null);
   const[editingId,setEditingId]=useState(null);
   const[lightbox,setLightbox]=useState(null);
+  const[deepLinkDone,setDeepLinkDone]=useState(false);
+  const[chats,setChats]=useState([]);
+  const[activeChat,setActiveChat]=useState(null);
+  const[chatMessages,setChatMessages]=useState([]);
+  const[chatText,setChatText]=useState("");
+  const[chatSending,setChatSending]=useState(false);
   const[user,setUser]=useState(null);
   const[authMode,setAuthMode]=useState("login");
   const[authForm,setAuthForm]=useState({name:"",email:"",password:"",role:"seeker"});
@@ -228,6 +236,80 @@ function App(){
   };
 
   useEffect(()=>{load();},[]);
+
+  useEffect(()=>{
+    if(deepLinkDone||listings.length===0)return;
+    const params=new URLSearchParams(window.location.search);
+    const id=params.get("listing");
+    if(id){
+      const found=listings.find(l=>l.id===id);
+      if(found){setSelected(found);setSection(found.category||"rent");}
+    }
+    setDeepLinkDone(true);
+  },[listings]);
+
+  const shareListing=async(l)=>{
+    const url=`${window.location.origin}${window.location.pathname}?listing=${l.id}`;
+    const priceLabel=(l.category||"rent")==="buy"?"":(l.category==="library"?"/seat/month":"/month");
+    const text=`${l.title} - ₹${Number(l.price).toLocaleString()}${priceLabel} in ${l.location}`;
+    if(navigator.share){
+      try{await navigator.share({title:l.title,text,url});}catch(e){}
+    }else{
+      try{await navigator.clipboard.writeText(url);msg("🔗 Link copied to clipboard!");}catch(e){msg("Could not copy link","err");}
+    }
+  };
+
+  const chatIdFor=(listingId,uidA,uidB)=>{
+    const pair=[uidA,uidB].sort();
+    return`${listingId}_${pair[0]}_${pair[1]}`;
+  };
+
+  const loadMyChats=()=>{
+    if(!user)return;
+    db.collection("chats").where("participants","array-contains",user.uid).orderBy("lastMessageAt","desc")
+      .onSnapshot(snap=>{setChats(snap.docs.map(d=>({id:d.id,...d.data()})));},()=>{});
+  };
+
+  const openChat=async(listing)=>{
+    if(!user){setTab("login");return;}
+    if(listing.ownerId===user.uid){msg("This is your own listing","err");return;}
+    const cid=chatIdFor(listing.id,user.uid,listing.ownerId);
+    const ref=db.collection("chats").doc(cid);
+    const doc=await ref.get();
+    if(!doc.exists){
+      await ref.set({listingId:listing.id,listingTitle:listing.title,participants:[user.uid,listing.ownerId],names:{[user.uid]:user.name,[listing.ownerId]:listing.ownerName||"Owner"},lastMessage:"",lastMessageAt:firebase.firestore.FieldValue.serverTimestamp(),createdAt:firebase.firestore.FieldValue.serverTimestamp()});
+    }
+    setActiveChat({id:cid,listingTitle:listing.title,otherName:listing.ownerName||"Owner"});
+    setSelected(null);
+    setTab("chat");
+  };
+
+  const openChatFromInbox=(c)=>{
+    const otherUid=c.participants.find(p=>p!==user.uid);
+    setActiveChat({id:c.id,listingTitle:c.listingTitle,otherName:(c.names&&c.names[otherUid])||"User"});
+    setTab("chat");
+  };
+
+  useEffect(()=>{
+    if(!activeChat)return;
+    const unsub=db.collection("chats").doc(activeChat.id).collection("messages").orderBy("createdAt","asc")
+      .onSnapshot(snap=>{setChatMessages(snap.docs.map(d=>({id:d.id,...d.data()})));},()=>{});
+    return unsub;
+  },[activeChat]);
+
+  useEffect(()=>{if(user)loadMyChats();else{setChats([]);}},[user]);
+
+  const sendChatMessage=async()=>{
+    if(!chatText.trim()||!activeChat||!user)return;
+    setChatSending(true);
+    try{
+      const text=chatText.trim();
+      setChatText("");
+      await db.collection("chats").doc(activeChat.id).collection("messages").add({senderId:user.uid,text,createdAt:firebase.firestore.FieldValue.serverTimestamp()});
+      await db.collection("chats").doc(activeChat.id).update({lastMessage:text,lastMessageAt:firebase.firestore.FieldValue.serverTimestamp()});
+    }catch(e){msg("❌ Message failed to send","err");}
+    setChatSending(false);
+  };
 
   useEffect(()=>{
     const unsub=auth.onAuthStateChanged(async(fbUser)=>{
@@ -810,6 +892,63 @@ function App(){
           </div>
         )}
 
+        {/* CHAT LIST */}
+        {tab==="chatlist"&&(
+          <div style={{maxWidth:700,margin:"0 auto"}}>
+            <div style={{marginBottom:18}}>
+              <div style={{fontSize:20,fontWeight:800,marginBottom:3}}>Messages / संदेश</div>
+              <div style={{fontSize:13,color:C.muted}}>Conversations about your listings and inquiries</div>
+            </div>
+            {chats.length===0?(
+              <div style={{textAlign:"center",padding:"40px 20px",color:C.muted}}>
+                <div style={{fontSize:43,marginBottom:10}}>💬</div>
+                <div>No conversations yet</div>
+              </div>
+            ):(
+              <div style={{display:"flex",flexDirection:"column",gap:8}}>
+                {chats.map(c=>{
+                  const otherUid=c.participants.find(p=>p!==user?.uid);
+                  const otherName=(c.names&&c.names[otherUid])||"User";
+                  return(
+                    <div key={c.id} onClick={()=>openChatFromInbox(c)} style={{...S.card,cursor:"pointer",padding:14,display:"flex",alignItems:"center",gap:12}}>
+                      <div style={{width:44,height:44,borderRadius:"50%",background:`linear-gradient(135deg,${C.accent},${C.accentG})`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:19,fontWeight:700,color:"#fff",flexShrink:0}}>{otherName[0]?.toUpperCase()||"?"}</div>
+                      <div style={{flex:1,minWidth:0}}>
+                        <div style={{fontSize:15,fontWeight:700}}>{otherName}</div>
+                        <div style={{fontSize:12,color:C.muted,marginBottom:2}}>{c.listingTitle}</div>
+                        <div style={{fontSize:13,color:C.muted,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{c.lastMessage||"No messages yet"}</div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* CHAT THREAD */}
+        {tab==="chat"&&activeChat&&(
+          <div style={{maxWidth:600,margin:"0 auto"}}>
+            <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:14}}>
+              <button onClick={()=>{setTab("chatlist");setActiveChat(null);}} style={{background:C.card,border:`1px solid ${C.border}`,color:C.text,width:34,height:34,borderRadius:9,cursor:"pointer",fontSize:17}}>←</button>
+              <div>
+                <div style={{fontSize:16,fontWeight:800}}>{activeChat.otherName}</div>
+                <div style={{fontSize:12,color:C.muted}}>{activeChat.listingTitle}</div>
+              </div>
+            </div>
+            <div style={{background:C.surface,borderRadius:15,border:`1px solid ${C.border}`,padding:14,minHeight:340,maxHeight:440,overflowY:"auto",display:"flex",flexDirection:"column",gap:8,marginBottom:12}}>
+              {chatMessages.length===0?(
+                <div style={{margin:"auto",color:C.muted,fontSize:13,textAlign:"center"}}>Say hello 👋 to start the conversation</div>
+              ):chatMessages.map(m=>(
+                <div key={m.id} style={{alignSelf:m.senderId===user?.uid?"flex-end":"flex-start",maxWidth:"78%",background:m.senderId===user?.uid?`linear-gradient(135deg,${C.accent},${C.accentG})`:C.card,color:m.senderId===user?.uid?"#fff":C.text,padding:"9px 13px",borderRadius:13,fontSize:14,border:m.senderId===user?.uid?"none":`1px solid ${C.border}`}}>{m.text}</div>
+              ))}
+            </div>
+            <div style={{display:"flex",gap:8}}>
+              <input style={S.inp} placeholder="Type a message..." value={chatText} onChange={e=>setChatText(e.target.value)} onKeyDown={e=>{if(e.key==="Enter")sendChatMessage();}}/>
+              <button disabled={chatSending||!chatText.trim()} onClick={sendChatMessage} style={{padding:"10px 18px",background:`linear-gradient(135deg,${C.accent},${C.accentG})`,border:"none",borderRadius:9,color:"#fff",fontWeight:700,cursor:chatSending?"not-allowed":"pointer",fontSize:14,opacity:chatSending||!chatText.trim()?0.6:1}}>Send</button>
+            </div>
+          </div>
+        )}
+
       </main>
 
       {/* MODAL */}
@@ -855,6 +994,10 @@ function App(){
             <button style={{width:"100%",padding:"12px",background:"#58815722",border:"1px solid #58815755",color:C.green,borderRadius:9,fontSize:16,fontWeight:800,cursor:"pointer"}} onClick={()=>window.open(`tel:${selected.phone}`)}>📞 Call Owner / मालिक को कॉल करें</button>
             <button style={{width:"100%",padding:"12px",background:"#25D36622",border:"1px solid #25D36644",color:"#25D366",borderRadius:9,fontSize:16,fontWeight:800,cursor:"pointer",marginTop:7}} onClick={()=>window.open(`https://wa.me/91${selected.phone}`)}>💬 WhatsApp Owner</button>
             <button style={{width:"100%",padding:"12px",background:"#3498DB22",border:"1px solid #3498DB44",color:"#3498DB",borderRadius:9,fontSize:16,fontWeight:800,cursor:"pointer",marginTop:7}} onClick={()=>{const addr=(selected.area?selected.area+", ":"")+selected.location+(selected.pincode?" "+selected.pincode:"");window.open("https://www.google.com/maps/search/?api=1&query="+encodeURIComponent(addr));}}>📍 View on Map</button>
+            {user&&selected.ownerId&&selected.ownerId!==user.uid&&(
+              <button style={{width:"100%",padding:"12px",background:"#B0896822",border:"1px solid #B0896844",color:C.accentG,borderRadius:9,fontSize:16,fontWeight:800,cursor:"pointer",marginTop:7}} onClick={()=>openChat(selected)}>💬 Message Owner</button>
+            )}
+            <button style={{width:"100%",padding:"12px",background:C.card,border:`1px solid ${C.border}`,color:C.text,borderRadius:9,fontSize:16,fontWeight:800,cursor:"pointer",marginTop:7}} onClick={()=>shareListing(selected)}>🔗 Share this Listing</button>
           </div>
         </div>
       )}
@@ -909,6 +1052,7 @@ function App(){
                 <div style={{borderTop:`1px solid ${C.border}`,paddingTop:14,display:"flex",flexDirection:"column",gap:4}}>
                   <button onClick={()=>{setTab("profile");setDrawerOpen(false);}} style={{textAlign:"left",padding:"10px 8px",background:"transparent",border:"none",borderRadius:8,color:C.text,fontSize:16,fontWeight:600,cursor:"pointer"}}>✏️ Edit Profile</button>
                   <button onClick={()=>{setTab("mylistings");setDrawerOpen(false);}} style={{textAlign:"left",padding:"10px 8px",background:"transparent",border:"none",borderRadius:8,color:C.text,fontSize:16,fontWeight:600,cursor:"pointer"}}>📋 My Listings</button>
+                  <button onClick={()=>{setTab("chatlist");setDrawerOpen(false);}} style={{textAlign:"left",padding:"10px 8px",background:"transparent",border:"none",borderRadius:8,color:C.text,fontSize:16,fontWeight:600,cursor:"pointer"}}>💬 Messages{chats.length>0?` (${chats.length})`:""}</button>
                   <button onClick={doLogout} style={{textAlign:"left",padding:"10px 8px",background:"transparent",border:"none",borderRadius:8,color:"#E74C3C",fontSize:16,fontWeight:600,cursor:"pointer"}}>🚪 Logout</button>
                 </div>
               </>
