@@ -40,7 +40,16 @@ const ROOM_TYPES=[{id:"single",icon:"🛏️",label:"Single Room",hi:"एकल 
 const AMENITIES=[{id:"wifi",icon:"📶",label:"WiFi"},{id:"ac",icon:"❄️",label:"AC"},{id:"parking",icon:"🚗",label:"Parking"},{id:"geyser",icon:"🚿",label:"Geyser"},{id:"fridge",icon:"🧊",label:"Fridge"},{id:"washing",icon:"🫧",label:"Washing Machine"},{id:"gas",icon:"🍳",label:"Gas Stove"},{id:"cctv",icon:"📹",label:"CCTV"},{id:"lift",icon:"🛗",label:"Lift"},{id:"power",icon:"⚡",label:"Power Backup"},{id:"garden",icon:"🌿",label:"Garden"},{id:"guard",icon:"💂",label:"Security Guard"}];
 const TENANT_TYPES=[{id:"family",icon:"👨‍👩‍👧",label:"Family Only",hi:"सिर्फ परिवार"},{id:"single_male",icon:"👨",label:"Single Male",hi:"अकेला पुरुष"},{id:"single_female",icon:"👩",label:"Single Female",hi:"अकेली महिला"},{id:"working",icon:"💼",label:"Working Professional",hi:"कामकाजी"},{id:"student",icon:"📚",label:"Student",hi:"छात्र"},{id:"any",icon:"🤝",label:"Anyone Welcome",hi:"सभी स्वागत"}];
 const DOCS=[{id:"aadhar",icon:"🪪",label:"Aadhar Card"},{id:"pan",icon:"📄",label:"PAN Card"},{id:"agreement",icon:"📝",label:"Rent Agreement"},{id:"police",icon:"👮",label:"Police Verification"},{id:"employment",icon:"💼",label:"Employment Proof"},{id:"photo",icon:"📸",label:"Passport Photo"}];
-const LIBRARY_GUIDES=[{icon:"📝",title:"Rental Agreement Basics",titleHi:"किराया अनुबंध",desc:"What every rent agreement should include, and red flags to watch for."},{icon:"💰",title:"Budgeting for Your First Home",titleHi:"बजट बनाना",desc:"How much rent or EMI you can realistically afford."},{icon:"⚖️",title:"Tenant Rights in India",titleHi:"किरायेदार अधिकार",desc:"Security deposit rules, eviction notice periods, and your basic rights."},{icon:"🏦",title:"Home Loan Basics",titleHi:"होम लोन",desc:"How home loans work if you\u2019re planning to buy."}];
+const TERMS_TEXT=[
+"GHAR DEKHO is a listing platform that helps owners, sellers, and study-space providers connect directly with people looking for a room, home, or seat. We are a meeting place only \u2014 not a broker, agent, landlord, or party to any agreement made between users.",
+"We do not verify the identity of users, the accuracy of listings, or the condition, legality, or ownership of any property or space posted on this app. What you see in a listing is provided by the person who posted it, not by GHAR DEKHO.",
+"Any communication, meeting, payment, agreement, or transaction between an owner/seller and a seeker happens entirely at their own risk and discretion. GHAR DEKHO has no involvement in and takes no responsibility for what is agreed, exchanged, or promised between users.",
+"GHAR DEKHO is not responsible or liable for any dispute, fraud, financial loss, property damage, mistreatment, harassment, injury, or any other mishap arising from contact made through this app, before, during, or after a meeting between an owner and a seeker.",
+"Before meeting anyone or making any payment, we strongly recommend verifying the other person\u2019s identity, inspecting the property or space in person, and meeting in safe, public circumstances where possible.",
+"By using GHAR DEKHO, you agree to use the platform responsibly, post honest information, and take reasonable precautions when interacting with other users.",
+"We may remove listings or restrict accounts that appear fraudulent, abusive, or in violation of these terms, but we do not guarantee that all such content will be caught or removed.",
+"These terms may be updated as the app grows. Continued use of GHAR DEKHO means you accept the current version of these terms."
+];
 const RC={single:"#6B9080","1bhk":"#B08968","2bhk":"#588157","3bhk":"#3498DB",pg:"#9B59B6",flat:"#E74C3C"};
 const rl=id=>ROOM_TYPES.find(r=>r.id===id);
 const al=id=>AMENITIES.find(a=>a.id===id);
@@ -70,8 +79,10 @@ function App(){
   const[chatText,setChatText]=useState("");
   const[chatSending,setChatSending]=useState(false);
   const[user,setUser]=useState(null);
-  const[authMode,setAuthMode]=useState("login");
-  const[authForm,setAuthForm]=useState({name:"",email:"",password:"",role:"seeker"});
+  const[authStep,setAuthStep]=useState("phone");
+  const[authForm,setAuthForm]=useState({name:"",phone:"",otp:"",role:"seeker"});
+  const[confirmResult,setConfirmResult]=useState(null);
+  const[isNewUser,setIsNewUser]=useState(false);
   const[authError,setAuthError]=useState("");
   const[authBusy,setAuthBusy]=useState(false);
   const[drawerOpen,setDrawerOpen]=useState(false);
@@ -248,6 +259,16 @@ function App(){
     setDeepLinkDone(true);
   },[listings]);
 
+  const shareApp=async()=>{
+    const url=`${window.location.origin}${window.location.pathname}`;
+    const text="GHAR DEKHO \u2014 find rooms, homes & study spaces directly from owners. No broker fee!";
+    if(navigator.share){
+      try{await navigator.share({title:"GHAR DEKHO",text,url});}catch(e){}
+    }else{
+      try{await navigator.clipboard.writeText(url);msg("🔗 App link copied!");}catch(e){msg("Could not copy link","err");}
+    }
+  };
+
   const shareListing=async(l)=>{
     const url=`${window.location.origin}${window.location.pathname}?listing=${l.id}`;
     const priceLabel=(l.category||"rent")==="buy"?"":(l.category==="library"?"/seat/month":"/month");
@@ -273,15 +294,17 @@ function App(){
   const openChat=async(listing)=>{
     if(!user){setTab("login");return;}
     if(listing.ownerId===user.uid){msg("This is your own listing","err");return;}
-    const cid=chatIdFor(listing.id,user.uid,listing.ownerId);
-    const ref=db.collection("chats").doc(cid);
-    const doc=await ref.get();
-    if(!doc.exists){
-      await ref.set({listingId:listing.id,listingTitle:listing.title,participants:[user.uid,listing.ownerId],names:{[user.uid]:user.name,[listing.ownerId]:listing.ownerName||"Owner"},lastMessage:"",lastMessageAt:firebase.firestore.FieldValue.serverTimestamp(),createdAt:firebase.firestore.FieldValue.serverTimestamp()});
-    }
-    setActiveChat({id:cid,listingTitle:listing.title,otherName:listing.ownerName||"Owner"});
-    setSelected(null);
-    setTab("chat");
+    try{
+      const cid=chatIdFor(listing.id,user.uid,listing.ownerId);
+      const ref=db.collection("chats").doc(cid);
+      const doc=await ref.get();
+      if(!doc.exists){
+        await ref.set({listingId:listing.id,listingTitle:listing.title,participants:[user.uid,listing.ownerId],names:{[user.uid]:user.name,[listing.ownerId]:listing.ownerName||"Owner"},lastMessage:"",lastMessageAt:firebase.firestore.FieldValue.serverTimestamp(),createdAt:firebase.firestore.FieldValue.serverTimestamp()});
+      }
+      setActiveChat({id:cid,listingTitle:listing.title,otherName:listing.ownerName||"Owner"});
+      setSelected(null);
+      setTab("chat");
+    }catch(e){msg("❌ Could not open chat: "+(e.message||"permission error — check Firestore rules"),"err");}
   };
 
   const openChatFromInbox=(c)=>{
@@ -319,17 +342,17 @@ function App(){
           const res=await fetch(`${BASE}/users/${fbUser.uid}?key=${KEY}`,{headers:{Authorization:`Bearer ${token}`}});
           if(res.ok){
             const profile=fromFS(await res.json());
-            const u={uid:fbUser.uid,email:fbUser.email,name:profile.name||fbUser.email,role:profile.role||"seeker",picture:profile.picture||"",phone:profile.phone||"",bio:profile.bio||""};
+            const u={uid:fbUser.uid,phone:profile.phone||fbUser.phoneNumber||"",name:profile.name||fbUser.phoneNumber||"User",role:profile.role||"seeker",picture:profile.picture||"",bio:profile.bio||""};
             setUser(u);
             setProfileForm({name:u.name,phone:u.phone,bio:u.bio,picture:u.picture});
             if(profile.city){setMyLocation(profile.city);}
             else if(!locAskedOnce){setLocAskedOnce(true);detectLocation();}
           }else{
-            const u={uid:fbUser.uid,email:fbUser.email,name:fbUser.email,role:"seeker",picture:"",phone:"",bio:""};
+            const u={uid:fbUser.uid,phone:fbUser.phoneNumber||"",name:fbUser.phoneNumber||"User",role:"seeker",picture:"",bio:""};
             setUser(u);
-            setProfileForm({name:u.name,phone:"",bio:"",picture:""});
+            setProfileForm({name:u.name,phone:u.phone,bio:"",picture:""});
           }
-        }catch(e){setUser({uid:fbUser.uid,email:fbUser.email,name:fbUser.email,role:"seeker"});}
+        }catch(e){setUser({uid:fbUser.uid,phone:fbUser.phoneNumber||"",name:fbUser.phoneNumber||"User",role:"seeker"});}
       }else{setUser(null);}
     });
     return unsub;
@@ -341,32 +364,68 @@ function App(){
     return{Authorization:`Bearer ${token}`};
   };
 
-  const doSignup=async()=>{
-    if(!authForm.name||!authForm.email||!authForm.password){setAuthError("Fill all fields");return;}
-    if(authForm.password.length<6){setAuthError("Password must be at least 6 characters");return;}
+  const setupRecaptcha=()=>{
+    if(window.recaptchaVerifier)return window.recaptchaVerifier;
+    window.recaptchaVerifier=new firebase.auth.RecaptchaVerifier("recaptcha-container",{size:"invisible"});
+    return window.recaptchaVerifier;
+  };
+
+  const sendOtp=async()=>{
+    const digits=(authForm.phone||"").replace(/[^0-9]/g,"");
+    if(digits.length!==10){setAuthError("Enter a valid 10-digit mobile number");return;}
     setAuthBusy(true);setAuthError("");
     try{
-      const cred=await auth.createUserWithEmailAndPassword(authForm.email,authForm.password);
+      const verifier=setupRecaptcha();
+      const result=await auth.signInWithPhoneNumber("+91"+digits,verifier);
+      setConfirmResult(result);
+      setAuthStep("otp");
+    }catch(e){
+      setAuthError((e.message||"Could not send OTP").replace("Firebase: ",""));
+      if(window.recaptchaVerifier){try{window.recaptchaVerifier.clear();}catch(x){}window.recaptchaVerifier=null;}
+    }
+    setAuthBusy(false);
+  };
+
+  const verifyOtp=async()=>{
+    const code=(authForm.otp||"").replace(/[^0-9]/g,"");
+    if(code.length<6){setAuthError("Enter the 6-digit OTP");return;}
+    if(!confirmResult){setAuthError("Please request a new OTP");return;}
+    setAuthBusy(true);setAuthError("");
+    try{
+      const cred=await confirmResult.confirm(code);
       const token=await cred.user.getIdToken();
-      await fetch(`${BASE}/users/${cred.user.uid}?key=${KEY}`,{method:"PATCH",headers:{"Content-Type":"application/json",Authorization:`Bearer ${token}`},body:JSON.stringify(toFS({name:authForm.name,email:authForm.email,role:authForm.role}))});
-      setAuthForm({name:"",email:"",password:"",role:"seeker"});
-      setTab("browse");
-    }catch(e){setAuthError((e.message||"Signup failed").replace("Firebase: ",""));}
+      const res=await fetch(`${BASE}/users/${cred.user.uid}?key=${KEY}`,{headers:{Authorization:`Bearer ${token}`}});
+      if(res.ok){
+        setAuthForm({name:"",phone:"",otp:"",role:"seeker"});
+        setAuthStep("phone");
+        setConfirmResult(null);
+        setTab("browse");
+      }else{
+        setIsNewUser(true);
+        setAuthStep("profile");
+      }
+    }catch(e){setAuthError((e.message||"Invalid OTP").replace("Firebase: ",""));}
     setAuthBusy(false);
   };
 
-  const doLogin=async()=>{
-    if(!authForm.email||!authForm.password){setAuthError("Fill all fields");return;}
+  const completeSignup=async()=>{
+    if(!authForm.name.trim()){setAuthError("Please enter your name");return;}
     setAuthBusy(true);setAuthError("");
     try{
-      await auth.signInWithEmailAndPassword(authForm.email,authForm.password);
-      setAuthForm({name:"",email:"",password:"",role:"seeker"});
+      const fbUser=auth.currentUser;
+      const token=await fbUser.getIdToken();
+      await fetch(`${BASE}/users/${fbUser.uid}?key=${KEY}`,{method:"PATCH",headers:{"Content-Type":"application/json",Authorization:`Bearer ${token}`},body:JSON.stringify(toFS({name:authForm.name.trim(),phone:fbUser.phoneNumber||"",role:authForm.role}))});
+      setUser(u=>({...(u||{}),uid:fbUser.uid,name:authForm.name.trim(),role:authForm.role,phone:fbUser.phoneNumber||""}));
+      setAuthForm({name:"",phone:"",otp:"",role:"seeker"});
+      setAuthStep("phone");
+      setConfirmResult(null);
+      setIsNewUser(false);
       setTab("browse");
-    }catch(e){setAuthError((e.message||"Login failed").replace("Firebase: ",""));}
+    }catch(e){setAuthError((e.message||"Could not save profile").replace("Firebase: ",""));}
     setAuthBusy(false);
   };
 
-  const doLogout=()=>{auth.signOut();setTab("browse");setDrawerOpen(false);};
+  const doLogout=()=>{auth.signOut();setTab("browse");setDrawerOpen(false);setAuthStep("phone");setConfirmResult(null);};
 
   const handleProfilePic=async(e)=>{
     const file=e.target.files&&e.target.files[0];
@@ -387,7 +446,7 @@ function App(){
     setProfileBusy(true);
     try{
       const hdr=await authHeader();
-      await fetch(`${BASE}/users/${user.uid}?key=${KEY}`,{method:"PATCH",headers:{"Content-Type":"application/json",...hdr},body:JSON.stringify(toFS({name:profileForm.name,phone:profileForm.phone,bio:profileForm.bio,picture:profileForm.picture,role:user.role,email:user.email}))});
+      await fetch(`${BASE}/users/${user.uid}?key=${KEY}`,{method:"PATCH",headers:{"Content-Type":"application/json",...hdr},body:JSON.stringify(toFS({name:profileForm.name,phone:profileForm.phone,bio:profileForm.bio,picture:profileForm.picture,role:user.role}))});
       setUser(u=>({...u,name:profileForm.name,phone:profileForm.phone,bio:profileForm.bio,picture:profileForm.picture}));
       msg("✅ Profile updated!");
       setTab("browse");
@@ -533,21 +592,6 @@ function App(){
       <main style={{maxWidth:1100,margin:"0 auto",padding:"22px 14px 78px"}}>
         {/* BROWSE - RENT/BUY */}
         {tab==="browse"&&(<>
-          {section==="library"&&(
-            <div style={{marginBottom:22}}>
-              <div style={S.secTitle}>📖 Self-Study Guides</div>
-              <div style={S.grid}>
-                {LIBRARY_GUIDES.map((g,i)=>(
-                  <div key={i} style={{...S.card,cursor:"default",padding:16}}>
-                    <div style={{fontSize:34,marginBottom:8}}>{g.icon}</div>
-                    <div style={{fontSize:16,fontWeight:700,marginBottom:2}}>{g.title}</div>
-                    <div style={{fontSize:12,color:C.muted,marginBottom:6}}>{g.titleHi}</div>
-                    <div style={{fontSize:13,color:C.muted,lineHeight:1.4}}>{g.desc}</div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
           {section!=="library"&&(
           <div style={{display:"flex",gap:5,marginBottom:18,flexWrap:"wrap",alignItems:"center"}}>
             <span style={{fontSize:12,color:C.muted,fontWeight:700,textTransform:"uppercase",letterSpacing:1}}>Filter:</span>
@@ -830,7 +874,7 @@ function App(){
           <div style={{maxWidth:420,margin:"0 auto"}}>
             <div style={{marginBottom:18}}>
               <div style={{fontSize:20,fontWeight:800,marginBottom:3}}>Edit Profile / प्रोफ़ाइल संपादित करें</div>
-              <div style={{fontSize:13,color:C.muted}}>{user.email}</div>
+              <div style={{fontSize:13,color:C.muted}}>{user.phone||user.email||""}</div>
             </div>
             <div style={{background:C.surface,borderRadius:15,border:`1px solid ${C.border}`,padding:20}}>
               <div style={{display:"flex",justifyContent:"center",marginBottom:18}}>
@@ -859,34 +903,75 @@ function App(){
           </div>
         )}
 
-        {/* LOGIN / SIGNUP */}
+        {/* LOGIN - OTP */}
         {tab==="login"&&(
           <div style={{maxWidth:420,margin:"0 auto"}}>
             <div style={{textAlign:"center",marginBottom:20}}>
-              <div style={{fontSize:24,fontWeight:800}}>{authMode==="login"?"Welcome Back!":"Create Account"}</div>
-              <div style={{fontSize:14,color:C.muted}}>{authMode==="login"?"Sign in to post & manage listings":"Sign up to post & manage listings"}</div>
+              <div style={{fontSize:24,fontWeight:800}}>{authStep==="profile"?"Almost done!":"Welcome to GHAR DEKHO"}</div>
+              <div style={{fontSize:14,color:C.muted}}>{authStep==="phone"?"Login or sign up with your mobile number":authStep==="otp"?"Enter the code we sent you":"Tell us a bit about yourself"}</div>
             </div>
             <div style={{background:C.surface,borderRadius:15,border:`1px solid ${C.border}`,padding:20}}>
-              {authMode==="signup"&&(<>
+              {authStep==="phone"&&(<>
+                <div style={S.lbl}>Mobile Number</div>
+                <div style={{display:"flex",gap:8,alignItems:"center"}}>
+                  <div style={{padding:"10px 12px",background:C.card,border:`1px solid ${C.border}`,borderRadius:8,fontSize:16,fontWeight:700}}>+91</div>
+                  <input style={S.inp} type="tel" placeholder="10-digit number" value={authForm.phone} onChange={e=>setAuthForm(f=>({...f,phone:e.target.value.replace(/[^0-9]/g,"").slice(0,10)}))}/>
+                </div>
+                {authError&&<div style={{color:"#E74C3C",fontSize:13,marginTop:10}}>{authError}</div>}
+                <button disabled={authBusy} onClick={sendOtp} style={{...S.submitBtn,opacity:authBusy?0.7:1,cursor:authBusy?"not-allowed":"pointer"}}>
+                  {authBusy?"⏳ Sending OTP...":"📲 Send OTP"}
+                </button>
+              </>)}
+
+              {authStep==="otp"&&(<>
+                <div style={{fontSize:13,color:C.muted,marginBottom:12}}>OTP sent to +91 {authForm.phone}</div>
+                <div style={S.lbl}>6-Digit OTP</div>
+                <input style={{...S.inp,letterSpacing:6,fontWeight:700,textAlign:"center"}} type="tel" placeholder="______" value={authForm.otp} onChange={e=>setAuthForm(f=>({...f,otp:e.target.value.replace(/[^0-9]/g,"").slice(0,6)}))}/>
+                {authError&&<div style={{color:"#E74C3C",fontSize:13,marginTop:10}}>{authError}</div>}
+                <button disabled={authBusy} onClick={verifyOtp} style={{...S.submitBtn,opacity:authBusy?0.7:1,cursor:authBusy?"not-allowed":"pointer"}}>
+                  {authBusy?"⏳ Verifying...":"✅ Verify & Continue"}
+                </button>
+                <button onClick={()=>{setAuthStep("phone");setAuthForm(f=>({...f,otp:""}));setAuthError("");setConfirmResult(null);}} style={{width:"100%",padding:"10px",background:"transparent",border:"none",color:C.muted,fontSize:14,cursor:"pointer",marginTop:8,textDecoration:"underline"}}>Change number</button>
+              </>)}
+
+              {authStep==="profile"&&(<>
                 <div style={S.lbl}>I am a</div>
                 <div style={{display:"flex",gap:8,marginBottom:14}}>
                   <button onClick={()=>setAuthForm(f=>({...f,role:"owner"}))} style={{flex:1,padding:10,borderRadius:9,border:`2px solid ${authForm.role==="owner"?C.accent:C.border}`,background:authForm.role==="owner"?"#6B908022":C.card,color:authForm.role==="owner"?C.accent:C.muted,fontWeight:700,cursor:"pointer",fontSize:14}}>🏠 Owner</button>
                   <button onClick={()=>setAuthForm(f=>({...f,role:"seeker"}))} style={{flex:1,padding:10,borderRadius:9,border:`2px solid ${authForm.role==="seeker"?C.accent:C.border}`,background:authForm.role==="seeker"?"#6B908022":C.card,color:authForm.role==="seeker"?C.accent:C.muted,fontWeight:700,cursor:"pointer",fontSize:14}}>🔍 Seeker</button>
                 </div>
                 <div style={S.lbl}>Full Name</div>
-                <input style={{...S.inp,marginBottom:12}} value={authForm.name} onChange={e=>setAuthForm(f=>({...f,name:e.target.value}))}/>
+                <input style={S.inp} placeholder="Your name" value={authForm.name} onChange={e=>setAuthForm(f=>({...f,name:e.target.value}))}/>
+                {authError&&<div style={{color:"#E74C3C",fontSize:13,marginTop:10}}>{authError}</div>}
+                <button disabled={authBusy} onClick={completeSignup} style={{...S.submitBtn,opacity:authBusy?0.7:1,cursor:authBusy?"not-allowed":"pointer"}}>
+                  {authBusy?"⏳ Saving...":"🎉 Create Account"}
+                </button>
               </>)}
-              <div style={S.lbl}>Email</div>
-              <input style={{...S.inp,marginBottom:12}} type="email" value={authForm.email} onChange={e=>setAuthForm(f=>({...f,email:e.target.value}))}/>
-              <div style={S.lbl}>Password</div>
-              <input style={S.inp} type="password" value={authForm.password} onChange={e=>setAuthForm(f=>({...f,password:e.target.value}))}/>
-              {authError&&<div style={{color:"#E74C3C",fontSize:13,marginTop:10}}>{authError}</div>}
-              <button disabled={authBusy} onClick={authMode==="login"?doLogin:doSignup} style={{...S.submitBtn,opacity:authBusy?0.7:1,cursor:authBusy?"not-allowed":"pointer"}}>
-                {authBusy?"⏳ Please wait...":authMode==="login"?"Sign In":"Sign Up"}
-              </button>
-              <div style={{textAlign:"center",marginTop:14,fontSize:14,color:C.muted}}>
-                {authMode==="login"?"Don't have an account? ":"Already have an account? "}
-                <span style={{color:C.accent,fontWeight:700,cursor:"pointer"}} onClick={()=>{setAuthMode(authMode==="login"?"signup":"login");setAuthError("");}}>{authMode==="login"?"Sign Up":"Sign In"}</span>
+
+              <div style={{fontSize:11,color:C.muted,textAlign:"center",marginTop:16,lineHeight:1.5}}>
+                By continuing you agree to our <span style={{color:C.accent,fontWeight:700,cursor:"pointer"}} onClick={()=>setTab("terms")}>Terms & Conditions</span>
+              </div>
+            </div>
+            <div id="recaptcha-container"></div>
+          </div>
+        )}
+
+        {/* TERMS */}
+        {tab==="terms"&&(
+          <div style={{maxWidth:640,margin:"0 auto"}}>
+            <div style={{marginBottom:18}}>
+              <div style={{fontSize:20,fontWeight:800,marginBottom:3}}>Terms & Conditions</div>
+              <div style={{fontSize:13,color:C.muted}}>Please read before using GHAR DEKHO</div>
+            </div>
+            <div style={{background:C.surface,borderRadius:15,border:`1px solid ${C.border}`,padding:20}}>
+              {TERMS_TEXT.map((t,i)=>(
+                <div key={i} style={{display:"flex",gap:10,marginBottom:14}}>
+                  <div style={{color:C.accent,fontWeight:800,fontSize:14,flexShrink:0}}>{i+1}.</div>
+                  <div style={{fontSize:14,lineHeight:1.6,color:C.text}}>{t}</div>
+                </div>
+              ))}
+              <div style={{borderTop:`1px solid ${C.border}`,paddingTop:14,marginTop:6,fontSize:12,color:C.muted,fontStyle:"italic"}}>
+                GHAR DEKHO connects owners and seekers only. Please use your own judgement and take safety precautions when meeting anyone through this app.
               </div>
             </div>
           </div>
@@ -1045,7 +1130,7 @@ function App(){
                     <div style={{width:72,height:72,borderRadius:"50%",background:`linear-gradient(135deg,${C.accent},${C.accentG})`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:34,fontWeight:800,color:"#fff",margin:"0 auto 10px"}}>{(user.name||user.email||"?")[0].toUpperCase()}</div>
                   )}
                   <div style={{fontWeight:800,fontSize:18}}>{user.name}</div>
-                  <div style={{fontSize:13,color:C.muted,marginBottom:6}}>{user.email}</div>
+                  <div style={{fontSize:13,color:C.muted,marginBottom:6}}>{user.phone||user.email||""}</div>
                   <div style={{display:"inline-block"}}><div style={S.badge(user.role==="owner"?C.accent:C.accentG)}>{user.role==="owner"?"🏠 Owner":"🔍 Seeker"}</div></div>
                   {user.bio&&<div style={{fontSize:13,color:C.muted,marginTop:8,lineHeight:1.4}}>{user.bio}</div>}
                 </div>
@@ -1053,6 +1138,8 @@ function App(){
                   <button onClick={()=>{setTab("profile");setDrawerOpen(false);}} style={{textAlign:"left",padding:"10px 8px",background:"transparent",border:"none",borderRadius:8,color:C.text,fontSize:16,fontWeight:600,cursor:"pointer"}}>✏️ Edit Profile</button>
                   <button onClick={()=>{setTab("mylistings");setDrawerOpen(false);}} style={{textAlign:"left",padding:"10px 8px",background:"transparent",border:"none",borderRadius:8,color:C.text,fontSize:16,fontWeight:600,cursor:"pointer"}}>📋 My Listings</button>
                   <button onClick={()=>{setTab("chatlist");setDrawerOpen(false);}} style={{textAlign:"left",padding:"10px 8px",background:"transparent",border:"none",borderRadius:8,color:C.text,fontSize:16,fontWeight:600,cursor:"pointer"}}>💬 Messages{chats.length>0?` (${chats.length})`:""}</button>
+                  <button onClick={()=>{shareApp();setDrawerOpen(false);}} style={{textAlign:"left",padding:"10px 8px",background:"transparent",border:"none",borderRadius:8,color:C.text,fontSize:16,fontWeight:600,cursor:"pointer"}}>📤 Share App</button>
+                  <button onClick={()=>{setTab("terms");setDrawerOpen(false);}} style={{textAlign:"left",padding:"10px 8px",background:"transparent",border:"none",borderRadius:8,color:C.text,fontSize:16,fontWeight:600,cursor:"pointer"}}>📄 Terms & Conditions</button>
                   <button onClick={doLogout} style={{textAlign:"left",padding:"10px 8px",background:"transparent",border:"none",borderRadius:8,color:"#E74C3C",fontSize:16,fontWeight:600,cursor:"pointer"}}>🚪 Logout</button>
                 </div>
               </>
@@ -1061,6 +1148,10 @@ function App(){
                 <div style={{fontSize:43,marginBottom:10}}>👤</div>
                 <div style={{fontSize:16,color:C.muted,marginBottom:16}}>Log in to post listings and manage your profile</div>
                 <button onClick={()=>{setTab("login");setDrawerOpen(false);}} style={{...S.submitBtn,marginTop:0}}>Login / Sign Up</button>
+                <div style={{borderTop:`1px solid ${C.border}`,marginTop:18,paddingTop:14,display:"flex",flexDirection:"column",gap:4}}>
+                  <button onClick={()=>{shareApp();setDrawerOpen(false);}} style={{textAlign:"left",padding:"10px 8px",background:"transparent",border:"none",borderRadius:8,color:C.text,fontSize:16,fontWeight:600,cursor:"pointer"}}>📤 Share App</button>
+                  <button onClick={()=>{setTab("terms");setDrawerOpen(false);}} style={{textAlign:"left",padding:"10px 8px",background:"transparent",border:"none",borderRadius:8,color:C.text,fontSize:16,fontWeight:600,cursor:"pointer"}}>📄 Terms & Conditions</button>
+                </div>
               </div>
             )}
           </div>
@@ -1075,4 +1166,4 @@ function App(){
 ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
 </script>
 </body>
-</html>
+  </html>
