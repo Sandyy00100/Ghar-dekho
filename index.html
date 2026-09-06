@@ -168,8 +168,7 @@ function App(){
   const saveCityToProfile=async(label)=>{
     if(!user)return;
     try{
-      const hdr=await authHeader();
-      fetch(`${BASE}/users/${user.uid}?key=${KEY}`,{method:"PATCH",headers:{"Content-Type":"application/json",...hdr},body:JSON.stringify(toFS({city:label}))});
+      await db.collection("users").doc(user.uid).set({city:label},{merge:true});
     }catch(e){}
   };
 
@@ -424,8 +423,7 @@ function App(){
     setAuthBusy(true);setAuthError("");
     try{
       const fbUser=auth.currentUser;
-      const token=await fbUser.getIdToken();
-      await fetch(`${BASE}/users/${fbUser.uid}?key=${KEY}`,{method:"PATCH",headers:{"Content-Type":"application/json",Authorization:`Bearer ${token}`},body:JSON.stringify(toFS({name:authForm.name.trim(),phone:fbUser.phoneNumber||"",role:authForm.role}))});
+      await db.collection("users").doc(fbUser.uid).set({name:authForm.name.trim(),phone:fbUser.phoneNumber||"",role:authForm.role},{merge:true});
       setUser(u=>({...(u||{}),uid:fbUser.uid,name:authForm.name.trim(),role:authForm.role,phone:fbUser.phoneNumber||""}));
       setAuthForm({name:"",phone:"",otp:"",role:"seeker"});
       setAuthStep("phone");
@@ -458,8 +456,7 @@ function App(){
     if(!profileForm.name){msg("⚠️ Name is required","err");return;}
     setProfileBusy(true);
     try{
-      const hdr=await authHeader();
-      await fetch(`${BASE}/users/${user.uid}?key=${KEY}`,{method:"PATCH",headers:{"Content-Type":"application/json",...hdr},body:JSON.stringify(toFS({name:profileForm.name,phone:profileForm.phone,bio:profileForm.bio,picture:profileForm.picture,role:user.role}))});
+      await db.collection("users").doc(user.uid).set({name:profileForm.name,phone:profileForm.phone,bio:profileForm.bio,picture:profileForm.picture,role:user.role},{merge:true});
       setUser(u=>({...u,name:profileForm.name,phone:profileForm.phone,bio:profileForm.bio,picture:profileForm.picture}));
       msg("✅ Profile updated!");
       setTab("browse");
