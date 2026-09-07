@@ -34,6 +34,7 @@ const db=firebase.firestore();
 
 const toFS=(obj)=>{const f={};for(const[k,v]of Object.entries(obj)){if(v===null||v===undefined)continue;if(typeof v==="string")f[k]={stringValue:v};else if(typeof v==="number")f[k]={integerValue:String(v)};else if(typeof v==="boolean")f[k]={booleanValue:v};else if(Array.isArray(v))f[k]={arrayValue:{values:v.map(i=>({stringValue:String(i)}))}};}return{fields:f};};
 const fromFS=(doc)=>{const o={id:doc.name?.split("/").pop()};for(const[k,v]of Object.entries(doc.fields||{})){if(v.stringValue!==undefined)o[k]=v.stringValue;else if(v.integerValue!==undefined)o[k]=Number(v.integerValue);else if(v.booleanValue!==undefined)o[k]=v.booleanValue;else if(v.arrayValue)o[k]=(v.arrayValue.values||[]).map(i=>i.stringValue||"");}return o;};
+const maskQS=(fields)=>fields.map(f=>`updateMask.fieldPaths=${encodeURIComponent(f)}`).join("&");
 
 const C={bg:"#F7F5F0",surface:"#FFFFFF",card:"#FBF9F5",border:"#E6E2D8",accent:"#6B9080",accentG:"#B08968",green:"#588157",text:"#3A3A3A",muted:"#8A8778",dim:"#C9C6BB"};
 const ROOM_TYPES=[{id:"single",icon:"🛏️",label:"Single Room",hi:"एकल कमरा"},{id:"1bhk",icon:"🏠",label:"1 BHK",hi:"1 बीएचके"},{id:"2bhk",icon:"🏡",label:"2 BHK",hi:"2 बीएचके"},{id:"3bhk",icon:"🏘️",label:"3 BHK",hi:"3 बीएचके"},{id:"pg",icon:"🏨",label:"PG / Hostel",hi:"पीजी"},{id:"flat",icon:"🏢",label:"Full Flat",hi:"पूरा फ्लैट"}];
@@ -165,7 +166,7 @@ function App(){
     if(!user)return;
     try{
       const hdr=await authHeader();
-      fetch(`${BASE}/users/${user.uid}?key=${KEY}`,{method:"PATCH",headers:{"Content-Type":"application/json",...hdr},body:JSON.stringify(toFS({city:label}))});
+      fetch(`${BASE}/users/${user.uid}?key=${KEY}&${maskQS(["city"])}`,{method:"PATCH",headers:{"Content-Type":"application/json",...hdr},body:JSON.stringify(toFS({city:label}))});
     }catch(e){}
   };
 
@@ -219,8 +220,8 @@ function App(){
       if(rec&&rec.Status==="Success"&&rec.PostOffice&&rec.PostOffice.length>0){
         const offices=rec.PostOffice;
         const first=offices[0];
-        upd("location",`${first.District}, ${first.State}`);
-        upd("area",first.Name);
+        if(!form.location)upd("location",`${first.District}, ${first.State}`);
+        if(!form.area)upd("area",first.Name);
         setPinOffices(offices.map(o=>o.Name));
         setPinStatus("ok");
       }else{
@@ -285,11 +286,6 @@ function App(){
     return`${listingId}_${pair[0]}_${pair[1]}`;
   };
 
-  const loadMyChats=()=>{
-    if(!user)return;
-    db.collection("chats").where("participants","array-contains",user.uid).orderBy("lastMessageAt","desc")
-      .onSnapshot(snap=>{setChats(snap.docs.map(d=>({id:d.id,...d.data()})));},()=>{});
-  };
 
   const openChat=async(listing)=>{
     if(!user){setTab("login");return;}
@@ -320,7 +316,12 @@ function App(){
     return unsub;
   },[activeChat]);
 
-  useEffect(()=>{if(user)loadMyChats();else{setChats([]);}},[user]);
+  useEffect(()=>{
+    if(!user){setChats([]);return;}
+    const unsub=db.collection("chats").where("participants","array-contains",user.uid).orderBy("lastMessageAt","desc")
+      .onSnapshot(snap=>{setChats(snap.docs.map(d=>({id:d.id,...d.data()})));},()=>{});
+    return unsub;
+  },[user]);
 
   const sendChatMessage=async()=>{
     if(!chatText.trim()||!activeChat||!user)return;
@@ -370,6 +371,13 @@ function App(){
     return window.recaptchaVerifier;
   };
 
+  useEffect(()=>{
+    if(tab!=="login"&&window.recaptchaVerifier){
+      try{window.recaptchaVerifier.clear();}catch(e){}
+      window.recaptchaVerifier=null;
+    }
+  },[tab]);
+
   const sendOtp=async()=>{
     const digits=(authForm.phone||"").replace(/[^0-9]/g,"");
     if(digits.length!==10){setAuthError("Enter a valid 10-digit mobile number");return;}
@@ -414,7 +422,8 @@ function App(){
     try{
       const fbUser=auth.currentUser;
       const token=await fbUser.getIdToken();
-      await fetch(`${BASE}/users/${fbUser.uid}?key=${KEY}`,{method:"PATCH",headers:{"Content-Type":"application/json",Authorization:`Bearer ${token}`},body:JSON.stringify(toFS({name:authForm.name.trim(),phone:fbUser.phoneNumber||"",role:authForm.role}))});
+      const res=await fetch(`${BASE}/users/${fbUser.uid}?key=${KEY}&${maskQS(["name","phone","role"])}`,{method:"PATCH",headers:{"Content-Type":"application/json",Authorization:`Bearer ${token}`},body:JSON.stringify(toFS({name:authForm.name.trim(),phone:fbUser.phoneNumber||"",role:authForm.role}))});
+      if(!res.ok){const j=await res.json().catch(()=>({}));throw new Error(j.error?.message||"Could not save profile");}
       setUser(u=>({...(u||{}),uid:fbUser.uid,name:authForm.name.trim(),role:authForm.role,phone:fbUser.phoneNumber||""}));
       setAuthForm({name:"",phone:"",otp:"",role:"seeker"});
       setAuthStep("phone");
@@ -446,10 +455,16 @@ function App(){
     setProfileBusy(true);
     try{
       const hdr=await authHeader();
-      await fetch(`${BASE}/users/${user.uid}?key=${KEY}`,{method:"PATCH",headers:{"Content-Type":"application/json",...hdr},body:JSON.stringify(toFS({name:profileForm.name,phone:profileForm.phone,bio:profileForm.bio,picture:profileForm.picture,role:user.role}))});
-      setUser(u=>({...u,name:profileForm.name,phone:profileForm.phone,bio:profileForm.bio,picture:profileForm.picture}));
-      msg("✅ Profile updated!");
-      setTab("browse");
+      const fields=["name","phone","bio","picture","role"];
+      const res=await fetch(`${BASE}/users/${user.uid}?key=${KEY}&${maskQS(fields)}`,{method:"PATCH",headers:{"Content-Type":"application/json",...hdr},body:JSON.stringify(toFS({name:profileForm.name,phone:profileForm.phone,bio:profileForm.bio,picture:profileForm.picture,role:user.role}))});
+      if(res.ok){
+        setUser(u=>({...u,name:profileForm.name,phone:profileForm.phone,bio:profileForm.bio,picture:profileForm.picture}));
+        msg("✅ Profile updated!");
+        setTab("browse");
+      }else{
+        const j=await res.json().catch(()=>({}));
+        msg("❌ "+(j.error?.message||"Profile update failed"),"err");
+      }
     }catch(e){msg("❌ Network error: "+e.message,"err");}
     setProfileBusy(false);
   };
@@ -457,7 +472,7 @@ function App(){
 
   const submit=async()=>{
     if(!user){msg("⚠️ Please log in to post a listing","err");setTab("login");return;}
-    if(!form.title||!form.location||(form.category!=="library"&&!form.roomType)||!form.price||!form.ownerName||!form.phone){msg("⚠️ Fill all required fields","err");return;}
+    if(!form.title||!form.location||(form.category!=="library"&&!form.roomType)||!form.price||!form.ownerName||!form.phone||(form.category!=="library"&&form.roomType==="single"&&!form.tenantType)){msg("⚠️ Fill all required fields","err");return;}
     setPosting(true);
     try{
       const hdr=await authHeader();
@@ -817,7 +832,7 @@ function App(){
                 <div style={S.secTitle}>👤 Owner Details *</div>
                 <div style={S.row2}>
                   <div><div style={S.lbl}>Your Name *</div><input style={S.inp} placeholder="Full name" value={form.ownerName} onChange={e=>upd("ownerName",e.target.value)}/></div>
-                  <div><div style={S.lbl}>Phone Number *</div><input style={S.inp} placeholder="10-digit" value={form.phone} onChange={e=>upd("phone",e.target.value)}/></div>
+                  <div><div style={S.lbl}>Phone Number *</div><input style={S.inp} type="tel" placeholder="10-digit" value={form.phone} onChange={e=>upd("phone",e.target.value.replace(/[^0-9]/g,"").slice(0,10))}/></div>
                 </div>
               </div>
 
