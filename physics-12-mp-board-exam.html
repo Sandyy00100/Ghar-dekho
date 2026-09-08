@@ -1,0 +1,579 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MP Board Class 12 Physics — MCQ Exam</title>
+<style>
+  :root{
+    --bg:#0f172a; --panel:#1e293b; --panel2:#243248; --text:#e2e8f0; --muted:#94a3b8;
+    --accent:#3b82f6; --good:#22c55e; --bad:#ef4444; --warn:#f59e0b; --border:#334155;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+       background:var(--bg);color:var(--text);min-height:100vh;}
+  header{padding:20px 16px;text-align:center;border-bottom:1px solid var(--border);}
+  header h1{margin:0 0 6px;font-size:1.4rem;}
+  header p{margin:0;color:var(--muted);font-size:.9rem;}
+  .container{max-width:900px;margin:0 auto;padding:16px;}
+  .badge-row{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-top:10px;font-size:.75rem;}
+  .badge{padding:3px 10px;border-radius:999px;background:var(--panel2);color:var(--muted);border:1px solid var(--border);}
+  .notice{background:var(--panel2);border:1px solid var(--border);border-radius:10px;padding:12px 14px;
+          font-size:.82rem;color:var(--muted);margin:16px 0;line-height:1.5;}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:12px;margin-top:14px;}
+  .card{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:16px;
+        display:flex;flex-direction:column;gap:8px;}
+  .card h3{margin:0;font-size:1rem;}
+  .card .meta{color:var(--muted);font-size:.8rem;}
+  .btn{cursor:pointer;border:none;border-radius:8px;padding:9px 14px;font-size:.85rem;font-weight:600;
+       background:var(--accent);color:#fff;transition:opacity .15s;}
+  .btn:hover{opacity:.88;}
+  .btn.secondary{background:var(--panel2);color:var(--text);border:1px solid var(--border);}
+  .btn.good{background:var(--good);}
+  .btn.warn{background:var(--warn);color:#1a1a1a;}
+  .btn:disabled{opacity:.4;cursor:not-allowed;}
+  .exam-card{grid-column:1/-1;background:linear-gradient(135deg,#1e293b,#243248);border:1px solid var(--accent);}
+  .best{font-size:.72rem;color:var(--good);}
+  /* Quiz */
+  .quiz-top{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:14px;flex-wrap:wrap;}
+  .timer{font-variant-numeric:tabular-nums;font-weight:700;padding:6px 12px;border-radius:8px;background:var(--panel2);border:1px solid var(--border);}
+  .timer.low{color:var(--bad);border-color:var(--bad);}
+  .progress-bar{height:6px;background:var(--panel2);border-radius:3px;overflow:hidden;margin-bottom:16px;}
+  .progress-fill{height:100%;background:var(--accent);transition:width .2s;}
+  .qcard{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:18px;}
+  .qtype{display:inline-block;font-size:.68rem;padding:2px 8px;border-radius:999px;background:var(--panel2);color:var(--muted);margin-bottom:8px;}
+  .qtext{font-size:1.02rem;line-height:1.5;margin:4px 0 16px;}
+  .options{display:flex;flex-direction:column;gap:8px;}
+  .option{display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid var(--border);
+          border-radius:9px;cursor:pointer;background:var(--panel2);font-size:.92rem;}
+  .option:hover{border-color:var(--accent);}
+  .option.selected{border-color:var(--accent);background:#1d3a63;}
+  .option input{accent-color:var(--accent);}
+  .option.correct{border-color:var(--good);background:#123a24;}
+  .option.wrong{border-color:var(--bad);background:#3a1414;}
+  .explain{margin-top:12px;padding:10px 12px;background:var(--panel2);border-left:3px solid var(--accent);
+           border-radius:6px;font-size:.85rem;color:var(--muted);display:none;}
+  .nav-row{display:flex;justify-content:space-between;gap:10px;margin-top:16px;flex-wrap:wrap;}
+  .nav-row .left,.nav-row .right{display:flex;gap:8px;flex-wrap:wrap;}
+  .palette{display:flex;flex-wrap:wrap;gap:6px;margin:14px 0;}
+  .pnum{width:30px;height:30px;border-radius:6px;display:flex;align-items:center;justify-content:center;
+        font-size:.72rem;border:1px solid var(--border);background:var(--panel2);cursor:pointer;color:var(--muted);}
+  .pnum.answered{background:var(--accent);color:#fff;border-color:var(--accent);}
+  .pnum.current{outline:2px solid var(--warn);}
+  /* Results */
+  .score-hero{text-align:center;padding:28px 16px;background:var(--panel);border-radius:14px;border:1px solid var(--border);}
+  .score-num{font-size:2.6rem;font-weight:800;}
+  .score-num.pass{color:var(--good);}
+  .score-num.fail{color:var(--bad);}
+  .breakdown{margin-top:18px;display:flex;flex-direction:column;gap:8px;}
+  .bd-row{display:flex;align-items:center;gap:10px;font-size:.82rem;}
+  .bd-label{width:200px;flex-shrink:0;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .bd-bar{flex:1;height:10px;background:var(--panel2);border-radius:5px;overflow:hidden;}
+  .bd-fill{height:100%;background:var(--accent);}
+  .bd-val{width:50px;text-align:right;color:var(--muted);}
+  .review-item{background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:14px;margin-bottom:10px;}
+  .review-item .tag{font-size:.68rem;padding:2px 8px;border-radius:999px;margin-right:6px;}
+  .tag.correct{background:#123a24;color:var(--good);}
+  .tag.wrong{background:#3a1414;color:var(--bad);}
+  .tag.skipped{background:#3a2f14;color:var(--warn);}
+  .hidden{display:none!important;}
+  footer{text-align:center;color:var(--muted);font-size:.75rem;padding:24px 16px;}
+  select,input[type=number]{background:var(--panel2);color:var(--text);border:1px solid var(--border);
+        border-radius:6px;padding:6px 8px;font-size:.85rem;}
+  @media (max-width:520px){ .bd-label{width:130px;} .score-num{font-size:2.1rem;} }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>MP Board Class 12 Physics — MCQ Exam</h1>
+  <p>Chapter-wise practice + full board exam simulator (NCERT / MP Board syllabus)</p>
+  <div class="badge-row">
+    <span class="badge">80% Previous-Year Pattern</span>
+    <span class="badge">10% New Pattern</span>
+    <span class="badge">10% Formula Based</span>
+  </div>
+</header>
+
+<div class="container">
+
+  <div id="home-view">
+    <div class="notice">
+      Every question below is written to match the recurring topics, phrasing and difficulty of MP Board
+      previous-year physics papers and the NCERT curriculum — they are original questions in that style, not
+      verbatim reproductions of any specific year's paper. Each is tagged as
+      <b>Previous-Year Pattern</b>, <b>New Pattern</b>, or <b>Formula Based</b> so you know what you're practising.
+    </div>
+
+    <div class="grid" id="chapter-grid"></div>
+  </div>
+
+  <div id="quiz-view" class="hidden">
+    <div class="quiz-top">
+      <button class="btn secondary" id="quit-btn">← Exit</button>
+      <div id="quiz-title" style="font-weight:600;"></div>
+      <div class="timer" id="timer">--:--</div>
+    </div>
+    <div class="progress-bar"><div class="progress-fill" id="progress-fill"></div></div>
+    <div class="palette" id="palette"></div>
+    <div class="qcard">
+      <span class="qtype" id="q-type"></span>
+      <div class="qtext" id="q-text"></div>
+      <div class="options" id="q-options"></div>
+      <div class="explain" id="q-explain"></div>
+    </div>
+    <div class="nav-row">
+      <div class="left">
+        <button class="btn secondary" id="prev-btn">Previous</button>
+        <button class="btn secondary" id="next-btn">Next</button>
+      </div>
+      <div class="right">
+        <button class="btn warn" id="check-btn">Check Answer</button>
+        <button class="btn good" id="submit-btn">Submit Quiz</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="result-view" class="hidden">
+    <div class="score-hero">
+      <div class="score-num" id="score-num">0%</div>
+      <div id="score-sub" style="color:var(--muted);margin-top:6px;"></div>
+      <div style="margin-top:16px;display:flex;gap:10px;justify-content:center;flex-wrap:wrap;">
+        <button class="btn" id="retry-btn">Retry This Quiz</button>
+        <button class="btn secondary" id="home-btn">Back to Chapters</button>
+      </div>
+    </div>
+    <div class="breakdown" id="breakdown"></div>
+    <h3 style="margin-top:26px;">Answer Review</h3>
+    <div id="review-list"></div>
+  </div>
+
+</div>
+
+<footer>MP Board Class 12 Physics MCQ practice tool — built for exam-style self-study.</footer>
+
+<script>
+/* ---------------- QUESTION BANK ---------------- */
+const CHAPTERS = [
+{id:"ch1",name:"Electric Charges and Fields",questions:[
+ {q:"What is the SI unit of electric charge?",options:["Coulomb","Farad","Tesla","Weber"],correct:0,type:"py",explain:"Charge is measured in coulombs (C)."},
+ {q:"According to Coulomb's law, the electrostatic force between two point charges is inversely proportional to:",options:["r","r²","r³","1/r"],correct:1,type:"py",explain:"F = kq₁q₂/r² — force falls off as the square of separation."},
+ {q:"The value of the permittivity of free space ε₀ is approximately:",options:["9×10⁹ N m²/C²","6.6×10⁻³⁴ J s","8.85×10⁻¹² C² N⁻¹ m⁻²","1.6×10⁻¹⁹ C"],correct:2,type:"py",explain:"ε₀ ≈ 8.85×10⁻¹² C²N⁻¹m⁻²; k = 1/(4πε₀) ≈ 9×10⁹."},
+ {q:"Electric field lines around an isolated positive point charge:",options:["Curve inward toward it","Form closed loops","Do not exist","Point radially outward from it"],correct:3,type:"py",explain:"Field lines originate on positive charges and terminate on negative charges."},
+ {q:"Gauss's law relates the total electric flux through a closed surface to:",options:["The net charge enclosed by the surface","The charge outside the surface","The potential at the surface","The current through the surface"],correct:0,type:"py",explain:"Φ = q_enclosed / ε₀."},
+ {q:"The torque on an electric dipole of moment p placed in a uniform field E, making angle θ with it, is:",options:["pE cosθ","pE sinθ","pE","p/E"],correct:1,type:"py",explain:"τ = p × E, magnitude pE sinθ."},
+ {q:"Two equal and opposite point charges separated by a small distance constitute a(n):",options:["Monopole","Quadrupole","Electric dipole","Isolated charge"],correct:2,type:"py",explain:"This pair is the standard definition of an electric dipole."},
+ {q:"The electric flux through a closed surface that encloses no net charge is:",options:["Infinite","Maximum possible","Dependent on the surface's shape","Zero"],correct:3,type:"py",explain:"By Gauss's law, flux depends only on enclosed charge, which is zero here."},
+ {q:"A point charge q sits at the exact centre of a cube of side a. What is the electric flux through one face of the cube?",options:["q/6ε₀","q/ε₀","q/4ε₀","q/2ε₀"],correct:0,type:"new",explain:"By symmetry the total flux q/ε₀ is shared equally among the 6 faces."},
+ {q:"The electric field at perpendicular distance r from an infinite line charge of linear density λ is:",options:["λ/(4πε₀r)","λ/(2πε₀r)","λ/(2πε₀r²)","kq/r²"],correct:1,type:"formula",explain:"Standard result from Gauss's law applied to a cylindrical surface."}
+]},
+{id:"ch2",name:"Electrostatic Potential and Capacitance",questions:[
+ {q:"The SI unit of capacitance is the:",options:["Farad","Henry","Coulomb","Tesla"],correct:0,type:"py",explain:"Capacitance C = Q/V is measured in farads (F)."},
+ {q:"The electric potential at distance r from a point charge q is given by:",options:["kq/r","kq/r²","kqr","kq²/r"],correct:0,type:"py",explain:"V = kq/r, derived by integrating E from infinity to r."},
+ {q:"For a parallel plate capacitor (plate area A, separation d, vacuum between plates), capacitance is:",options:["ε₀A/d","ε₀Ad","ε₀d/A","A/(ε₀d)"],correct:0,type:"py",explain:"C = ε₀A/d — standard parallel-plate formula."},
+ {q:"The energy stored in a charged capacitor of capacitance C at potential V is:",options:["½CV²","CV","½C²V","CV²"],correct:0,type:"py",explain:"U = ½CV² = ½QV = Q²/2C."},
+ {q:"The work done in moving a charge between two points on the same equipotential surface is:",options:["Zero","Maximum","Infinite","Dependent on the path taken"],correct:0,type:"py",explain:"No potential difference exists between points on an equipotential surface."},
+ {q:"Two identical capacitors, each of capacitance C, connected in series give an equivalent capacitance of:",options:["C/2","2C","C","C²"],correct:0,type:"py",explain:"1/C_eq = 1/C + 1/C ⇒ C_eq = C/2."},
+ {q:"The dielectric constant of an ideal conductor is considered:",options:["Infinite","Zero","One","Negative"],correct:0,type:"py",explain:"A conductor's free charges cancel any internal field, equivalent to K→∞."},
+ {q:"A Van de Graaff generator is used to:",options:["Build up very high electrostatic voltages","Store charge indefinitely without loss","Only measure small charges","Generate alternating current"],correct:0,type:"py",explain:"It accumulates charge on a large hollow sphere to reach millions of volts."},
+ {q:"If a dielectric slab is inserted between the plates of an isolated, charged parallel plate capacitor, its capacitance:",options:["Increases","Decreases","Remains unchanged","Becomes zero"],correct:0,type:"new",explain:"C = KC₀ and K>1 for any dielectric, so capacitance always rises."},
+ {q:"The energy density stored in an electric field E in vacuum is given by:",options:["½ε₀E²","ε₀E²","½ε₀E","ε₀E"],correct:0,type:"formula",explain:"u = ½ε₀E² is the standard energy-density formula."}
+]},
+{id:"ch3",name:"Current Electricity",questions:[
+ {q:"Ohm's law states that, at constant temperature, V equals:",options:["IR","I/R","I²R","R/I"],correct:0,type:"py",explain:"V = IR for an ohmic conductor at constant temperature."},
+ {q:"The SI unit of resistivity is:",options:["Ohm-metre","Ohm per metre","Ohm","Siemens"],correct:0,type:"py",explain:"Resistivity ρ has units of Ω·m since R = ρl/A."},
+ {q:"Kirchhoff's first (junction) law is a statement of conservation of:",options:["Charge","Energy","Mass","Momentum"],correct:0,type:"py",explain:"Total current into a junction equals total current out — charge conservation."},
+ {q:"Kirchhoff's second (loop) law is a statement of conservation of:",options:["Energy","Charge","Mass","Momentum"],correct:0,type:"py",explain:"The sum of potential differences around a closed loop is zero — energy conservation."},
+ {q:"In a series combination of resistors, the current through each resistor is:",options:["The same in every resistor","Different in each resistor","Zero","Infinite"],correct:0,type:"py",explain:"There is only one path for current in a series circuit."},
+ {q:"Drift velocity of electrons in a conductor refers to:",options:["Their average velocity due to the applied electric field","Their instantaneous random thermal velocity","The speed of light in the conductor","Zero velocity at equilibrium"],correct:0,type:"py",explain:"Drift velocity is the small net velocity superimposed on random thermal motion."},
+ {q:"For most metals, the temperature coefficient of resistance is:",options:["Positive","Negative","Zero","Infinite"],correct:0,type:"py",explain:"Metal resistance increases with temperature (positive α)."},
+ {q:"A Wheatstone bridge is primarily used to measure:",options:["An unknown resistance","Current directly","EMF of a cell","Power dissipated"],correct:0,type:"py",explain:"It compares resistances via a balanced-bridge null condition."},
+ {q:"A wire of resistance R is stretched (uniformly, volume constant) to twice its original length. Its new resistance becomes:",options:["4R","2R","R/2","R"],correct:0,type:"new",explain:"R∝l²/V with V constant, so doubling l quadruples R."},
+ {q:"Electrical power dissipated in a resistor is given by:",options:["I²R","IR","I/R","R/I"],correct:0,type:"formula",explain:"P = I²R = VI = V²/R."}
+]},
+{id:"ch4",name:"Moving Charges and Magnetism",questions:[
+ {q:"The SI unit of magnetic field (magnetic flux density) is the:",options:["Tesla","Weber","Henry","Newton"],correct:0,type:"py",explain:"B is measured in tesla (T); 1 T = 1 Wb/m²."},
+ {q:"The magnetic force on a charge q moving with velocity v at angle θ to field B is:",options:["qvB sinθ","qvB cosθ","qv/B","qB/v"],correct:0,type:"py",explain:"F = qv×B, magnitude qvB sinθ."},
+ {q:"The Biot–Savart law gives the magnetic field due to:",options:["A current-carrying element","An isolated point charge","A magnetic dipole alone","A stationary charge"],correct:0,type:"py",explain:"It gives dB due to a small current element Idl."},
+ {q:"The magnetic field at the centre of a circular loop of radius R carrying current I is:",options:["μ₀I/2R","μ₀I/4πR","μ₀I/2πR","μ₀IR"],correct:0,type:"py",explain:"Standard result B = μ₀I/2R at the centre of a single circular loop."},
+ {q:"Ampere's circuital law relates the line integral of B around a closed loop to the:",options:["Current enclosed by the loop","Charge enclosed by the loop","Potential difference around the loop","Magnetic flux linked"],correct:0,type:"py",explain:"∮B·dl = μ₀I_enclosed."},
+ {q:"A cyclotron is a device used to accelerate:",options:["Charged particles to high energies","Neutrons only","Photons","Only electrons in a straight line"],correct:0,type:"py",explain:"It uses crossed electric and magnetic fields to spiral-accelerate ions."},
+ {q:"The force between two long parallel wires carrying current in the same direction is:",options:["Attractive","Repulsive","Zero","Oscillatory"],correct:0,type:"py",explain:"Parallel currents in the same direction attract each other."},
+ {q:"The magnetic moment of a current loop of area A carrying current I is:",options:["IA","I/A","IA²","I²A"],correct:0,type:"py",explain:"m = IA, direction given by the right-hand rule."},
+ {q:"The current sensitivity of a moving-coil galvanometer can be increased by:",options:["Increasing the number of turns N in the coil","Decreasing the coil's area","Increasing the spring's torsional constant","Decreasing the magnetic field strength"],correct:0,type:"new",explain:"Current sensitivity = NBA/k, so increasing N raises sensitivity."},
+ {q:"The magnetic field at perpendicular distance r from a long straight current-carrying wire is:",options:["μ₀I/2πr","μ₀I/4πr","μ₀I/2r","μ₀Ir/2π"],correct:0,type:"formula",explain:"Direct consequence of Ampere's law for an infinite straight wire."}
+]},
+{id:"ch5",name:"Magnetism and Matter",questions:[
+ {q:"Along with declination and angle of dip, the three elements of Earth's magnetism include:",options:["Horizontal component of Earth's field","Vertical component only","Magnetic moment of Earth","Magnetic flux only"],correct:0,type:"py",explain:"The three elements are declination, dip (inclination), and horizontal intensity."},
+ {q:"The magnetic susceptibility of a diamagnetic material is:",options:["Small and negative","Large and positive","Exactly zero","Infinite"],correct:0,type:"py",explain:"Diamagnetic substances weakly oppose the applied field, giving small negative χ."},
+ {q:"The Curie temperature is a concept associated with:",options:["Ferromagnetism","Diamagnetism","Paramagnetism only","Superconductivity"],correct:0,type:"py",explain:"Above the Curie point, a ferromagnet becomes paramagnetic."},
+ {q:"The SI unit of magnetic dipole moment is:",options:["A m²","A/m","Wb","T/m"],correct:0,type:"py",explain:"Magnetic moment m = IA has units of ampere-metre squared."},
+ {q:"A bar magnet placed in a uniform external magnetic field experiences:",options:["A torque tending to align it with the field","A net translational force always","No effect whatsoever","Only an attractive force"],correct:0,type:"py",explain:"In a uniform field, a dipole feels torque but zero net force."},
+ {q:"When placed in an external magnetic field, paramagnetic materials become:",options:["Weakly magnetised in the direction of the field","Strongly magnetised opposite to the field","Completely unaffected","Permanently magnetised"],correct:0,type:"py",explain:"Paramagnetic materials are weakly attracted, aligning with the field."},
+ {q:"The angle of dip at the magnetic equator is:",options:["0°","90°","45°","180°"],correct:0,type:"py",explain:"At the magnetic equator the field is purely horizontal, so dip = 0°."},
+ {q:"The relative permeability of a ferromagnetic material is:",options:["Much greater than 1","Less than 1","Exactly equal to 1","Negative"],correct:0,type:"py",explain:"Ferromagnetic materials strongly concentrate field lines, μr ≫ 1."},
+ {q:"Soft iron is preferred for making electromagnet cores because it has:",options:["High permeability and low retentivity","Low permeability and high retentivity","Permanent magnetism","Zero permeability"],correct:0,type:"new",explain:"High permeability gives strong magnetisation; low retentivity lets it demagnetise quickly when current is switched off."},
+ {q:"The magnetic dipole moment of a bar magnet is defined as:",options:["Pole strength × magnetic length","Pole strength / magnetic length","Pole strength × cross-sectional area","Pole strength squared"],correct:0,type:"formula",explain:"m = q_m × 2l, analogous to electric dipole moment."}
+]},
+{id:"ch6",name:"Electromagnetic Induction",questions:[
+ {q:"Faraday's law of electromagnetic induction states that the induced EMF equals:",options:["−dΦ/dt","dΦ","Φ/t","dI/dt"],correct:0,type:"py",explain:"EMF = −dΦ/dt; the minus sign encodes Lenz's law."},
+ {q:"Lenz's law, which gives the direction of induced current, is a consequence of conservation of:",options:["Energy","Charge","Momentum","Mass"],correct:0,type:"py",explain:"The induced effect always opposes its cause, consistent with energy conservation."},
+ {q:"The SI unit of magnetic flux is the:",options:["Weber","Tesla","Henry","Farad"],correct:0,type:"py",explain:"Flux Φ = B·A is measured in webers (Wb)."},
+ {q:"The self-inductance of a coil depends on:",options:["The number of turns and the geometry of the coil","The current flowing through it alone","The resistance of the wire","None of these"],correct:0,type:"py",explain:"L is a purely geometric/material property, independent of instantaneous current."},
+ {q:"Eddy currents are induced circulating currents that form in:",options:["Bulk conductors due to a changing magnetic flux","Insulators only","Vacuum","Thin wires only, never in solid blocks"],correct:0,type:"py",explain:"A changing flux through a solid conductor induces closed-loop eddy currents within it."},
+ {q:"The SI unit of inductance is the:",options:["Henry","Weber","Tesla","Farad"],correct:0,type:"py",explain:"Inductance L is measured in henries (H)."},
+ {q:"The motional EMF induced in a rod of length l moving with velocity v perpendicular to field B is:",options:["Blv","Bl/v","B/(lv)","BlA"],correct:0,type:"py",explain:"EMF = Blv for a rod moving perpendicular to both its length and B."},
+ {q:"Mutual inductance between two coils depends on:",options:["The geometry, turns, and relative position of both coils","Only the current in the primary coil","Only the resistance of the coils","Nothing physical, it is a constant"],correct:0,type:"py",explain:"M is determined by the coils' shapes, turns, and orientation to each other."},
+ {q:"A straight conducting rod moves through a uniform magnetic field but is not part of any closed circuit. What happens?",options:["A potential difference develops across it, but no current flows","A current flows but no potential difference exists","Neither a potential difference nor a current arises","Both a large current and heating occur"],correct:0,type:"new",explain:"With an open circuit, charges redistribute until the induced EMF is balanced, giving a PD with zero current."},
+ {q:"The energy stored in an inductor carrying current I is:",options:["½LI²","LI","½L²I","LI²"],correct:0,type:"formula",explain:"U = ½LI², analogous to ½CV² for a capacitor."}
+]},
+{id:"ch7",name:"Alternating Current",questions:[
+ {q:"The RMS value of a sinusoidal AC current with peak value I₀ is:",options:["I₀/√2","I₀/2","I₀√2","I₀"],correct:0,type:"py",explain:"I_rms = I₀/√2 for a pure sinusoid."},
+ {q:"In a purely resistive AC circuit, the current and voltage are:",options:["In phase with each other","90° out of phase","180° out of phase","45° out of phase"],correct:0,type:"py",explain:"A resistor introduces no phase difference between V and I."},
+ {q:"In a purely inductive AC circuit, the current:",options:["Lags the voltage by 90°","Leads the voltage by 90°","Is in phase with voltage","Lags by 180°"],correct:0,type:"py",explain:"For an inductor, current lags voltage by 90° (ELI)."},
+ {q:"In a purely capacitive AC circuit, the current:",options:["Leads the voltage by 90°","Lags the voltage by 90°","Is in phase with voltage","Leads by 180°"],correct:0,type:"py",explain:"For a capacitor, current leads voltage by 90° (ICE)."},
+ {q:"At resonance in a series LCR circuit, the impedance of the circuit is:",options:["Minimum, equal to R","Maximum possible","Zero","Infinite"],correct:0,type:"py",explain:"At resonance XL = XC, so they cancel and Z = R (minimum)."},
+ {q:"The resonant frequency of a series LCR circuit is given by:",options:["1/(2π√(LC))","1/(2πLC)","2π√(LC)","1/(LC)"],correct:0,type:"py",explain:"f₀ = 1/(2π√(LC)), obtained by setting XL = XC."},
+ {q:"The power factor of a circuit containing only a pure inductor or only a pure capacitor is:",options:["Zero","One","0.5","Infinite"],correct:0,type:"py",explain:"cosφ = cos90° = 0 since current and voltage are 90° out of phase."},
+ {q:"A transformer operates on the principle of:",options:["Mutual induction","Self-induction alone","Simple resistive heating","Electrostatic induction"],correct:0,type:"py",explain:"Changing flux in the primary induces EMF in the secondary via mutual induction."},
+ {q:"A step-up transformer, compared with its input, gives an output with:",options:["Higher voltage and lower current","Higher voltage and higher current","Lower voltage and higher current","No change in either quantity"],correct:0,type:"new",explain:"Power is conserved (ideally), so a voltage increase means current decreases proportionally."},
+ {q:"The capacitive reactance of a capacitor C at angular frequency ω is:",options:["1/(ωC)","ωC","ωL","1/(ωL)"],correct:0,type:"formula",explain:"Xc = 1/(ωC), decreasing as frequency increases."}
+]},
+{id:"ch8",name:"Electromagnetic Waves",questions:[
+ {q:"Electromagnetic waves are produced by:",options:["Accelerated (or oscillating) electric charges","Charges at rest","Stationary permanent magnets","Uniform steady currents alone"],correct:0,type:"py",explain:"Only accelerating charges radiate electromagnetic waves."},
+ {q:"In an electromagnetic wave, the electric field E and magnetic field B are:",options:["Perpendicular to each other and to the direction of propagation","Parallel to each other","Antiparallel to each other","Unrelated in direction"],correct:0,type:"py",explain:"E, B, and the propagation direction form a mutually perpendicular set."},
+ {q:"The speed of electromagnetic waves in vacuum is approximately:",options:["3×10⁸ m/s","3×10⁵ m/s","3×10⁶ m/s","3×10¹⁰ m/s"],correct:0,type:"py",explain:"c ≈ 3×10⁸ m/s, the same for all EM waves in vacuum."},
+ {q:"The speed of light c is related to the electromagnetic constants by:",options:["c = 1/√(μ₀ε₀)","c = μ₀ε₀","c = √(μ₀ε₀)","c = μ₀/ε₀"],correct:0,type:"py",explain:"Maxwell derived c = 1/√(μ₀ε₀) from his equations."},
+ {q:"X-rays are typically produced by:",options:["Sudden deceleration of high-energy electrons striking a target","Radioactive decay only","Nuclear fusion reactions","Ordinary sound wave generation"],correct:0,type:"py",explain:"Bremsstrahlung radiation from rapidly decelerated electrons produces X-rays."},
+ {q:"Among the electromagnetic spectrum, which has the highest frequency?",options:["Gamma rays","Radio waves","Visible light","Infrared rays"],correct:0,type:"py",explain:"Gamma rays have the shortest wavelength and hence highest frequency."},
+ {q:"The ozone layer in the atmosphere primarily absorbs:",options:["Ultraviolet radiation","Infrared radiation","Radio waves","Visible light"],correct:0,type:"py",explain:"Ozone strongly absorbs harmful UV radiation from the Sun."},
+ {q:"Microwaves are commonly used in:",options:["Radar systems","Producing X-ray images","Nuclear reactor control","Long-distance telegraphy alone"],correct:0,type:"py",explain:"Their short wavelength suits radar and satellite communication."},
+ {q:"Electromagnetic waves, as they travel through space, carry:",options:["Both energy and momentum","Only energy, no momentum","Only momentum, no energy","Neither energy nor momentum"],correct:0,type:"new",explain:"EM waves exert radiation pressure, proving they carry momentum as well as energy."},
+ {q:"The relation connecting wavelength λ, frequency f, and speed c of an EM wave is:",options:["λ = c/f","λ = f/c","λ = cf","λ = 1/(cf)"],correct:0,type:"formula",explain:"Standard wave relation c = fλ, so λ = c/f."}
+]},
+{id:"ch9",name:"Ray Optics and Optical Instruments",questions:[
+ {q:"The mirror formula relating object distance u, image distance v, and focal length f is:",options:["1/v + 1/u = 1/f","1/v − 1/u = f","1/v + 1/u = f/2","v + u = f"],correct:0,type:"py",explain:"Standard mirror formula: 1/v + 1/u = 1/f (with sign convention)."},
+ {q:"The refractive index of a medium is defined as:",options:["c/v (speed of light in vacuum ÷ speed in medium)","v/c","c × v","1/(cv)"],correct:0,type:"py",explain:"n = c/v, always ≥ 1 for a medium denser than vacuum."},
+ {q:"The power of a lens (in dioptres) is given by:",options:["1/f, with f in metres","f itself","f²","1/f²"],correct:0,type:"py",explain:"P = 1/f, where f is expressed in metres."},
+ {q:"The critical angle of a medium is directly linked to the phenomenon of:",options:["Total internal reflection","Simple refraction only","Dispersion of light","Diffraction"],correct:0,type:"py",explain:"Beyond the critical angle, light undergoes total internal reflection instead of refracting out."},
+ {q:"The magnifying power of a simple microscope, with the image formed at the near point D, is:",options:["1 + D/f","D/f always, regardless of image position","f/D","D × f"],correct:0,type:"py",explain:"m = 1 + D/f when the final image is formed at the near point."},
+ {q:"A convex lens used as a magnifying glass produces an image that is:",options:["Virtual, erect, and magnified","Real and inverted","Virtual and diminished","Real and magnified"],correct:0,type:"py",explain:"With the object within the focal length, a convex lens gives a virtual, erect, magnified image."},
+ {q:"The power of a lens is measured in units of:",options:["Dioptre","Watt","Joule","Tesla"],correct:0,type:"py",explain:"1 dioptre = 1 m⁻¹, the reciprocal of focal length in metres."},
+ {q:"Myopia (short-sightedness) is corrected using a:",options:["Concave (diverging) lens","Convex (converging) lens","Cylindrical lens only","Bifocal lens exclusively"],correct:0,type:"py",explain:"A concave lens diverges light so it focuses correctly on the retina instead of before it."},
+ {q:"If a convex lens is cut into two equal halves along a plane containing the principal axis, the focal length of each half becomes:",options:["The same as the original lens","Double the original","Half the original","Infinite"],correct:0,type:"new",explain:"Both radii of curvature are unchanged, so f is unaffected; only the aperture (and hence light gathered) is halved."},
+ {q:"The lens maker's formula for a thin lens of refractive index n is:",options:["1/f = (n−1)(1/R₁ − 1/R₂)","1/f = (n−1)(1/R₁ + 1/R₂)","1/f = n(1/R₁ − 1/R₂)","1/f = (n+1)(1/R₁ − 1/R₂)"],correct:0,type:"formula",explain:"Standard lens maker's formula relating f to n, R₁, and R₂."}
+]},
+{id:"ch10",name:"Wave Optics",questions:[
+ {q:"Young's double-slit experiment is a classic demonstration of:",options:["Interference of light","Polarization of light","Dispersion of light","Simple reflection"],correct:0,type:"py",explain:"YDSE produces alternating bright/dark fringes due to interference of coherent waves."},
+ {q:"In YDSE, the fringe width β (slit separation d, screen distance D, wavelength λ) is:",options:["λD/d","λd/D","D/(λd)","λ/D"],correct:0,type:"py",explain:"β = λD/d — a standard, frequently examined YDSE formula."},
+ {q:"Constructive interference occurs when the path difference between two waves equals:",options:["nλ (an integer multiple of wavelength)","(n + 1/2)λ","nλ/2","λ/4"],correct:0,type:"py",explain:"Path difference of a whole number of wavelengths gives constructive interference."},
+ {q:"Diffraction effects become significant when:",options:["The obstacle or aperture size is comparable to the wavelength","The obstacle is much larger than the wavelength","There is no obstacle at all","The obstacle is much smaller than the wavelength, with no effect"],correct:0,type:"py",explain:"Noticeable diffraction requires aperture/obstacle size on the order of the wavelength."},
+ {q:"The phenomenon of polarization proves that light is a:",options:["Transverse wave","Longitudinal wave","Stream of particles only","None of these — it proves nothing about wave nature"],correct:0,type:"py",explain:"Only transverse waves can be polarized; longitudinal waves cannot."},
+ {q:"Huygens' principle is primarily used to explain:",options:["The propagation of wavefronts","Particle-like motion of light","The photoelectric effect","Nuclear decay"],correct:0,type:"py",explain:"Huygens' principle treats every point on a wavefront as a source of secondary wavelets."},
+ {q:"Brewster's law states that at the polarizing angle θB, the refractive index n satisfies:",options:["n = tanθB","n = 1/tanθB","n = tan²θB","n = sinθB"],correct:0,type:"py",explain:"tanθB = n is Brewster's law for the polarizing angle."},
+ {q:"In YDSE, if one of the two slits is completely covered, the pattern observed on the screen is:",options:["A single-slit diffraction pattern, with no interference fringes","The same double-slit interference pattern","Complete darkness","Perfectly uniform illumination with no variation"],correct:0,type:"py",explain:"With only one slit open, interference is impossible; only single-slit diffraction remains."},
+ {q:"If the wavelength of light used in a YDSE setup is increased (other factors constant), the fringe width:",options:["Increases","Decreases","Remains the same","Becomes zero"],correct:0,type:"new",explain:"Since β = λD/d, β is directly proportional to λ."},
+ {q:"The resolving power of a microscope is:",options:["Inversely proportional to the wavelength of light used","Directly proportional to the wavelength","Proportional to the square of the wavelength","Independent of wavelength"],correct:0,type:"formula",explain:"Resolving power ∝ 1/λ (shorter wavelength gives finer resolution)."}
+]},
+{id:"ch11",name:"Dual Nature of Radiation and Matter",questions:[
+ {q:"The photoelectric effect was successfully explained (earning a Nobel Prize) by:",options:["Einstein","Newton","Planck alone","Maxwell"],correct:0,type:"py",explain:"Einstein explained photoelectric emission using the photon concept in 1905."},
+ {q:"Einstein's photoelectric equation for the maximum kinetic energy of emitted electrons is:",options:["KEmax = hν − φ₀","KEmax = hν + φ₀","KEmax = hν × φ₀","KEmax = φ₀/hν"],correct:0,type:"py",explain:"Photon energy hν minus the work function φ₀ gives maximum electron KE."},
+ {q:"The work function of a metal is generally expressed in units of:",options:["Electron-volt (eV) or joule","Only eV, never joule","Watt","Tesla"],correct:0,type:"py",explain:"Work function is an energy quantity, expressed in eV or J."},
+ {q:"The stopping potential in a photoelectric experiment is directly related to the:",options:["Maximum kinetic energy of emitted photoelectrons","Intensity of the incident light","Frequency of light, in direct proportion to Vs itself","Number of photoelectrons emitted"],correct:0,type:"py",explain:"eVs = KEmax, so stopping potential measures the maximum electron energy."},
+ {q:"The de Broglie wavelength of a particle with momentum p is:",options:["h/p","p/h","hp","h/p²"],correct:0,type:"py",explain:"λ = h/p, the fundamental de Broglie relation."},
+ {q:"The photoelectric current (for frequency above threshold) depends on:",options:["The intensity of the incident light","The frequency of light alone","The work function of the metal alone","None of these factors"],correct:0,type:"py",explain:"More intense light means more photons, hence more photoelectrons per second."},
+ {q:"The threshold frequency in the photoelectric effect is the minimum frequency:",options:["Below which no photoemission occurs, regardless of intensity","Above which no emission occurs","At which photoelectric current is maximum","That has no physical significance"],correct:0,type:"py",explain:"Below threshold frequency, photon energy is insufficient to overcome the work function."},
+ {q:"The Davisson–Germer experiment provided direct experimental confirmation of the:",options:["Wave nature of electrons","Particle nature of light","Photoelectric effect equation","Existence of the nucleus"],correct:0,type:"py",explain:"Electron diffraction from a nickel crystal confirmed de Broglie's matter-wave hypothesis."},
+ {q:"If the frequency of light incident on a metal (above threshold) is doubled, the stopping potential:",options:["Increases, but is not exactly doubled","Exactly doubles","Remains unchanged","Becomes zero"],correct:0,type:"new",explain:"Since eVs = hν − φ₀, doubling ν does not double Vs because φ₀ stays fixed."},
+ {q:"The de Broglie wavelength of an electron accelerated through potential difference V is:",options:["h/√(2meV)","h√(2meV)","√(2meV)/h","h/(2meV)"],correct:0,type:"formula",explain:"Derived by combining λ = h/p with p = √(2meV) for an electron accelerated from rest."}
+]},
+{id:"ch12",name:"Atoms",questions:[
+ {q:"Rutherford's alpha-particle scattering experiment led to the discovery of the:",options:["Atomic nucleus","Electron","Neutron","Proton"],correct:0,type:"py",explain:"Large-angle scattering revealed a small, dense, positively charged nucleus."},
+ {q:"Bohr's model postulates that the angular momentum of an electron in a stationary orbit is quantized as:",options:["nh/2π","nh","h/2π only, regardless of n","n²h"],correct:0,type:"py",explain:"L = nh/2π, Bohr's quantization condition."},
+ {q:"The radius of the nth Bohr orbit of hydrogen is proportional to:",options:["n²","n","1/n","1/n²"],correct:0,type:"py",explain:"rn ∝ n², so orbit radius grows rapidly with quantum number."},
+ {q:"The energy of an electron in the nth orbit of a hydrogen atom is given by:",options:["−13.6/n² eV","13.6n² eV","−13.6n eV","13.6/n eV"],correct:0,type:"py",explain:"En = −13.6/n² eV, negative because the electron is bound."},
+ {q:"The Lyman spectral series of hydrogen lies in the:",options:["Ultraviolet region","Visible region","Infrared region","X-ray region"],correct:0,type:"py",explain:"Transitions ending at n=1 (Lyman series) emit UV photons."},
+ {q:"The Balmer spectral series of hydrogen lies in the:",options:["Visible region","Ultraviolet region","Infrared region","Gamma-ray region"],correct:0,type:"py",explain:"Transitions ending at n=2 (Balmer series) give visible-light lines."},
+ {q:"The ionization energy of a hydrogen atom in its ground state is:",options:["13.6 eV","3.4 eV","1.51 eV","27.2 eV"],correct:0,type:"py",explain:"Energy needed to remove the electron from n=1 to n=∞ equals 13.6 eV."},
+ {q:"Bohr's model of the atom notably failed to correctly explain:",options:["The spectra of atoms with more than one electron","The hydrogen spectrum","Basic energy quantization","Existence of stationary states"],correct:0,type:"py",explain:"Bohr's simple model works well only for hydrogen-like single-electron systems."},
+ {q:"The de Broglie wavelength of the electron in the first Bohr orbit is equal to:",options:["The circumference of that orbit","Half the circumference of the orbit","The diameter of the orbit","The radius of the orbit"],correct:0,type:"new",explain:"Bohr's quantization 2πr = nλ, for n=1, gives circumference = wavelength."},
+ {q:"The Rydberg formula for the wavelength of spectral lines is:",options:["1/λ = R(1/n₁² − 1/n₂²)","1/λ = R(1/n₁ + 1/n₂)","1/λ = R(n₂² − n₁²)","λ = R(1/n₁² − 1/n₂²)"],correct:0,type:"formula",explain:"Standard Rydberg formula for hydrogen-like spectral lines."}
+]},
+{id:"ch13",name:"Nuclei",questions:[
+ {q:"The radius of an atomic nucleus with mass number A is given by:",options:["R = R₀A^(1/3)","R = R₀A","R = R₀A²","R = R₀/A"],correct:0,type:"py",explain:"Nuclear radius scales as the cube root of mass number, consistent with constant nuclear density."},
+ {q:"The mass defect of a nucleus is directly responsible for its:",options:["Binding energy","Radioactivity, exclusively","Fission process only","Chemical properties"],correct:0,type:"py",explain:"Mass defect Δm converts to binding energy via E = Δmc²."},
+ {q:"Binding energy per nucleon is maximum for nuclei near:",options:["Iron (Fe-56)","Hydrogen","Uranium","Helium"],correct:0,type:"py",explain:"Iron-56 sits near the peak of the binding-energy-per-nucleon curve, making it highly stable."},
+ {q:"In beta-minus (β⁻) decay:",options:["A neutron converts into a proton, emitting an electron and antineutrino","A proton converts into a neutron, emitting a positron","The nucleus emits a helium nucleus","No particle transformation occurs"],correct:0,type:"py",explain:"n → p + e⁻ + ν̄, characteristic of β⁻ decay."},
+ {q:"The half-life T of a radioactive substance is related to its decay constant λ by:",options:["T = 0.693/λ","T = λ/0.693","T = λ","T = 1/λ²"],correct:0,type:"py",explain:"T₁/₂ = ln2/λ ≈ 0.693/λ."},
+ {q:"Nuclear fission is the process in which:",options:["A heavy nucleus splits into two lighter nuclei","Two light nuclei combine into a heavier one","A nucleus emits only alpha particles","A nucleus captures an electron"],correct:0,type:"py",explain:"Fission splits a heavy nucleus (e.g. U-235) into smaller fragments, releasing energy."},
+ {q:"The energy radiated by the Sun is primarily generated through:",options:["Nuclear fusion","Nuclear fission","Chemical combustion","Radioactive decay of uranium"],correct:0,type:"py",explain:"The Sun fuses hydrogen into helium in its core, releasing enormous energy."},
+ {q:"The activity of a radioactive sample containing N undecayed nuclei is given by:",options:["A = λN","A = N/λ","A = λ/N","A = λN²"],correct:0,type:"py",explain:"Activity is the decay rate, A = λN, where λ is the decay constant."},
+ {q:"A radioactive substance has a half-life of 10 years. What fraction of the original sample remains after 30 years?",options:["1/8","1/3","1/6","1/9"],correct:0,type:"new",explain:"30 years = 3 half-lives, so the remaining fraction is (1/2)³ = 1/8."},
+ {q:"The law of radioactive decay is expressed as:",options:["N = N₀e^(−λt)","N = N₀e^(λt)","N = N₀λt","N = N₀/e^(λt) with λt negative always shown positive"],correct:0,type:"formula",explain:"Exponential decay law: N = N₀e^(−λt)."}
+]},
+{id:"ch14",name:"Semiconductor Electronics",questions:[
+ {q:"Silicon and germanium, in their pure form, are examples of:",options:["Intrinsic semiconductors","Insulators","Good conductors","Superconductors"],correct:0,type:"py",explain:"Pure Si and Ge, without doping, are intrinsic semiconductors."},
+ {q:"An n-type semiconductor is obtained by doping a pure semiconductor with a:",options:["Pentavalent impurity","Trivalent impurity","Another tetravalent element","No impurity at all"],correct:0,type:"py",explain:"Pentavalent (Group 15) dopants like phosphorus donate free electrons, forming n-type material."},
+ {q:"A p-type semiconductor is obtained by doping a pure semiconductor with a:",options:["Trivalent impurity","Pentavalent impurity","Tetravalent impurity","Noble gas"],correct:0,type:"py",explain:"Trivalent (Group 13) dopants like boron create holes, forming p-type material."},
+ {q:"When a p-n junction diode is forward biased, the width of the depletion region:",options:["Decreases","Increases","Remains unchanged","Becomes infinite"],correct:0,type:"py",explain:"Forward bias opposes the built-in field, narrowing the depletion region."},
+ {q:"A p-n junction diode is commonly used as a:",options:["Rectifier","Amplifier","Oscillator, exclusively","Voltage-controlled resistor only"],correct:0,type:"py",explain:"Its one-way conduction property makes it ideal for rectifying AC to DC."},
+ {q:"In a full-wave rectifier using a centre-tapped transformer, the number of diodes typically used is:",options:["2","1","4","3"],correct:0,type:"py",explain:"A centre-tap full-wave rectifier uses 2 diodes conducting on alternate half-cycles."},
+ {q:"A Zener diode, operated in reverse breakdown, is commonly used as a:",options:["Voltage regulator","Simple rectifier only","Signal amplifier","Light source"],correct:0,type:"py",explain:"Its stable breakdown voltage makes it ideal for voltage regulation."},
+ {q:"In a bipolar junction transistor, the base region is:",options:["Thin and lightly doped","Thick and heavily doped","Thick and lightly doped","Thin and heavily doped"],correct:0,type:"py",explain:"A thin, lightly doped base allows most emitter charge carriers to reach the collector."},
+ {q:"For a transistor in common-emitter configuration, the current gain β is defined as:",options:["Ic/Ib","Ic/Ie","Ib/Ic","Ie/Ib"],correct:0,type:"new",explain:"β (common-emitter current gain) = collector current / base current."},
+ {q:"The relation between the common-base current gain α and common-emitter current gain β is:",options:["β = α/(1−α)","β = α(1−α)","β = (1−α)/α","β = 1−α"],correct:0,type:"formula",explain:"Standard transistor relation derived from Ic, Ib, and Ie definitions."}
+]}
+];
+
+const TYPE_LABELS = {py:"Previous-Year Pattern", new:"New Pattern", formula:"Formula Based"};
+const TOTAL_QUESTIONS = CHAPTERS.reduce((s,c)=>s+c.questions.length,0);
+
+/* ---------------- STATE ---------------- */
+let state = null; // {mode, chapterId, questions:[{...q, chapter}], answers:[], marked:[], current, timeLeft, timerId}
+
+/* ---------------- HOME VIEW ---------------- */
+function safeGet(key){ try{ return JSON.parse(localStorage.getItem(key)); }catch(e){ return null; } }
+function safeSet(key,val){ try{ localStorage.setItem(key, JSON.stringify(val)); }catch(e){ /* ignore */ } }
+
+function renderHome(){
+  const grid = document.getElementById("chapter-grid");
+  grid.innerHTML = "";
+
+  const examCard = document.createElement("div");
+  examCard.className = "card exam-card";
+  const best = safeGet("best_full_exam");
+  examCard.innerHTML = `
+    <h3>📘 Full Board Exam Simulator</h3>
+    <div class="meta">All ${TOTAL_QUESTIONS} questions across all 14 chapters, timed, in exam conditions.</div>
+    ${best ? `<div class="best">Best score: ${best.correct}/${best.total} (${best.pct}%)</div>` : ""}
+    <button class="btn good" id="start-exam">Start Full Exam (${TOTAL_QUESTIONS} Q · ${TOTAL_QUESTIONS} min)</button>
+  `;
+  grid.appendChild(examCard);
+  examCard.querySelector("#start-exam").onclick = () => startQuiz("exam", null);
+
+  CHAPTERS.forEach(ch => {
+    const card = document.createElement("div");
+    card.className = "card";
+    const best = safeGet("best_"+ch.id);
+    card.innerHTML = `
+      <h3>${ch.name}</h3>
+      <div class="meta">${ch.questions.length} questions · 8 PY · 1 New · 1 Formula</div>
+      ${best ? `<div class="best">Best: ${best.correct}/${best.total} (${best.pct}%)</div>` : ""}
+      <button class="btn">Start Practice</button>
+    `;
+    card.querySelector("button").onclick = () => startQuiz("chapter", ch.id);
+    grid.appendChild(card);
+  });
+}
+
+/* ---------------- QUIZ ---------------- */
+function shuffle(arr){
+  const a = arr.slice();
+  for(let i=a.length-1;i>0;i--){
+    const j = Math.floor(Math.random()*(i+1));
+    [a[i],a[j]] = [a[j],a[i]];
+  }
+  return a;
+}
+
+function startQuiz(mode, chapterId){
+  let questions = [];
+  if(mode === "chapter"){
+    const ch = CHAPTERS.find(c=>c.id===chapterId);
+    questions = ch.questions.map(q=>({...q, chapterName: ch.name}));
+  } else {
+    CHAPTERS.forEach(ch=>{
+      ch.questions.forEach(q=> questions.push({...q, chapterName: ch.name}));
+    });
+    questions = shuffle(questions);
+  }
+
+  state = {
+    mode, chapterId,
+    questions,
+    answers: new Array(questions.length).fill(null),
+    checked: new Array(questions.length).fill(false),
+    current: 0,
+    timeLeft: questions.length * 60, // 1 min per question
+    timerId: null
+  };
+
+  document.getElementById("home-view").classList.add("hidden");
+  document.getElementById("result-view").classList.add("hidden");
+  document.getElementById("quiz-view").classList.remove("hidden");
+  document.getElementById("quiz-title").textContent =
+    mode === "exam" ? "Full Board Exam" : CHAPTERS.find(c=>c.id===chapterId).name;
+
+  renderPalette();
+  renderQuestion();
+  startTimer();
+}
+
+function startTimer(){
+  updateTimerDisplay();
+  state.timerId = setInterval(()=>{
+    state.timeLeft--;
+    updateTimerDisplay();
+    if(state.timeLeft <= 0){
+      clearInterval(state.timerId);
+      finishQuiz();
+    }
+  }, 1000);
+}
+function updateTimerDisplay(){
+  const el = document.getElementById("timer");
+  const m = Math.floor(state.timeLeft/60), s = state.timeLeft%60;
+  el.textContent = `${String(m).padStart(2,"0")}:${String(s).padStart(2,"0")}`;
+  el.classList.toggle("low", state.timeLeft <= 60);
+}
+
+function renderPalette(){
+  const pal = document.getElementById("palette");
+  pal.innerHTML = "";
+  state.questions.forEach((_, i)=>{
+    const btn = document.createElement("div");
+    btn.className = "pnum" + (state.answers[i]!==null ? " answered":"") + (i===state.current ? " current":"");
+    btn.textContent = i+1;
+    btn.onclick = () => { state.current = i; renderQuestion(); };
+    pal.appendChild(btn);
+  });
+}
+
+function renderQuestion(){
+  const i = state.current;
+  const q = state.questions[i];
+  document.getElementById("progress-fill").style.width = `${((i+1)/state.questions.length)*100}%`;
+  document.getElementById("q-type").textContent = (state.mode==="exam" ? q.chapterName+" · " : "") + TYPE_LABELS[q.type];
+  document.getElementById("q-text").textContent = `Q${i+1}. ${q.q}`;
+
+  const optWrap = document.getElementById("q-options");
+  optWrap.innerHTML = "";
+  q.options.forEach((opt, idx)=>{
+    const div = document.createElement("div");
+    const isSelected = state.answers[i] === idx;
+    const isChecked = state.checked[i];
+    let cls = "option" + (isSelected ? " selected":"");
+    if(isChecked){
+      if(idx === q.correct) cls += " correct";
+      else if(isSelected && idx !== q.correct) cls += " wrong";
+    }
+    div.className = cls;
+    div.innerHTML = `<input type="radio" name="opt" ${isSelected?"checked":""} ${isChecked?"disabled":""}> <span>${String.fromCharCode(65+idx)}. ${opt}</span>`;
+    div.onclick = () => {
+      if(state.checked[i]) return;
+      state.answers[i] = idx;
+      renderQuestion();
+      renderPalette();
+    };
+    optWrap.appendChild(div);
+  });
+
+  const explain = document.getElementById("q-explain");
+  if(state.checked[i]){
+    explain.style.display = "block";
+    explain.textContent = (state.answers[i]===q.correct ? "✓ Correct. " : "✗ Incorrect. ") + q.explain;
+  } else {
+    explain.style.display = "none";
+  }
+
+  document.getElementById("prev-btn").disabled = i===0;
+  document.getElementById("next-btn").disabled = i===state.questions.length-1;
+}
+
+document.getElementById("prev-btn").onclick = () => { if(state.current>0){ state.current--; renderQuestion(); renderPalette(); } };
+document.getElementById("next-btn").onclick = () => { if(state.current<state.questions.length-1){ state.current++; renderQuestion(); renderPalette(); } };
+document.getElementById("check-btn").onclick = () => {
+  state.checked[state.current] = true;
+  renderQuestion();
+};
+document.getElementById("submit-btn").onclick = () => {
+  const unanswered = state.answers.filter(a=>a===null).length;
+  const msg = unanswered>0
+    ? `You have ${unanswered} unanswered question(s). Submit anyway?`
+    : "Submit the quiz now?";
+  if(confirm(msg)) finishQuiz();
+};
+document.getElementById("quit-btn").onclick = () => {
+  if(confirm("Exit quiz? Your progress will be lost.")){
+    clearInterval(state.timerId);
+    document.getElementById("quiz-view").classList.add("hidden");
+    document.getElementById("home-view").classList.remove("hidden");
+  }
+};
+
+/* ---------------- RESULTS ---------------- */
+function finishQuiz(){
+  clearInterval(state.timerId);
+  let correct = 0;
+  const perChapter = {};
+  state.questions.forEach((q,i)=>{
+    const isCorrect = state.answers[i] === q.correct;
+    if(isCorrect) correct++;
+    const key = q.chapterName;
+    perChapter[key] = perChapter[key] || {correct:0,total:0};
+    perChapter[key].total++;
+    if(isCorrect) perChapter[key].correct++;
+  });
+  const total = state.questions.length;
+  const pct = Math.round((correct/total)*100);
+
+  const key = state.mode==="exam" ? "best_full_exam" : "best_"+state.chapterId;
+  const prevBest = safeGet(key);
+  if(!prevBest || pct > prevBest.pct){
+    safeSet(key, {correct, total, pct});
+  }
+
+  document.getElementById("quiz-view").classList.add("hidden");
+  document.getElementById("result-view").classList.remove("hidden");
+
+  const scoreNum = document.getElementById("score-num");
+  scoreNum.textContent = `${pct}%`;
+  scoreNum.className = "score-num " + (pct>=33 ? "pass":"fail");
+  document.getElementById("score-sub").textContent =
+    `${correct} / ${total} correct — ${pct>=33 ? "Pass (MP Board passing mark: 33%)" : "Below passing mark (33%)"}`;
+
+  const bd = document.getElementById("breakdown");
+  bd.innerHTML = "";
+  Object.entries(perChapter).forEach(([name, s])=>{
+    const p = Math.round((s.correct/s.total)*100);
+    const row = document.createElement("div");
+    row.className = "bd-row";
+    row.innerHTML = `<div class="bd-label">${name}</div>
+      <div class="bd-bar"><div class="bd-fill" style="width:${p}%"></div></div>
+      <div class="bd-val">${s.correct}/${s.total}</div>`;
+    bd.appendChild(row);
+  });
+
+  const reviewList = document.getElementById("review-list");
+  reviewList.innerHTML = "";
+  state.questions.forEach((q,i)=>{
+    const ans = state.answers[i];
+    const tagCls = ans===null ? "skipped" : (ans===q.correct ? "correct":"wrong");
+    const tagText = ans===null ? "Skipped" : (ans===q.correct ? "Correct":"Incorrect");
+    const div = document.createElement("div");
+    div.className = "review-item";
+    div.innerHTML = `
+      <span class="tag ${tagCls}">${tagText}</span>
+      <span class="tag" style="background:var(--panel2);color:var(--muted);">${TYPE_LABELS[q.type]}</span>
+      <div style="margin-top:8px;font-weight:600;">Q${i+1}. ${q.q}</div>
+      <div style="margin-top:6px;font-size:.85rem;color:var(--muted);">
+        Your answer: ${ans!==null ? String.fromCharCode(65+ans)+". "+q.options[ans] : "Not answered"}<br>
+        Correct answer: ${String.fromCharCode(65+q.correct)}. ${q.options[q.correct]}
+      </div>
+      <div class="explain" style="display:block;margin-top:8px;">${q.explain}</div>
+    `;
+    reviewList.appendChild(div);
+  });
+}
+
+document.getElementById("retry-btn").onclick = () => startQuiz(state.mode, state.chapterId);
+document.getElementById("home-btn").onclick = () => {
+  document.getElementById("result-view").classList.add("hidden");
+  document.getElementById("home-view").classList.remove("hidden");
+  renderHome();
+};
+
+renderHome();
+</script>
+</body>
+</html>
