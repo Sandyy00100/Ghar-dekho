@@ -391,7 +391,12 @@ function App(){
     }).catch(e=>{setAuthError((e.message||"Google sign-in failed").replace("Firebase: ",""));setTab("login");});
   },[]);
 
-  const signInWithGoogle=()=>{auth.signInWithRedirect(googleProvider);};
+  const signInWithGoogle=()=>{
+    setAuthError("");
+    auth.signInWithRedirect(googleProvider).catch(e=>{
+      setAuthError((e.message||"Could not start Google sign-in").replace("Firebase: ",""));
+    });
+  };
 
   const authHeader=async()=>{
     if(!auth.currentUser)return{};
