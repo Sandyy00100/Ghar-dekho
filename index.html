@@ -31,6 +31,7 @@ const BASE=`https://firestore.googleapis.com/v1/projects/${PROJECT}/databases/(d
 firebase.initializeApp({apiKey:KEY,authDomain:`${PROJECT}.firebaseapp.com`,projectId:PROJECT});
 const auth=firebase.auth();
 const db=firebase.firestore();
+const googleProvider=new firebase.auth.GoogleAuthProvider();
 
 const toFS=(obj)=>{const f={};for(const[k,v]of Object.entries(obj)){if(v===null||v===undefined)continue;if(typeof v==="string")f[k]={stringValue:v};else if(typeof v==="number")f[k]={integerValue:String(v)};else if(typeof v==="boolean")f[k]={booleanValue:v};else if(Array.isArray(v))f[k]={arrayValue:{values:v.map(i=>({stringValue:String(i)}))}};}return{fields:f};};
 const fromFS=(doc)=>{const o={id:doc.name?.split("/").pop()};for(const[k,v]of Object.entries(doc.fields||{})){if(v.stringValue!==undefined)o[k]=v.stringValue;else if(v.integerValue!==undefined)o[k]=Number(v.integerValue);else if(v.booleanValue!==undefined)o[k]=v.booleanValue;else if(v.arrayValue)o[k]=(v.arrayValue.values||[]).map(i=>i.stringValue||"");}return o;};
@@ -361,7 +362,7 @@ function App(){
             if(profile.city){setMyLocation(profile.city);}
             else if(!locAskedOnce){setLocAskedOnce(true);detectLocation();}
           }else{
-            const u={uid:fbUser.uid,phone:fbUser.phoneNumber||"",name:fbUser.phoneNumber||"User",role:"seeker",picture:"",bio:""};
+            const u={uid:fbUser.uid,phone:fbUser.phoneNumber||"",name:fbUser.phoneNumber||fbUser.displayName||fbUser.email||"User",role:"seeker",picture:"",bio:""};
             setUser(u);
             setProfileForm({name:u.name,phone:u.phone,bio:"",picture:""});
           }
@@ -370,6 +371,27 @@ function App(){
     });
     return unsub;
   },[]);
+
+  useEffect(()=>{
+    auth.getRedirectResult().then(async(result)=>{
+      if(!result||!result.user)return;
+      const fbUser=result.user;
+      try{
+        const token=await fbUser.getIdToken();
+        const res=await fetch(`${BASE}/users/${fbUser.uid}?key=${KEY}`,{headers:{Authorization:`Bearer ${token}`}});
+        if(res.ok){
+          setTab("browse");
+        }else{
+          setAuthForm(f=>({...f,name:fbUser.displayName||""}));
+          setIsNewUser(true);
+          setAuthStep("profile");
+          setTab("login");
+        }
+      }catch(e){setAuthError((e.message||"Google sign-in failed").replace("Firebase: ",""));setTab("login");}
+    }).catch(e=>{setAuthError((e.message||"Google sign-in failed").replace("Firebase: ",""));setTab("login");});
+  },[]);
+
+  const signInWithGoogle=()=>{auth.signInWithRedirect(googleProvider);};
 
   const authHeader=async()=>{
     if(!auth.currentUser)return{};
@@ -958,12 +980,18 @@ function App(){
               <div style={{fontSize:14,color:C.muted}}>{authStep==="profile"?"Tell us a bit about yourself":authMode==="phone"?(authStep==="phone"?"Login or sign up with your mobile number":"Enter the code we sent you"):(emailMode==="signup"?"Create an account with your email":"Login with your email and password")}</div>
             </div>
             <div style={{background:C.surface,borderRadius:15,border:`1px solid ${C.border}`,padding:20}}>
-              {authStep!=="profile"&&(
+              {authStep!=="profile"&&(<>
+                <button onClick={signInWithGoogle} style={{width:"100%",padding:"11px",background:C.card,border:`1px solid ${C.border}`,borderRadius:9,color:C.text,fontWeight:700,fontSize:14,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:8,marginBottom:14}}>
+                  <span style={{fontSize:16}}>🔴🟡🟢🔵</span> Continue with Google
+                </button>
+                <div style={{display:"flex",alignItems:"center",gap:10,margin:"4px 0 14px",color:C.dim,fontSize:12}}>
+                  <div style={{flex:1,height:1,background:C.border}}/>or<div style={{flex:1,height:1,background:C.border}}/>
+                </div>
                 <div style={{display:"flex",gap:8,marginBottom:16}}>
                   <button onClick={()=>{setAuthMode("phone");setAuthError("");}} style={{flex:1,padding:9,borderRadius:9,border:`2px solid ${authMode==="phone"?C.accent:C.border}`,background:authMode==="phone"?"#6B908022":C.card,color:authMode==="phone"?C.accent:C.muted,fontWeight:700,cursor:"pointer",fontSize:13}}>📱 Phone</button>
                   <button onClick={()=>{setAuthMode("email");setAuthError("");}} style={{flex:1,padding:9,borderRadius:9,border:`2px solid ${authMode==="email"?C.accent:C.border}`,background:authMode==="email"?"#6B908022":C.card,color:authMode==="email"?C.accent:C.muted,fontWeight:700,cursor:"pointer",fontSize:13}}>✉️ Email</button>
                 </div>
-              )}
+              </>)}
               {authMode==="phone"&&authStep==="phone"&&(<>
                 <div style={S.lbl}>Mobile Number</div>
                 <div style={{display:"flex",gap:8,alignItems:"center"}}>
