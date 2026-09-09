@@ -376,6 +376,7 @@ function App(){
     auth.getRedirectResult().then(async(result)=>{
       if(!result||!result.user)return;
       const fbUser=result.user;
+      setDrawerOpen(false);
       try{
         const token=await fbUser.getIdToken();
         const res=await fetch(`${BASE}/users/${fbUser.uid}?key=${KEY}`,{headers:{Authorization:`Bearer ${token}`}});
@@ -387,8 +388,14 @@ function App(){
           setAuthStep("profile");
           setTab("login");
         }
-      }catch(e){setAuthError((e.message||"Google sign-in failed").replace("Firebase: ",""));setTab("login");}
-    }).catch(e=>{setAuthError((e.message||"Google sign-in failed").replace("Firebase: ",""));setTab("login");});
+      }catch(e){
+        const text=(e.message||"Google sign-in failed").replace("Firebase: ","");
+        setAuthError(text);setTab("login");msg("❌ Google sign-in: "+text,"err");
+      }
+    }).catch(e=>{
+      const text=(e.message||"Google sign-in failed").replace("Firebase: ","");
+      setDrawerOpen(false);setAuthError(text);setTab("login");msg("❌ Google sign-in: "+text,"err");
+    });
   },[]);
 
   const signInWithGoogle=()=>{
