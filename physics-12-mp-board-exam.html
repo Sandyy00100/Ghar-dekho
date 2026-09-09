@@ -3,66 +3,104 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>MP Board Class 12 Physics — MCQ Exam</title>
+<title>MP Board Physics Exam</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,600;8..60,700&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap">
 <style>
   :root{
-    --bg:#0f172a; --panel:#1e293b; --panel2:#243248; --text:#e2e8f0; --muted:#94a3b8;
-    --accent:#3b82f6; --good:#22c55e; --bad:#ef4444; --warn:#f59e0b; --border:#334155;
+    /* light palette (default) */
+    --bg:#eef1f6; --panel:#ffffff; --panel2:#eaeff6; --text:#1a2233; --muted:#5c6678;
+    --accent:#2954a6; --accent-soft:#dde8fb;
+    --good:#1f8a4c; --good-bg:#e2f4e9;
+    --bad:#c62828; --bad-bg:#fbe6e6;
+    --warn:#9a5f0a; --warn-bg:#f8ead0; --warn-contrast:#ffffff;
+    --border:#d7dee9;
+    --font-display:'Source Serif 4',Georgia,'Times New Roman',serif;
+    --font-body:'IBM Plex Sans',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+    --font-mono:'IBM Plex Mono','SFMono-Regular',Consolas,monospace;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --bg:#0f172a; --panel:#1c2740; --panel2:#243248; --text:#e7ecf5; --muted:#93a0b8;
+      --accent:#5b8def; --accent-soft:#1f3760;
+      --good:#4ade80; --good-bg:#123a24;
+      --bad:#f87171; --bad-bg:#3a1414;
+      --warn:#fbbf24; --warn-bg:#3a2f14; --warn-contrast:#1a1a1a;
+      --border:#33415c;
+    }
+  }
+  :root[data-theme="dark"]{
+    --bg:#0f172a; --panel:#1c2740; --panel2:#243248; --text:#e7ecf5; --muted:#93a0b8;
+    --accent:#5b8def; --accent-soft:#1f3760;
+    --good:#4ade80; --good-bg:#123a24;
+    --bad:#f87171; --bad-bg:#3a1414;
+    --warn:#fbbf24; --warn-bg:#3a2f14; --warn-contrast:#1a1a1a;
+    --border:#33415c;
   }
   *{box-sizing:border-box;}
-  body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+  body{margin:0;font-family:var(--font-body);
        background:var(--bg);color:var(--text);min-height:100vh;}
-  header{padding:20px 16px;text-align:center;border-bottom:1px solid var(--border);}
-  header h1{margin:0 0 6px;font-size:1.4rem;}
-  header p{margin:0;color:var(--muted);font-size:.9rem;}
+  .top-rule{height:3px;background:var(--accent);}
+  header{padding:22px 16px 20px;text-align:center;border-bottom:1px solid var(--border);background:var(--panel);}
+  .eyebrow{font-family:var(--font-mono);font-size:.68rem;font-weight:500;letter-spacing:.14em;
+           text-transform:uppercase;color:var(--accent);margin:0 0 10px;}
+  header h1{margin:0 0 6px;font-family:var(--font-display);font-weight:700;font-size:1.6rem;
+             text-wrap:balance;letter-spacing:-.01em;}
+  header p{margin:0;color:var(--muted);font-size:.9rem;text-wrap:balance;}
   .container{max-width:900px;margin:0 auto;padding:16px;}
-  .badge-row{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-top:10px;font-size:.75rem;}
-  .badge{padding:3px 10px;border-radius:999px;background:var(--panel2);color:var(--muted);border:1px solid var(--border);}
-  .notice{background:var(--panel2);border:1px solid var(--border);border-radius:10px;padding:12px 14px;
-          font-size:.82rem;color:var(--muted);margin:16px 0;line-height:1.5;}
+  .badge-row{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-top:14px;font-size:.72rem;}
+  .badge{padding:4px 11px;border-radius:999px;background:var(--panel2);color:var(--muted);border:1px solid var(--border);
+         font-family:var(--font-mono);letter-spacing:.02em;}
+  .notice{background:var(--panel2);border-left:3px solid var(--accent);border-radius:0 8px 8px 0;padding:13px 15px;
+          font-size:.85rem;color:var(--muted);margin:18px 0;line-height:1.55;}
+  .notice b{color:var(--text);}
   .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:12px;margin-top:14px;}
-  .card{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:16px;
+  .card{background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:16px;
         display:flex;flex-direction:column;gap:8px;}
-  .card h3{margin:0;font-size:1rem;}
-  .card .meta{color:var(--muted);font-size:.8rem;}
-  .btn{cursor:pointer;border:none;border-radius:8px;padding:9px 14px;font-size:.85rem;font-weight:600;
-       background:var(--accent);color:#fff;transition:opacity .15s;}
+  .card h3{margin:0;font-size:1.05rem;font-family:var(--font-display);font-weight:600;}
+  .card .meta{color:var(--muted);font-size:.8rem;line-height:1.45;}
+  .btn{cursor:pointer;border:none;border-radius:7px;padding:9px 14px;font-size:.85rem;font-weight:600;
+       font-family:var(--font-body);background:var(--accent);color:#fff;transition:opacity .15s;}
   .btn:hover{opacity:.88;}
+  .btn:focus-visible{outline:2px solid var(--accent);outline-offset:2px;}
   .btn.secondary{background:var(--panel2);color:var(--text);border:1px solid var(--border);}
   .btn.good{background:var(--good);}
-  .btn.warn{background:var(--warn);color:#1a1a1a;}
+  .btn.warn{background:var(--warn);color:var(--warn-contrast);}
   .btn:disabled{opacity:.4;cursor:not-allowed;}
-  .exam-card{grid-column:1/-1;background:linear-gradient(135deg,#1e293b,#243248);border:1px solid var(--accent);}
-  .best{font-size:.72rem;color:var(--good);}
+  .exam-card{grid-column:1/-1;border-left:4px solid var(--accent);}
+  .repeat-card{grid-column:1/-1;border-left:4px solid var(--warn);}
+  .best{font-size:.72rem;color:var(--good);font-family:var(--font-mono);}
   /* Quiz */
   .quiz-top{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:14px;flex-wrap:wrap;}
-  .timer{font-variant-numeric:tabular-nums;font-weight:700;padding:6px 12px;border-radius:8px;background:var(--panel2);border:1px solid var(--border);}
+  .timer{font-family:var(--font-mono);font-variant-numeric:tabular-nums;font-weight:600;padding:6px 12px;
+         border-radius:8px;background:var(--panel2);border:1px solid var(--border);}
   .timer.low{color:var(--bad);border-color:var(--bad);}
   .progress-bar{height:6px;background:var(--panel2);border-radius:3px;overflow:hidden;margin-bottom:16px;}
   .progress-fill{height:100%;background:var(--accent);transition:width .2s;}
-  .qcard{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:18px;}
-  .qtype{display:inline-block;font-size:.68rem;padding:2px 8px;border-radius:999px;background:var(--panel2);color:var(--muted);margin-bottom:8px;}
-  .qtext{font-size:1.02rem;line-height:1.5;margin:4px 0 16px;}
+  .qcard{background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:18px;}
+  .qtype{display:inline-block;font-family:var(--font-mono);font-size:.66rem;letter-spacing:.02em;padding:2px 8px;
+         border-radius:999px;background:var(--panel2);color:var(--muted);margin-bottom:10px;}
+  .qtext{font-family:var(--font-display);font-size:1.08rem;line-height:1.55;margin:4px 0 18px;text-wrap:balance;}
   .options{display:flex;flex-direction:column;gap:8px;}
-  .option{display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid var(--border);
-          border-radius:9px;cursor:pointer;background:var(--panel2);font-size:.92rem;}
+  .option{display:flex;align-items:center;gap:10px;padding:11px 12px;border:1px solid var(--border);
+          border-radius:8px;cursor:pointer;background:var(--panel2);font-size:.92rem;}
   .option:hover{border-color:var(--accent);}
-  .option.selected{border-color:var(--accent);background:#1d3a63;}
+  .option.selected{border-color:var(--accent);background:var(--accent-soft);}
   .option input{accent-color:var(--accent);}
-  .option.correct{border-color:var(--good);background:#123a24;}
-  .option.wrong{border-color:var(--bad);background:#3a1414;}
+  .option.correct{border-color:var(--good);background:var(--good-bg);}
+  .option.wrong{border-color:var(--bad);background:var(--bad-bg);}
   .explain{margin-top:12px;padding:10px 12px;background:var(--panel2);border-left:3px solid var(--accent);
            border-radius:6px;font-size:.85rem;color:var(--muted);display:none;}
   .nav-row{display:flex;justify-content:space-between;gap:10px;margin-top:16px;flex-wrap:wrap;}
   .nav-row .left,.nav-row .right{display:flex;gap:8px;flex-wrap:wrap;}
   .palette{display:flex;flex-wrap:wrap;gap:6px;margin:14px 0;}
   .pnum{width:30px;height:30px;border-radius:6px;display:flex;align-items:center;justify-content:center;
-        font-size:.72rem;border:1px solid var(--border);background:var(--panel2);cursor:pointer;color:var(--muted);}
+        font-family:var(--font-mono);font-size:.72rem;border:1px solid var(--border);background:var(--panel2);
+        cursor:pointer;color:var(--muted);}
   .pnum.answered{background:var(--accent);color:#fff;border-color:var(--accent);}
   .pnum.current{outline:2px solid var(--warn);}
   /* Results */
-  .score-hero{text-align:center;padding:28px 16px;background:var(--panel);border-radius:14px;border:1px solid var(--border);}
-  .score-num{font-size:2.6rem;font-weight:800;}
+  .score-hero{text-align:center;padding:28px 16px;background:var(--panel);border-radius:12px;border:1px solid var(--border);}
+  .score-num{font-family:var(--font-mono);font-variant-numeric:tabular-nums;font-size:2.6rem;font-weight:600;}
   .score-num.pass{color:var(--good);}
   .score-num.fail{color:var(--bad);}
   .breakdown{margin-top:18px;display:flex;flex-direction:column;gap:8px;}
@@ -70,12 +108,17 @@
   .bd-label{width:200px;flex-shrink:0;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
   .bd-bar{flex:1;height:10px;background:var(--panel2);border-radius:5px;overflow:hidden;}
   .bd-fill{height:100%;background:var(--accent);}
-  .bd-val{width:50px;text-align:right;color:var(--muted);}
+  .bd-val{width:50px;text-align:right;color:var(--muted);font-family:var(--font-mono);font-variant-numeric:tabular-nums;}
   .review-item{background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:14px;margin-bottom:10px;}
-  .review-item .tag{font-size:.68rem;padding:2px 8px;border-radius:999px;margin-right:6px;}
-  .tag.correct{background:#123a24;color:var(--good);}
-  .tag.wrong{background:#3a1414;color:var(--bad);}
-  .tag.skipped{background:#3a2f14;color:var(--warn);}
+  h3.section-title{font-family:var(--font-display);font-weight:600;}
+  .review-item .tag{font-family:var(--font-mono);font-size:.66rem;padding:2px 8px;border-radius:999px;margin-right:6px;}
+  .tag.type{background:var(--panel2);color:var(--muted);}
+  .tag.correct{background:var(--good-bg);color:var(--good);}
+  .tag.wrong{background:var(--bad-bg);color:var(--bad);}
+  .tag.skipped{background:var(--warn-bg);color:var(--warn);}
+  .tag.repeated{background:var(--warn-bg);color:var(--warn);}
+  .review-q{margin-top:8px;font-weight:600;}
+  .review-meta{margin-top:6px;font-size:.85rem;color:var(--muted);}
   .hidden{display:none!important;}
   footer{text-align:center;color:var(--muted);font-size:.75rem;padding:24px 16px;}
   select,input[type=number]{background:var(--panel2);color:var(--text);border:1px solid var(--border);
@@ -84,10 +127,12 @@
 </style>
 </head>
 <body>
+<div class="top-rule"></div>
 
 <header>
-  <h1>MP Board Class 12 Physics — MCQ Exam</h1>
-  <p>Chapter-wise practice + full board exam simulator (NCERT / MP Board syllabus)</p>
+  <p class="eyebrow">MP Board · Class 12 · Physics</p>
+  <h1>MCQ Exam Simulator</h1>
+  <p>Chapter-wise practice and a full board-exam simulator, built on the NCERT / MP Board syllabus</p>
   <div class="badge-row">
     <span class="badge">80% Previous-Year Pattern</span>
     <span class="badge">10% New Pattern</span>
@@ -148,7 +193,7 @@
       </div>
     </div>
     <div class="breakdown" id="breakdown"></div>
-    <h3 style="margin-top:26px;">Answer Review</h3>
+    <h3 class="section-title" style="margin-top:26px;">Answer Review</h3>
     <div id="review-list"></div>
   </div>
 
@@ -390,7 +435,7 @@ function renderHome(){
   examCard.querySelector("#start-exam").onclick = () => startQuiz("exam", null);
 
   const repeatedCard = document.createElement("div");
-  repeatedCard.className = "card exam-card";
+  repeatedCard.className = "card repeat-card";
   const bestRepeated = safeGet("best_repeated");
   repeatedCard.innerHTML = `
     <h3>🔁 Most Repeated Questions</h3>
@@ -614,10 +659,10 @@ function finishQuiz(){
     div.className = "review-item";
     div.innerHTML = `
       <span class="tag ${tagCls}">${tagText}</span>
-      <span class="tag" style="background:var(--panel2);color:var(--muted);">${TYPE_LABELS[q.type]}</span>
-      ${q.repeated ? `<span class="tag" style="background:#3a2f14;color:var(--warn);">🔁 Repeated</span>` : ""}
-      <div style="margin-top:8px;font-weight:600;">Q${i+1}. ${q.q}</div>
-      <div style="margin-top:6px;font-size:.85rem;color:var(--muted);">
+      <span class="tag type">${TYPE_LABELS[q.type]}</span>
+      ${q.repeated ? `<span class="tag repeated">🔁 Repeated</span>` : ""}
+      <div class="review-q">Q${i+1}. ${q.q}</div>
+      <div class="review-meta">
         Your answer: ${ans!==null ? String.fromCharCode(65+ans)+". "+q.options[ans] : "Not answered"}<br>
         Correct answer: ${String.fromCharCode(65+q.correct)}. ${q.options[q.correct]}
       </div>
