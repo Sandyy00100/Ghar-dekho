@@ -509,8 +509,17 @@ function App(){
 
   const loadMyChats=()=>{
     if(!user)return;
-    db.collection("chats").where("participants","array-contains",user.uid).orderBy("lastMessageAt","desc")
-      .onSnapshot(snap=>{setChats(snap.docs.map(d=>({id:d.id,...d.data()})));},()=>{});
+    // Sorting client-side instead of .orderBy("lastMessageAt") in the query
+    // itself: array-contains + orderBy on a different field requires a
+    // composite index that has to be manually created in the Firebase
+    // console, and until that exists the query fails outright. Filtering
+    // by participants alone needs no composite index at all.
+    return db.collection("chats").where("participants","array-contains",user.uid)
+      .onSnapshot(snap=>{
+        const list=snap.docs.map(d=>({id:d.id,...d.data()}));
+        list.sort((a,b)=>(b.lastMessageAt?.toMillis?.()||0)-(a.lastMessageAt?.toMillis?.()||0));
+        setChats(list);
+      },e=>{msg("❌ Could not load messages: "+(e.message||"permission error"),"err");});
   };
 
   const openChat=async(listing)=>{
@@ -550,7 +559,11 @@ function App(){
     return unsub;
   },[activeChat]);
 
-  useEffect(()=>{if(user)loadMyChats();else{setChats([]);}},[user]);
+  useEffect(()=>{
+    if(!user){setChats([]);return;}
+    const unsub=loadMyChats();
+    return unsub;
+  },[user]);
 
   const sendChatMessage=async()=>{
     if(!chatText.trim()||!activeChat||!user)return;
