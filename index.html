@@ -311,8 +311,16 @@ function App(){
     try{
       const cid=chatIdFor(listing.id,user.uid,listing.ownerId);
       const ref=db.collection("chats").doc(cid);
-      const doc=await ref.get();
-      if(!doc.exists){
+      let exists=true;
+      try{
+        exists=(await ref.get()).exists;
+      }catch(e){
+        // A brand-new chat isn't readable yet under the rules (resource is
+        // null before it's created), so a permission-denied here means "this
+        // chat doesn't exist yet," not a real error.
+        exists=false;
+      }
+      if(!exists){
         await ref.set({listingId:listing.id,listingTitle:listing.title,participants:[user.uid,listing.ownerId],names:{[user.uid]:user.name,[listing.ownerId]:listing.ownerName||"Owner"},lastMessage:"",lastMessageAt:firebase.firestore.FieldValue.serverTimestamp(),createdAt:firebase.firestore.FieldValue.serverTimestamp()});
       }
       setActiveChat({id:cid,listingTitle:listing.title,otherName:listing.ownerName||"Owner"});
