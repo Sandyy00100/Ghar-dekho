@@ -33,6 +33,87 @@ const auth=firebase.auth();
 const db=firebase.firestore();
 const googleProvider=new firebase.auth.GoogleAuthProvider();
 
+// ---- i18n: India's 22 scheduled languages + English ----
+// Script notes: Manipuri and Santali are rendered here in Bengali/Devanagari
+// respectively instead of their official Meitei Mayek / Ol Chiki scripts,
+// because those scripts aren't reliably supported by default Android/iOS
+// fonts and would likely show as blank boxes on most phones. Sindhi and
+// Kashmiri both have a genuine dual-script tradition in India; Sindhi is
+// shown in Devanagari (more common among Indian Sindhi speakers day-to-day)
+// and Kashmiri in Perso-Arabic (renders fine, same script family as Urdu).
+const LANGS=[
+  {code:"en",native:"English"},
+  {code:"hi",native:"हिन्दी"},
+  {code:"bn",native:"বাংলা"},
+  {code:"mr",native:"मराठी"},
+  {code:"te",native:"తెలుగు"},
+  {code:"ta",native:"தமிழ்"},
+  {code:"gu",native:"ગુજરાતી"},
+  {code:"ur",native:"اردو"},
+  {code:"kn",native:"ಕನ್ನಡ"},
+  {code:"ml",native:"മലയാളം"},
+  {code:"pa",native:"ਪੰਜਾਬੀ"},
+  {code:"or",native:"ଓଡ଼ିଆ"},
+  {code:"as",native:"অসমীয়া"},
+  {code:"mai",native:"मैथिली"},
+  {code:"sa",native:"संस्कृतम्"},
+  {code:"ne",native:"नेपाली"},
+  {code:"kok",native:"कोंकणी"},
+  {code:"sd",native:"सिन्धी"},
+  {code:"ks",native:"کٲشُر"},
+  {code:"doi",native:"डोगरी"},
+  {code:"mni",native:"মৈতৈলোন্"},
+  {code:"brx",native:"बड़ो"},
+  {code:"sat",native:"संताली"},
+];
+
+const STRINGS={
+  navRent:{en:"Rent",hi:"किराया",bn:"ভাড়া",mr:"भाडे",te:"అద్దె",ta:"வாடகை",gu:"ભાડું",ur:"کرایہ",kn:"ಬಾಡಿಗೆ",ml:"വാടക",pa:"ਕਿਰਾਇਆ",or:"ଭଡ଼ା",as:"ভাৰা",mai:"किराया",sa:"भाटकः",ne:"भाडा",kok:"भाडें",sd:"किराया",ks:"کرایہ",doi:"किराया",mni:"ভাড়া",brx:"भाड़ा",sat:"भाड़ा"},
+  navBuy:{en:"Buy",hi:"खरीदें",bn:"কিনুন",mr:"खरेदी",te:"కొనండి",ta:"வாங்க",gu:"ખરીદો",ur:"خریدیں",kn:"ಖರೀದಿ",ml:"വാങ്ങുക",pa:"ਖਰੀਦੋ",or:"କିଣନ୍ତୁ",as:"কিনক",mai:"खरीदी",sa:"क्रयः",ne:"किन्नुहोस्",kok:"विकत घे",sd:"خريد",ks:"خٔریو",doi:"खरीदो",mni:"ৰী",brx:"थां",sat:"किरिन"},
+  navStudy:{en:"Study",hi:"पढ़ाई",bn:"পড়াশোনা",mr:"अभ्यास",te:"చదువు",ta:"படிப்பு",gu:"અભ્યાસ",ur:"مطالعہ",kn:"ಅಧ್ಯಯನ",ml:"പഠനം",pa:"ਪੜ੍ਹਾਈ",or:"ଅଧ୍ୟୟନ",as:"অধ্যয়ন",mai:"पढ़ाई",sa:"अध्ययनम्",ne:"अध्ययन",kok:"शिक्षण",sd:"پڙهائي",ks:"پَرُن",doi:"पढ़ाई",mni:"পঢ়া",brx:"फरायनाय",sat:"ପାଢ଼ାଉ"},
+  navPost:{en:"Post",hi:"पोस्ट करें",bn:"পোস্ট করুন",mr:"पोस्ट करा",te:"పోస్ట్ చేయండి",ta:"பதிவிடு",gu:"પોસ્ટ કરો",ur:"پوسٹ کریں",kn:"ಪೋಸ್ಟ್ ಮಾಡಿ",ml:"പോസ്റ്റ് ചെയ്യുക",pa:"ਪੋਸਟ ਕਰੋ",or:"ପୋଷ୍ଟ କରନ୍ତୁ",as:"পোষ্ট কৰক",mai:"पोस्ट करू",sa:"प्रकाशयतु",ne:"पोस्ट गर्नुहोस्",kok:"पोस्ट कर",sd:"پوسٽ ڪريو",ks:"پوسٹ کٔریو",doi:"पोस्ट करो",mni:"পোস্ট তৌ",brx:"पोस्ट खालाम"},
+  liveTag:{en:"REAL LISTINGS",hi:"असली लिस्टिंग",bn:"প্রকৃত তালিকা",mr:"खरी यादी",te:"నిజమైన లిస్టింగ్‌లు",ta:"உண்மையான பட்டியல்",gu:"સાચી યાદી",ur:"حقیقی فہرست",kn:"ನಿಜವಾದ ಪಟ್ಟಿಗಳು",ml:"യഥാർത്ഥ ലിസ്റ്റിംഗുകൾ",pa:"ਅਸਲੀ ਸੂਚੀ",or:"ପ୍ରକୃତ ତାଲିକା",as:"প্ৰকৃত তালিকা",mai:"असली सूची",sa:"वास्तविकसूची",ne:"वास्तविक सूची",kok:"खरी वळेरी",sd:"حقيقي فهرست",ks:"حَقیٖقی فَہرِسٹ",doi:"असली सूची",mni:"অচুম্বা য়াদী",brx:"थार आयदी",sat:"ସାନାମ୍ ତାଲିକା"},
+  setLocation:{en:"Set your location",hi:"अपना स्थान चुनें",bn:"আপনার অবস্থান সেট করুন",mr:"तुमचे स्थान निवडा",te:"మీ ప్రాంతాన్ని ఎంచుకోండి",ta:"உங்கள் இருப்பிடத்தை அமைக்கவும்",gu:"તમારું સ્થાન સેટ કરો",ur:"اپنا مقام منتخب کریں",kn:"ನಿಮ್ಮ ಸ್ಥಳವನ್ನು ಹೊಂದಿಸಿ",ml:"നിങ്ങളുടെ സ്ഥലം സജ്ജമാക്കുക",pa:"ਆਪਣਾ ਟਿਕਾਣਾ ਸੈੱਟ ਕਰੋ",or:"ଆପଣଙ୍କ ସ୍ଥାନ ସେଟ୍ କରନ୍ତୁ",as:"আপোনাৰ অৱস্থান বাছক",mai:"अपन स्थान चुनू",sa:"स्वस्थानं निर्दिशतु",ne:"आफ्नो स्थान सेट गर्नुहोस्",kok:"तुजो थळो सेट कर",sd:"پنهنجو هنڌ چونڊيو",ks:"پننِ ماقام ترٲوِو",doi:"अपना टिकाणा चुनो",mni:"নহাক্কী মফম শেম্মু",brx:"नोंथांनि थासारि",sat:"आम रेन् ठाइ को सेट मे"},
+  heroTitleHi:{en:"Find Your Own Home",hi:"अपना घर खोजें",bn:"নিজের বাড়ি খুঁজুন",mr:"स्वतःचे घर शोधा",te:"మీ సొంత ఇల్లు వెతకండి",ta:"உங்கள் சொந்த வீட்டைத் தேடுங்கள்",gu:"તમારું પોતાનું ઘર શોધો",ur:"اپنا گھر تلاش کریں",kn:"ನಿಮ್ಮ ಸ್ವಂತ ಮನೆಯನ್ನು ಹುಡುಕಿ",ml:"നിങ്ങളുടെ സ്വന്തം വീട് കണ്ടെത്തുക",pa:"ਆਪਣਾ ਘਰ ਲੱਭੋ",or:"ଆପଣଙ୍କ ନିଜ ଘର ଖୋଜନ୍ତୁ",as:"নিজৰ ঘৰ বিচাৰক",mai:"अपन घर खोजू",sa:"स्वगृहं अन्विष्यतु",ne:"आफ्नै घर खोज्नुहोस्",kok:"तुजें स्वताचें घर सोध",sd:"پنھنجو گھر ڳوليو",ks:"پننٕ کُن ژھانڈِو",doi:"अपना घर टोहो",mni:"নহাক্কী য়ুম থিবু",brx:"नोंथांनि नो नागिरना"},
+  searchPlaceholder:{en:"City, area...",hi:"शहर, इलाका...",bn:"শহর, এলাকা...",mr:"शहर, परिसर...",te:"నగరం, ప్రాంతం...",ta:"நகரம், பகுதி...",gu:"શહેર, વિસ્તાર...",ur:"شہر، علاقہ...",kn:"ನಗರ, ಪ್ರದೇಶ...",ml:"നഗരം, പ്രദേശം...",pa:"ਸ਼ਹਿਰ, ਇਲਾਕਾ...",or:"ସହର, ଅଞ୍ଚଳ...",as:"চহৰ, অঞ্চল...",mai:"शहर, इलाका...",sa:"नगरं, क्षेत्रं...",ne:"शहर, क्षेत्र...",kok:"शार, वाठार...",sd:"شھر، علائقو...",ks:"شہر، علاقہٕ...",doi:"शैहर, इलाका...",mni:"সহর, মফম...",brx:"सहर, फुं...",sat:"नगर, इलाका..."},
+  filterAll:{en:"All",hi:"सभी",bn:"সব",mr:"सर्व",te:"అన్నీ",ta:"அனைத்தும்",gu:"બધા",ur:"تمام",kn:"ಎಲ್ಲಾ",ml:"എല്ലാം",pa:"ਸਾਰੇ",or:"ସବୁ",as:"সকলো",mai:"सभ",sa:"सर्वे",ne:"सबै",kok:"सगळें",sd:"سڀ",ks:"سٲری",doi:"सारे",mni:"পুম্নমক্",brx:"गासैबो",sat:"सानामेते"},
+  liveRooms:{en:"Live Rooms",hi:"लाइव कमरे",bn:"লাইভ রুম",mr:"लाइव्ह खोल्या",te:"లైవ్ గదులు",ta:"நேரடி அறைகள்",gu:"લાઈવ રૂમ",ur:"لائیو کمرے",kn:"ಲೈವ್ ಕೊಠಡಿಗಳು",ml:"ലൈവ് മുറികൾ",pa:"ਲਾਈਵ ਕਮਰੇ",or:"ଲାଇଭ ରୁମ",as:"লাইভ ৰুম",mai:"लाइव कमरा",sa:"सजीवकक्षाः",ne:"लाइभ कोठाहरू",kok:"लाइव कुडी",sd:"لائيو ڪمرا",ks:"لایٖو کوٹھؠ",doi:"लाइव कमरे",mni:"লাইভ রুম",brx:"लाइभ खम",sat:"लाइभ रोम"},
+  brokerFee:{en:"Broker Fee",hi:"ब्रोकर फीस",bn:"দালালের ফি",mr:"ब्रोकर फी",te:"బ్రోకర్ ఫీజు",ta:"தரகர் கட்டணம்",gu:"બ્રોકર ફી",ur:"دلال کی فیس",kn:"ಬ್ರೋಕರ್ ಶುಲ್ಕ",ml:"ബ്രോക്കർ ഫീസ്",pa:"ਦਲਾਲ ਫੀਸ",or:"ଦଲାଲ ଫି",as:"দালালৰ মাচুল",mai:"ब्रोकर फीस",sa:"दलालशुल्कम्",ne:"बिचौलिया शुल्क",kok:"ब्रोकर फी",sd:"دلال جي فيس",ks:"دَلال فیٖس",doi:"ब्रोकर फीस",mni:"ব্ৰোকাৰ ফি",brx:"ब्रोकर फी",sat:"दलाल फी"},
+  loading:{en:"Loading from Firebase...",hi:"लोड हो रहा है...",bn:"লোড হচ্ছে...",mr:"लोड होत आहे...",te:"లోడ్ అవుతోంది...",ta:"ஏற்றப்படுகிறது...",gu:"લોડ થઈ રહ્યું છે...",ur:"لوڈ ہو رہا ہے...",kn:"ಲೋಡ್ ಆಗುತ್ತಿದೆ...",ml:"ലോഡ് ചെയ്യുന്നു...",pa:"ਲੋਡ ਹੋ ਰਿਹਾ ਹੈ...",or:"ଲୋଡ ହେଉଛି...",as:"ল’ড হৈ আছে...",mai:"लोड भऽ रहल अछि...",sa:"भारितं भवति...",ne:"लोड हुँदैछ...",kok:"लोड जाता...",sd:"لوڊ ٿي رهيو آهي...",ks:"لوڈ گژھان",doi:"लोड होआ करदा ऐ...",mni:"লোড তৌরি",brx:"लोड जाबाय दं..."},
+  noRoomsFound:{en:"No rooms found",hi:"कोई कमरा नहीं मिला",bn:"কোনো রুম পাওয়া যায়নি",mr:"खोली सापडली नाही",te:"గదులు కనుగొనబడలేదు",ta:"அறைகள் இல்லை",gu:"કોઈ રૂમ મળ્યો નથી",ur:"کوئی کمرہ نہیں ملا",kn:"ಯಾವುದೇ ಕೊಠಡಿ ಸಿಗಲಿಲ್ಲ",ml:"മുറികളൊന്നും കണ്ടെത്തിയില്ല",pa:"ਕੋਈ ਕਮਰਾ ਨਹੀਂ ਮਿਲਿਆ",or:"କୌଣସି ରୁମ ମିଳିଲା ନାହିଁ",as:"কোনো ৰুম পোৱা নগ'ল",mai:"कोनो कमरा नहि भेटल",sa:"कक्षः न प्राप्तः",ne:"कुनै कोठा फेला परेन",kok:"कूड मेळना",sd:"ڪو به ڪمرو نه مليو",ks:"کانہہ کوٹھہٕ نہٕ ملی",doi:"कोई कमरा नेईं मिलेआ",mni:"রুম ফাওদে",brx:"खम्फोर मोनाखै",sat:"रोम बाइ नामकेदा"},
+  postARoom:{en:"Post a Room",hi:"कमरा पोस्ट करें",bn:"রুম পোস্ট করুন",mr:"खोली पोस्ट करा",te:"గదిని పోస్ట్ చేయండి",ta:"அறையை பதிவிடுங்கள்",gu:"રૂમ પોસ્ટ કરો",ur:"کمرہ پوسٹ کریں",kn:"ಕೊಠಡಿ ಪೋಸ್ಟ್ ಮಾಡಿ",ml:"മുറി പോസ്റ്റ് ചെയ്യുക",pa:"ਕਮਰਾ ਪੋਸਟ ਕਰੋ",or:"ରୁମ ପୋଷ୍ଟ କରନ୍ତୁ",as:"ৰুম পোষ্ট কৰক",mai:"कमरा पोस्ट करू",sa:"कक्षं प्रकाशयतु",ne:"कोठा पोस्ट गर्नुहोस्",kok:"कूड पोस्ट कर",sd:"ڪمرو پوسٽ ڪريو",ks:"کوٹھہٕ پوسٹ کٔریو",doi:"कमरा पोस्ट करो",mni:"রুম পোস্ট তৌ",brx:"खम्फोर पोस्ट खालाम",sat:"रोम पोस्ट मे"},
+  call:{en:"Call",hi:"कॉल करें",bn:"কল করুন",mr:"कॉल करा",te:"కాల్ చేయండి",ta:"அழைக்கவும்",gu:"કૉલ કરો",ur:"کال کریں",kn:"ಕರೆ ಮಾಡಿ",ml:"വിളിക്കുക",pa:"ਕਾਲ ਕਰੋ",or:"କଲ କରନ୍ତୁ",as:"কল কৰক",mai:"कॉल करू",sa:"आह्वयतु",ne:"कल गर्नुहोस्",kok:"कॉल कर",sd:"ڪال ڪريو",ks:"کال کٔریو",doi:"कॉल करो",mni:"কল তৌ",brx:"कल खालाम",sat:"कल मे"},
+  ownerLabel:{en:"Owner",hi:"मालिक",bn:"মালিক",mr:"मालक",te:"యజమాని",ta:"உரிமையாளர்",gu:"માલિક",ur:"مالک",kn:"ಮಾಲೀಕ",ml:"ഉടമ",pa:"ਮਾਲਕ",or:"ମାଲିକ",as:"গৰাকী",mai:"मालिक",sa:"स्वामी",ne:"मालिक",kok:"मालक",sd:"مالڪ",ks:"مالِک",doi:"मालिक",mni:"মপু",brx:"मालिक",sat:"मालिक"},
+  locationLabel:{en:"Location",hi:"स्थान",bn:"অবস্থান",mr:"स्थान",te:"ప్రాంతం",ta:"இடம்",gu:"સ્થાન",ur:"مقام",kn:"ಸ್ಥಳ",ml:"സ്ഥലം",pa:"ਟਿਕਾਣਾ",or:"ସ୍ଥାନ",as:"অৱস্থান",mai:"स्थान",sa:"स्थानम्",ne:"स्थान",kok:"थळो",sd:"هنڌ",ks:"ماقام",doi:"टिकाणा",mni:"মফম",brx:"थासारि",sat:"ठाइ"},
+  availableLabel:{en:"Available",hi:"उपलब्ध",bn:"উপলব্ধ",mr:"उपलब्ध",te:"అందుబాటులో ఉంది",ta:"கிடைக்கிறது",gu:"ઉપલબ્ધ",ur:"دستیاب",kn:"ಲಭ್ಯವಿದೆ",ml:"ലഭ്യമാണ്",pa:"ਉਪਲਬਧ",or:"ଉପଲବ୍ଧ",as:"উপলব্ধ",mai:"उपलब्ध",sa:"उपलब्धः",ne:"उपलब्ध",kok:"उपलब्ध",sd:"موجود",ks:"دَستِیاب",doi:"उपलब्ध",mni:"লৈরি",brx:"मोननि",sat:"मेनाक्"},
+  floorLabel:{en:"Floor",hi:"मंजिल",bn:"তলা",mr:"मजला",te:"అంతస్తు",ta:"மாடி",gu:"માળ",ur:"منزل",kn:"ಮಹಡಿ",ml:"നില",pa:"ਮੰਜ਼ਿਲ",or:"ମହଲା",as:"মহলা",mai:"मंजिल",sa:"तलः",ne:"तला",kok:"माळो",sd:"منزل",ks:"مَنزِل",doi:"मंजल",mni:"ৱাখল",brx:"बिथिं",sat:"तला"},
+  bathroomsLabel:{en:"Bathrooms",hi:"बाथरूम",bn:"বাথরুম",mr:"बाथरूम",te:"బాత్రూమ్‌లు",ta:"குளியலறைகள்",gu:"બાથરૂમ",ur:"باتھ روم",kn:"ಸ್ನಾನಗೃಹಗಳು",ml:"ബാത്ത്റൂമുകൾ",pa:"ਬਾਥਰੂਮ",or:"ବାଥରୁମ",as:"বাথৰুম",mai:"बाथरूम",sa:"स्नानगृहाणि",ne:"बाथरूम",kok:"बाथरूम",sd:"باٿ روم",ks:"باتھ روٗم",doi:"बाथरूम",mni:"চেনবা রুম",brx:"बाथरूम",sat:"बाथरूम"},
+  kitchenLabel:{en:"Kitchen",hi:"रसोई",bn:"রান্নাঘর",mr:"स्वयंपाकघर",te:"వంటగది",ta:"சமையலறை",gu:"રસોડું",ur:"باورچی خانہ",kn:"ಅಡುಗೆಮನೆ",ml:"അടുക്കള",pa:"ਰਸੋਈ",or:"ରୋଷେଇ",as:"ৰান্ধনীশাল",mai:"रसोई",sa:"पाकगृहम्",ne:"भान्सा",kok:"न्हाण घर",sd:"باورچي خانو",ks:"باورچی خانہٕ",doi:"रसोई",mni:"চাক থোং",brx:"जाफां",sat:"चुला"},
+  furnishedLabel:{en:"Furnished",hi:"सुसज्जित",bn:"সাজানো",mr:"सुसज्ज",te:"ఫర్నిచర్‌తో",ta:"தளபாடங்களுடன்",gu:"સુસજ્જ",ur:"مزین",kn:"ಪೀಠೋಪಕರಣ",ml:"ഫർണിഷ്ഡ്",pa:"ਸੁਸੱਜਿਤ",or:"ସୁସଜ୍ଜିତ",as:"সজ্জিত",mai:"सुसज्जित",sa:"सुसज्जितम्",ne:"सजिएको",kok:"सजयिल्लें",sd:"سينگاريل",ks:"سٲجہٕ سازیٖ",doi:"सजेआ होया",mni:"শাজবা",brx:"सोलोमा",sat:"सज्जित"},
+  amenitiesLabel:{en:"Amenities",hi:"सुविधाएं",bn:"সুযোগ-সুবিধা",mr:"सुविधा",te:"సౌకర్యాలు",ta:"வசதிகள்",gu:"સુવિધાઓ",ur:"سہولیات",kn:"ಸೌಲಭ್ಯಗಳು",ml:"സൗകര്യങ്ങൾ",pa:"ਸਹੂਲਤਾਂ",or:"ସୁବିଧା",as:"সুবিধাসমূহ",mai:"सुविधा",sa:"सुविधाः",ne:"सुविधाहरू",kok:"सुविधा",sd:"سهولتون",ks:"سہوٗلَتہٕ",doi:"सुविधां",mni:"অচোওবা",brx:"सुबिदा",sat:"सुबिधा"},
+  requiredDocsLabel:{en:"Required Docs",hi:"आवश्यक दस्तावेज़",bn:"প্রয়োজনীয় নথি",mr:"आवश्यक कागदपत्रे",te:"అవసరమైన పత్రాలు",ta:"தேவையான ஆவணங்கள்",gu:"જરૂરી દસ્તાવેજો",ur:"مطلوبہ دستاویزات",kn:"ಅಗತ್ಯ ದಾಖಲೆಗಳು",ml:"ആവശ്യമായ രേഖകൾ",pa:"ਲੋੜੀਂਦੇ ਦਸਤਾਵੇਜ਼",or:"ଆବଶ୍ୟକ କାଗଜପତ୍ର",as:"প্ৰয়োজনীয় নথি",mai:"आवश्यक दस्तावेज",sa:"आवश्यकदस्तावेजाः",ne:"आवश्यक कागजातहरू",kok:"गरजेचें कागदपत्र",sd:"گھربل دستاويز",ks:"ضروٗری دَستاوٮِز",doi:"लोड़चदे दस्तावेज़",mni:"চঙবা ডকুমেন্ত",brx:"गोनांथि दोखोमेन्ट",sat:"दरकार दलील"},
+  preferredTenantLabel:{en:"Preferred Tenant",hi:"पसंदीदा किरायेदार",bn:"পছন্দের ভাড়াটে",mr:"पसंतीचा भाडेकरू",te:"ఇష్టమైన అద్దెదారు",ta:"விருப்பமான வாடகைதாரர்",gu:"પસંદગીનો ભાડૂત",ur:"پسندیدہ کرایہ دار",kn:"ಇಷ್ಟದ ಬಾಡಿಗೆದಾರ",ml:"താൽപ്പര്യമുള്ള വാടകക്കാരൻ",pa:"ਪਸੰਦੀਦਾ ਕਿਰਾਏਦਾਰ",or:"ପସନ୍ଦିତ ଭଡ଼ାଟିଆ",as:"পছন্দৰ ভাৰাটীয়া",mai:"पसंदीदा किराएदार",sa:"वाञ्छितभाटककारी",ne:"मनपर्ने भाडावाल",kok:"पसंतीचो भाड्याळी",sd:"پسنديده ڪراپيدار",ks:"پَسَند کِرایہٕدار",doi:"पसंदीदा किरायेदार",mni:"পামখৈবা রুম চাবা",brx:"मोनथिनानै भाड़ि",sat:"पसंद रेन् भाड़ा हारा"},
+  welcomeApp:{en:"Welcome to GHAR DEKHO",hi:"घर देखो में आपका स्वागत है",bn:"ঘর দেখোতে স্বাগতম",mr:"घर देखो मध्ये आपले स्वागत आहे",te:"ఘర్ దేఖోకు స్వాగతం",ta:"கர் தேகோவிற்கு வரவேற்கிறோம்",gu:"ઘર દેખોમાં તમારું સ્વાગત છે",ur:"گھر دیکھو میں خوش آمدید",kn:"ಘರ್ ದೇಖೋಗೆ ಸ್ವಾಗತ",ml:"ഘർ ദേഖോയിലേക്ക് സ്വാഗതം",pa:"ਘਰ ਦੇਖੋ ਵਿੱਚ ਜੀ ਆਇਆਂ ਨੂੰ",or:"ଘର ଦେଖୋକୁ ସ୍ୱାଗତ",as:"ঘৰ দেখোলৈ স্বাগতম",mai:"घर देखोमे अहां सभक स्वागत अछि",sa:"घर देखो इत्यत्र स्वागतम्",ne:"घर देखोमा स्वागत छ",kok:"घर देखो हांगा येवकार",sd:"گھر ڏسو ۾ ڀليڪار",ks:"گَھر ژھو س منز خوش آمدید",doi:"घर देखो च तुहाड़ा सुआगत ऐ",mni:"GHAR DEKHO-da tarammu oijare",brx:"घर देखोआव नोंथांनो जागायनाय",sat:"घर देखो रे जोहार"},
+  loginPromptPhone:{en:"Login or sign up with your mobile number",hi:"अपने मोबाइल नंबर से लॉगिन या साइन अप करें",bn:"আপনার মোবাইল নম্বর দিয়ে লগইন বা সাইন আপ করুন",mr:"तुमच्या मोबाईल नंबरने लॉगिन किंवा साइन अप करा",te:"మీ మొబైల్ నంబర్‌తో లాగిన్ లేదా సైన్ అప్ చేయండి",ta:"உங்கள் மொபைல் எண்ணுடன் உள்நுழையவும் அல்லது பதிவு செய்யவும்",gu:"તમારા મોબાઈલ નંબરથી લોગિન અથવા સાઇન અપ કરો",ur:"اپنے موبائل نمبر سے لاگ ان یا سائن اپ کریں",kn:"ನಿಮ್ಮ ಮೊಬೈಲ್ ಸಂಖ್ಯೆಯೊಂದಿಗೆ ಲಾಗಿನ್ ಅಥವಾ ಸೈನ್ ಅಪ್ ಮಾಡಿ",ml:"നിങ്ങളുടെ മൊബൈൽ നമ്പർ ഉപയോഗിച്ച് ലോഗിൻ ചെയ്യുക",pa:"ਆਪਣੇ ਮੋਬਾਈਲ ਨੰਬਰ ਨਾਲ ਲੌਗਇਨ ਜਾਂ ਸਾਈਨ ਅੱਪ ਕਰੋ",or:"ଆପଣଙ୍କ ମୋବାଇଲ ନମ୍ବର ସହିତ ଲଗଇନ କରନ୍ତୁ",as:"আপোনাৰ ম'বাইল নম্বৰেৰে লগইন কৰক",mai:"अपन मोबाइल नंबरसँ लॉगिन करू",sa:"स्वदूरभाषसंख्यया प्रवेशं कुर्वन्तु",ne:"आफ्नो मोबाइल नम्बरबाट लगइन गर्नुहोस्",kok:"तुज्या मोबायल नंबराने लॉगिन कर",sd:"پنھنجي موبائل نمبر سان لاگ ان ڪريو",ks:"پننِ موبایِل نَمبرَس مَنٛز لاگ اِن کٔریو",doi:"अपणे मोबाइल नंबरा कन्नै लॉगइन करो",mni:"নহাক্কী মোবাইল নম্বর্না লগইন তৌ",brx:"नोंथांनि मबाइल नोम्बरजों लगिन खालाम",sat:"आम रेन् मोबाइल नाम्बर सेताय लगिन मे"},
+  editProfile:{en:"Edit Profile",hi:"प्रोफ़ाइल संपादित करें",bn:"প্রোফাইল সম্পাদনা করুন",mr:"प्रोफाइल संपादित करा",te:"ప్రొఫైల్ సవరించండి",ta:"சுயவிவரத்தைத் திருத்து",gu:"પ્રોફાઇલ સંપાદિત કરો",ur:"پروفائل میں ترمیم کریں",kn:"ಪ್ರೊಫೈಲ್ ಸಂಪಾದಿಸಿ",ml:"പ്രൊഫൈൽ എഡിറ്റ് ചെയ്യുക",pa:"ਪ੍ਰੋਫਾਈਲ ਸੋਧੋ",or:"ପ୍ରୋଫାଇଲ ସମ୍ପାଦନା କରନ୍ତୁ",as:"প্ৰ’ফাইল সম্পাদনা কৰক",mai:"प्रोफाइल संपादित करू",sa:"परिचयं संपादयतु",ne:"प्रोफाइल सम्पादन गर्नुहोस्",kok:"प्रोफायल बदल",sd:"پروفائل تبديل ڪريو",ks:"پروفایِل تَبدیٖل کٔریو",doi:"प्रोफाइल एडिट करो",mni:"প্রফাইল শেমগৎলু",brx:"प्रफाइल सुजु",sat:"प्रोफाइल सुधार मे"},
+  myListings:{en:"My Listings",hi:"मेरी लिस्टिंग",bn:"আমার তালিকা",mr:"माझी यादी",te:"నా లిస్టింగ్‌లు",ta:"எனது பட்டியல்கள்",gu:"મારી યાદીઓ",ur:"میری فہرستیں",kn:"ನನ್ನ ಪಟ್ಟಿಗಳು",ml:"എന്റെ ലിസ്റ്റിംഗുകൾ",pa:"ਮੇਰੀਆਂ ਸੂਚੀਆਂ",or:"ମୋର ତାଲିକା",as:"মোৰ তালিকা",mai:"हमर सूची",sa:"मम सूची",ne:"मेरो सूची",kok:"म्हजी वळेरी",sd:"منھنجون فھرستون",ks:"می فَہرِستہٕ",doi:"मेरी लिस्टें",mni:"ঐগী য়াদী",brx:"आंनि आयदी",sat:"इंग् ताlइका"},
+  messagesLabel:{en:"Messages",hi:"संदेश",bn:"বার্তা",mr:"संदेश",te:"సందేశాలు",ta:"செய்திகள்",gu:"સંદેશાઓ",ur:"پیغامات",kn:"ಸಂದೇಶಗಳು",ml:"സന്ദേശങ്ങൾ",pa:"ਸੁਨੇਹੇ",or:"ବାର୍ତ୍ତା",as:"বাৰ্তা",mai:"संदेश",sa:"संदेशाः",ne:"सन्देशहरू",kok:"संदेश",sd:"پيغام",ks:"پؠغام",doi:"संदेश",mni:"মেসেজ",brx:"जाथुम",sat:"बार्ता"},
+  shareApp:{en:"Share App",hi:"ऐप शेयर करें",bn:"অ্যাপ শেয়ার করুন",mr:"अ‍ॅप शेअर करा",te:"యాప్‌ను షేర్ చేయండి",ta:"ஆப்பைப் பகிரவும்",gu:"એપ શેર કરો",ur:"ایپ شیئر کریں",kn:"ಆ್ಯಪ್ ಹಂಚಿಕೊಳ್ಳಿ",ml:"ആപ്പ് ഷെയർ ചെയ്യുക",pa:"ਐਪ ਸਾਂਝੀ ਕਰੋ",or:"ଆପ ସେୟାର କରନ୍ତୁ",as:"এপ শ্বেয়াৰ কৰক",mai:"एप शेयर करू",sa:"अनुप्रयोगं वितरतु",ne:"एप सेयर गर्नुहोस्",kok:"अॅप शेअर कर",sd:"ائيپ شيئر ڪريو",ks:"ایٚپ شیٚیر کٔریو",doi:"एप शेयर करो",mni:"অ্যাপ শেয়র তৌ",brx:"आप सेयार खालाम",sat:"आप सेयार मे"},
+  logout:{en:"Logout",hi:"लॉगआउट",bn:"লগআউট",mr:"लॉगआउट",te:"లాగ్అవుట్",ta:"வெளியேறு",gu:"લૉગઆઉટ",ur:"لاگ آؤٹ",kn:"ಲಾಗ್ಔಟ್",ml:"ലോഗൗട്ട്",pa:"ਲੌਗਆਉਟ",or:"ଲଗଆଉଟ",as:"লগআউট",mai:"लॉगआउट",sa:"निर्गमः",ne:"लगआउट",kok:"लॉगआवट",sd:"لاگ آئوٽ",ks:"لاگ آوٹ",doi:"लॉगआउट",mni:"লগআউত",brx:"लगआउट",sat:"लगआउट"},
+  termsConditions:{en:"Terms & Conditions",hi:"नियम एवं शर्तें",bn:"শর্তাবলী",mr:"अटी व शर्ती",te:"నిబంధనలు",ta:"விதிமுறைகள்",gu:"નિયમો અને શરતો",ur:"شرائط و ضوابط",kn:"ನಿಯಮಗಳು",ml:"നിബന്ധനകൾ",pa:"ਨਿਯਮ ਅਤੇ ਸ਼ਰਤਾਂ",or:"ସର୍ତ୍ତାବଳୀ",as:"চৰ্তাৱলী",mai:"नियम आ शर्त",sa:"नियमाः",ne:"नियम तथा सर्तहरू",kok:"अटी व शर्ती",sd:"شرطون",ks:"شرٲیط",doi:"नेम ते शर्तां",mni:"তার লৈবা",brx:"नियम आरो शर्थ",sat:"नियम आर शर्त"},
+  loginSignup:{en:"Login / Sign Up",hi:"लॉगिन / साइन अप",bn:"লগইন / সাইন আপ",mr:"लॉगिन / साइन अप",te:"లాగిన్ / సైన్ అప్",ta:"உள்நுழை / பதிவு",gu:"લોગિન / સાઇન અપ",ur:"لاگ اِن / سائن اپ",kn:"ಲಾಗಿನ್ / ಸೈನ್ ಅಪ್",ml:"ലോഗിൻ / സൈൻ അപ്പ്",pa:"ਲੌਗਇਨ / ਸਾਈਨ ਅੱਪ",or:"ଲଗଇନ / ସାଇନ ଅପ",as:"লগইন / চাইন আপ",mai:"लॉगिन / साइन अप",sa:"प्रवेशः / नामाङ्कनम्",ne:"लगइन / साइन अप",kok:"लॉगिन / साइन अप",sd:"لاگ ان / سائن اپ",ks:"لاگ اِن / سائِن اَپ",doi:"लॉगइन / साइन अप",mni:"লগইন / সাইন আপ",brx:"लगिन / साइन आप",sat:"लगिन/साइन आप"},
+  drawerLoginPrompt:{en:"Log in to post listings and manage your profile",hi:"लिस्टिंग पोस्ट करने और प्रोफ़ाइल प्रबंधित करने के लिए लॉगिन करें",bn:"তালিকা পোস্ট করতে লগইন করুন",mr:"यादी पोस्ट करण्यासाठी लॉगिन करा",te:"లిస్టింగ్ పోస్ట్ చేయడానికి లాగిన్ అవ్వండి",ta:"பட்டியலிட உள்நுழையவும்",gu:"યાદી પોસ્ટ કરવા લોગિન કરો",ur:"فہرست پوسٹ کرنے کے لیے لاگ ان کریں",kn:"ಪಟ್ಟಿ ಪೋಸ್ಟ್ ಮಾಡಲು ಲಾಗಿನ್ ಮಾಡಿ",ml:"ലിസ്റ്റിംഗ് പോസ്റ്റ് ചെയ്യാൻ ലോഗിൻ ചെയ്യുക",pa:"ਸੂਚੀ ਪੋਸਟ ਕਰਨ ਲਈ ਲੌਗਇਨ ਕਰੋ",or:"ତାଲିକା ପୋଷ୍ଟ କରିବାକୁ ଲଗଇନ କରନ୍ତୁ",as:"তালিকা পোষ্ট কৰিবলৈ লগইন কৰক",mai:"सूची पोस्ट करबाक लेल लॉगिन करू",sa:"सूचीं प्रकाशयितुं प्रविशतु",ne:"सूची पोस्ट गर्न लगइन गर्नुहोस्",kok:"वळेरी पोस्ट करुंक लॉगिन कर",sd:"فهرست پوسٽ ڪرڻ لاءِ لاگ ان ڪريو",ks:"فَہرِست پوسٹ کَرنہٕ خٲطرٕ لاگ اِن کٔریو",doi:"लिस्टिंग पोस्ट करने आस्तै लॉगइन करो",mni:"লিসটিং পোস্ট তৌনবা লগইন তৌ",brx:"आयदी पोस्ट खालामनो लगिन खालाम",sat:"लिस्टिं पोस्त मेनते लगिन मे"},
+  continueWithGoogle:{en:"Continue with Google",hi:"Google से जारी रखें",bn:"Google দিয়ে চালিয়ে যান",mr:"Google सह सुरू ठेवा",te:"Googleతో కొనసాగించండి",ta:"Google உடன் தொடரவும்",gu:"Google સાથે ચાલુ રાખો",ur:"Google کے ساتھ جاری رکھیں",kn:"Google ಜೊತೆ ಮುಂದುವರಿಸಿ",ml:"Google ഉപയോഗിച്ച് തുടരുക",pa:"Google ਨਾਲ ਜਾਰੀ ਰੱਖੋ",or:"Google ସହିତ ଜାରି ରଖନ୍ତୁ",as:"Google ৰ সৈতে অব্যাহত ৰাখক",mai:"Google सं जारी राखू",sa:"Google इत्यनेन सह अग्रे गच्छतु",ne:"Google बाट जारी राख्नुहोस्",kok:"Google वरवीं फुडें वच",sd:"گوگل سان جاري رکو",ks:"گوگَل سٟتؠ جٲری رکھِو",doi:"Google कन्नै जारी रखो",mni:"Google-ga loinana chatnou",brx:"Google जों दं बारायथ",sat:"गुगुल सेताय जारि दहा"},
+  phoneTab:{en:"Phone",hi:"फ़ोन",bn:"ফোন",mr:"फोन",te:"ఫోన్",ta:"தொலைபேசி",gu:"ફોન",ur:"فون",kn:"ಫೋನ್",ml:"ഫോൺ",pa:"ਫੋਨ",or:"ଫୋନ",as:"ফোন",mai:"फोन",sa:"दूरभाषः",ne:"फोन",kok:"फोन",sd:"فون",ks:"فوٗن",doi:"फोन",mni:"ফোন",brx:"फोन",sat:"फोन"},
+  emailTab:{en:"Email",hi:"ईमेल",bn:"ইমেইল",mr:"ईमेल",te:"ఇమెయిల్",ta:"மின்னஞ்சல்",gu:"ઈમેલ",ur:"ای میل",kn:"ಇಮೇಲ್",ml:"ഇമെയിൽ",pa:"ਈਮੇਲ",or:"ଇମେଲ",as:"ইমেইল",mai:"ईमेल",sa:"तड़िद्दूतः",ne:"इमेल",kok:"ईमेल",sd:"اي ميل",ks:"ایٚمیل",doi:"ईमेल",mni:"ইমেইল",brx:"ईमेल",sat:"इमेल"},
+  sendOtp:{en:"Send OTP",hi:"OTP भेजें",bn:"OTP পাঠান",mr:"OTP पाठवा",te:"OTP పంపండి",ta:"OTP அனுப்பு",gu:"OTP મોકલો",ur:"OTP بھیجیں",kn:"OTP ಕಳುಹಿಸಿ",ml:"OTP അയക്കുക",pa:"OTP ਭੇਜੋ",or:"OTP ପଠାନ୍ତୁ",as:"OTP পঠিয়াওক",mai:"OTP पठाउ",sa:"OTP प्रेषयतु",ne:"OTP पठाउनुहोस्",kok:"OTP धाड",sd:"OTP موڪليو",ks:"OTP روٲنٕو",doi:"OTP भेजो",mni:"OTP thakhre",brx:"OTP दैथाय",sat:"OTP कुल मे"},
+  callOwnerBtn:{en:"Call Owner",hi:"मालिक को कॉल करें",bn:"মালিককে কল করুন",mr:"मालकाला कॉल करा",te:"యజమానికి కాల్ చేయండి",ta:"உரிமையாளரை அழைக்கவும்",gu:"માલિકને કૉલ કરો",ur:"مالک کو کال کریں",kn:"ಮಾಲೀಕರಿಗೆ ಕರೆ ಮಾಡಿ",ml:"ഉടമയെ വിളിക്കുക",pa:"ਮਾਲਕ ਨੂੰ ਕਾਲ ਕਰੋ",or:"ମାଲିକଙ୍କୁ କଲ କରନ୍ତୁ",as:"গৰাকীক কল কৰক",mai:"मालिकके कॉल करू",sa:"स्वामिनम् आह्वयतु",ne:"मालिकलाई कल गर्नुहोस्",kok:"मालकाक कॉल कर",sd:"مالڪ کي ڪال ڪريو",ks:"مالِکَس کال کٔریو",doi:"मालिके गी कॉल करो",mni:"মপুবু কল তৌ",brx:"मालिकनो कल खालाम",sat:"मालिक के कल मे"},
+  whatsappOwnerBtn:{en:"WhatsApp Owner",hi:"मालिक को WhatsApp करें",bn:"মালিককে WhatsApp করুন",mr:"मालकाला WhatsApp करा",te:"యజమానికి WhatsApp చేయండి",ta:"உரிமையாளருக்கு WhatsApp",gu:"માલિકને WhatsApp કરો",ur:"مالک کو واٹس ایپ کریں",kn:"ಮಾಲೀಕರಿಗೆ WhatsApp",ml:"ഉടമയ്ക്ക് WhatsApp",pa:"ਮਾਲਕ ਨੂੰ WhatsApp ਕਰੋ",or:"ମାଲିକଙ୍କୁ WhatsApp କରନ୍ତୁ",as:"গৰাকীক WhatsApp কৰক",mai:"मालिकके WhatsApp करू",sa:"स्वामिने WhatsApp प्रेषयतु",ne:"मालिकलाई WhatsApp गर्नुहोस्",kok:"मालकाक WhatsApp कर",sd:"مالڪ کي WhatsApp ڪريو",ks:"مالِکَس WhatsApp کٔریو",doi:"मालिके गी WhatsApp करो",mni:"মপুদা WhatsApp তৌ",brx:"मालिकनो WhatsApp खालाम",sat:"मालिक के WhatsApp मे"},
+  viewOnMapBtn:{en:"View on Map",hi:"मानचित्र पर देखें",bn:"মানচিত্রে দেখুন",mr:"नकाशावर पहा",te:"మ్యాప్‌లో చూడండి",ta:"வரைபடத்தில் காண்க",gu:"નકશા પર જુઓ",ur:"نقشے پر دیکھیں",kn:"ನಕ್ಷೆಯಲ್ಲಿ ನೋಡಿ",ml:"മാപ്പിൽ കാണുക",pa:"ਨਕਸ਼ੇ 'ਤੇ ਦੇਖੋ",or:"ମାନଚିତ୍ରରେ ଦେଖନ୍ତୁ",as:"মানচিত্ৰত চাওক",mai:"नक्शा पर देखू",sa:"मानचित्रे पश्यतु",ne:"नक्सामा हेर्नुहोस्",kok:"नकाशार पळय",sd:"نقشي تي ڏسو",ks:"نَقشَس پؠٹھ ووچھِو",doi:"नक्शे उप्पर दिक्खो",mni:"মেপ্তা য়েং",brx:"मेफावनि गोथौ नु",sat:"नक्शा रे नेल"},
+};
+
+const t=(lang,key)=>{const row=STRINGS[key];if(!row)return key;return row[lang]||row.en||key;};
+
 const toFS=(obj)=>{const f={};for(const[k,v]of Object.entries(obj)){if(v===null||v===undefined)continue;if(typeof v==="string")f[k]={stringValue:v};else if(typeof v==="number")f[k]={integerValue:String(v)};else if(typeof v==="boolean")f[k]={booleanValue:v};else if(Array.isArray(v))f[k]={arrayValue:{values:v.map(i=>({stringValue:String(i)}))}};}return{fields:f};};
 const fromFS=(doc)=>{const o={id:doc.name?.split("/").pop()};for(const[k,v]of Object.entries(doc.fields||{})){if(v.stringValue!==undefined)o[k]=v.stringValue;else if(v.integerValue!==undefined)o[k]=Number(v.integerValue);else if(v.booleanValue!==undefined)o[k]=v.booleanValue;else if(v.arrayValue)o[k]=(v.arrayValue.values||[]).map(i=>i.stringValue||"");}return o;};
 
@@ -61,6 +142,16 @@ const CLOUDINARY_URL=`https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload
 const EMPTY={title:"",titleHi:"",location:"",area:"",pincode:"",roomType:"",price:"",floor:"",bathrooms:"1",furnished:"Unfurnished",kitchen:false,tenantType:"",amenities:[],docs:[],ownerName:"",phone:"",available:"",category:"rent",photos:[]};
 
 function App(){
+  const[lang,setLang]=useState(()=>{
+    try{return localStorage.getItem("gd_lang")||"en";}catch(e){return "en";}
+  });
+  const[langPickerOpen,setLangPickerOpen]=useState(false);
+  const tr=(key)=>t(lang,key);
+  const changeLang=(code)=>{
+    setLang(code);
+    try{localStorage.setItem("gd_lang",code);}catch(e){}
+    setLangPickerOpen(false);
+  };
   const[tab,setTab]=useState("browse");
   const[section,setSection]=useState("rent");
   const[listings,setListings]=useState([]);
@@ -617,7 +708,7 @@ function App(){
               <div style={{width:34,height:34,background:`linear-gradient(135deg,${C.accent},${C.accentG})`,borderRadius:9,display:"flex",alignItems:"center",justifyContent:"center",fontSize:20}}>🏠</div>
               <div>
                 <div style={S.logoTxt}>GHAR DEKHO</div>
-                <div style={{fontSize:11,color:C.muted,letterSpacing:2}}>घर देखो • REAL LISTINGS</div>
+                <div style={{fontSize:11,color:C.muted,letterSpacing:2}}>घर देखो • {tr("liveTag")}</div>
               </div>
             </div>
           </div>
@@ -628,7 +719,7 @@ function App(){
       {/* LOCATION BAR */}
       <div onClick={()=>setLocationPicker(true)} style={{background:C.card,borderBottom:`1px solid ${C.border}`,padding:"9px 14px",display:"flex",alignItems:"center",justifyContent:"center",gap:6,cursor:"pointer"}}>
         <span style={{fontSize:15}}>📍</span>
-        <span style={{fontSize:14,fontWeight:700,color:C.text}}>{myLocation||"Set your location"}</span>
+        <span style={{fontSize:14,fontWeight:700,color:C.text}}>{myLocation||tr("setLocation")}</span>
         <span style={{fontSize:12,color:C.muted}}>▾</span>
       </div>
 
@@ -659,16 +750,16 @@ function App(){
       {tab==="browse"&&(
         <div style={S.hero}>
           <div style={{display:"inline-block",background:"#6B908022",border:"1px solid #6B908044",color:C.accent,padding:"3px 12px",borderRadius:20,fontSize:11,fontWeight:700,letterSpacing:2,textTransform:"uppercase",marginBottom:12}}>🇮🇳 India's Own {section==="buy"?"Home Buying":section==="library"?"Study Space":"Rental"} Platform</div>
-          <div style={{fontSize:38,fontWeight:900,background:"linear-gradient(135deg,#3A3A3A,#6B6B6B)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent",lineHeight:1.1}}>अपना घर खोजें</div>
+          <div style={{fontSize:38,fontWeight:900,background:"linear-gradient(135deg,#3A3A3A,#6B6B6B)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent",lineHeight:1.1}}>{tr("heroTitleHi")}</div>
           <div style={{fontSize:29,fontWeight:900,background:`linear-gradient(135deg,${C.accent},${C.accentG})`,WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent",marginBottom:8}}>{section==="buy"?"Find Your Perfect Home to Buy":section==="library"?"Find a Study Space Near You":"Find Your Perfect Room"}</div>
           <div style={{fontSize:14,color:C.muted,marginBottom:22}}>Direct from owners • No broker fee • Firebase powered</div>
           <div style={{display:"flex",gap:5,maxWidth:500,margin:"0 auto 18px",background:C.surface,borderRadius:11,padding:4,border:`1px solid ${C.border}`}}>
             <span style={{color:C.muted,padding:"8px 6px 8px 10px"}}>🔍</span>
-            <input style={{flex:1,background:"transparent",border:"none",outline:"none",color:C.text,fontSize:16,padding:"7px 6px"}} placeholder="City, area... / शहर, इलाका..." value={search} onChange={e=>setSearch(e.target.value)}/>
+            <input style={{flex:1,background:"transparent",border:"none",outline:"none",color:C.text,fontSize:16,padding:"7px 6px"}} placeholder={tr("searchPlaceholder")} value={search} onChange={e=>setSearch(e.target.value)}/>
             <button style={{background:`linear-gradient(135deg,${C.accent},${C.accentG})`,border:"none",borderRadius:8,padding:"8px 14px",color:"#fff",fontWeight:700,cursor:"pointer",fontSize:14}} onClick={load}>🔄</button>
           </div>
           <div style={{display:"flex",justifyContent:"center",gap:24,flexWrap:"wrap"}}>
-            {[[filtered.length,section==="buy"?"Homes for Sale":section==="library"?"Study Spaces":"Live Rooms"],["₹0","Broker Fee"],["24/7","Available"]].map(([v,l],i)=>(
+            {[[filtered.length,section==="buy"?"Homes for Sale":section==="library"?"Study Spaces":tr("liveRooms")],["₹0",tr("brokerFee")],["24/7",tr("availableLabel")]].map(([v,l],i)=>(
               <div key={i} style={{textAlign:"center"}}>
                 <div style={{fontSize:24,fontWeight:800,color:C.accent}}>{v}</div>
                 <div style={{fontSize:12,color:C.muted,textTransform:"uppercase",letterSpacing:1}}>{l}</div>
@@ -684,7 +775,7 @@ function App(){
           {section!=="library"&&(
           <div style={{display:"flex",gap:5,marginBottom:18,flexWrap:"wrap",alignItems:"center"}}>
             <span style={{fontSize:12,color:C.muted,fontWeight:700,textTransform:"uppercase",letterSpacing:1}}>Filter:</span>
-            {[{id:"all",label:"All / सभी"},...ROOM_TYPES].map(f=>(
+            {[{id:"all",label:tr("filterAll")},...ROOM_TYPES].map(f=>(
               <button key={f.id} onClick={()=>setFilter(f.id)} style={{padding:"5px 12px",borderRadius:18,border:`1px solid ${filter===f.id?C.accent:C.border}`,background:filter===f.id?"#6B908022":C.surface,color:filter===f.id?C.accent:C.muted,cursor:"pointer",fontSize:13,fontWeight:600}}>
                 {f.icon?f.icon+" ":""}{f.label}
               </button>
@@ -695,14 +786,14 @@ function App(){
           {loading?(
             <div style={{textAlign:"center",padding:"60px 20px",color:C.muted}}>
               <div style={{fontSize:43,marginBottom:12}}>🏠</div>
-              <div>Loading from Firebase... / लोड हो रहा है...</div>
+              <div>{tr("loading")}</div>
             </div>
           ):filtered.length===0?(
             <div style={{textAlign:"center",padding:"60px 20px",color:C.muted}}>
               <div style={{fontSize:58,marginBottom:12}}>🏚️</div>
-              <div style={{fontSize:19,fontWeight:700,marginBottom:6,color:C.text}}>No rooms found</div>
+              <div style={{fontSize:19,fontWeight:700,marginBottom:6,color:C.text}}>{tr("noRoomsFound")}</div>
               <div style={{marginBottom:20}}>Be the first to post! / पहले पोस्ट करें!</div>
-              <button style={{padding:"10px 22px",background:`linear-gradient(135deg,${C.accent},${C.accentG})`,border:"none",borderRadius:9,color:"#fff",fontWeight:700,cursor:"pointer",fontSize:16}} onClick={()=>setTab("post")}>➕ Post a Room</button>
+              <button style={{padding:"10px 22px",background:`linear-gradient(135deg,${C.accent},${C.accentG})`,border:"none",borderRadius:9,color:"#fff",fontWeight:700,cursor:"pointer",fontSize:16}} onClick={()=>setTab("post")}>➕ {tr("postARoom")}</button>
             </div>
           ):(
             <>
@@ -752,7 +843,7 @@ function App(){
                             <div style={{fontSize:11,color:C.muted}}>Owner</div>
                           </div>
                         </div>
-                        <button style={{background:"#58815722",border:"1px solid #58815744",color:C.green,padding:"4px 11px",borderRadius:7,fontSize:12,fontWeight:700,cursor:"pointer"}} onClick={e=>{e.stopPropagation();window.open(`tel:${l.phone}`);}}>📞 Call</button>
+                        <button style={{background:"#58815722",border:"1px solid #58815744",color:C.green,padding:"4px 11px",borderRadius:7,fontSize:12,fontWeight:700,cursor:"pointer"}} onClick={e=>{e.stopPropagation();window.open(`tel:${l.phone}`);}}>📞 {tr("call")}</button>
                       </div>
                     </div>
                   </div>
@@ -996,20 +1087,20 @@ function App(){
         {tab==="login"&&(
           <div style={{maxWidth:420,margin:"0 auto"}}>
             <div style={{textAlign:"center",marginBottom:20}}>
-              <div style={{fontSize:24,fontWeight:800}}>{authStep==="profile"?"Almost done!":"Welcome to GHAR DEKHO"}</div>
-              <div style={{fontSize:14,color:C.muted}}>{authStep==="profile"?"Tell us a bit about yourself":authMode==="phone"?(authStep==="phone"?"Login or sign up with your mobile number":"Enter the code we sent you"):(emailMode==="signup"?"Create an account with your email":"Login with your email and password")}</div>
+              <div style={{fontSize:24,fontWeight:800}}>{authStep==="profile"?"Almost done!":tr("welcomeApp")}</div>
+              <div style={{fontSize:14,color:C.muted}}>{authStep==="profile"?"Tell us a bit about yourself":authMode==="phone"?(authStep==="phone"?tr("loginPromptPhone"):"Enter the code we sent you"):(emailMode==="signup"?"Create an account with your email":"Login with your email and password")}</div>
             </div>
             <div style={{background:C.surface,borderRadius:15,border:`1px solid ${C.border}`,padding:20}}>
               {authStep!=="profile"&&(<>
                 <button onClick={signInWithGoogle} style={{width:"100%",padding:"11px",background:C.card,border:`1px solid ${C.border}`,borderRadius:9,color:C.text,fontWeight:700,fontSize:14,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:8,marginBottom:14}}>
-                  <span style={{fontSize:16}}>🔴🟡🟢🔵</span> Continue with Google
+                  <span style={{fontSize:16}}>🔴🟡🟢🔵</span> {tr("continueWithGoogle")}
                 </button>
                 <div style={{display:"flex",alignItems:"center",gap:10,margin:"4px 0 14px",color:C.dim,fontSize:12}}>
                   <div style={{flex:1,height:1,background:C.border}}/>or<div style={{flex:1,height:1,background:C.border}}/>
                 </div>
                 <div style={{display:"flex",gap:8,marginBottom:16}}>
-                  <button onClick={()=>{setAuthMode("phone");setAuthError("");}} style={{flex:1,padding:9,borderRadius:9,border:`2px solid ${authMode==="phone"?C.accent:C.border}`,background:authMode==="phone"?"#6B908022":C.card,color:authMode==="phone"?C.accent:C.muted,fontWeight:700,cursor:"pointer",fontSize:13}}>📱 Phone</button>
-                  <button onClick={()=>{setAuthMode("email");setAuthError("");}} style={{flex:1,padding:9,borderRadius:9,border:`2px solid ${authMode==="email"?C.accent:C.border}`,background:authMode==="email"?"#6B908022":C.card,color:authMode==="email"?C.accent:C.muted,fontWeight:700,cursor:"pointer",fontSize:13}}>✉️ Email</button>
+                  <button onClick={()=>{setAuthMode("phone");setAuthError("");}} style={{flex:1,padding:9,borderRadius:9,border:`2px solid ${authMode==="phone"?C.accent:C.border}`,background:authMode==="phone"?"#6B908022":C.card,color:authMode==="phone"?C.accent:C.muted,fontWeight:700,cursor:"pointer",fontSize:13}}>📱 {tr("phoneTab")}</button>
+                  <button onClick={()=>{setAuthMode("email");setAuthError("");}} style={{flex:1,padding:9,borderRadius:9,border:`2px solid ${authMode==="email"?C.accent:C.border}`,background:authMode==="email"?"#6B908022":C.card,color:authMode==="email"?C.accent:C.muted,fontWeight:700,cursor:"pointer",fontSize:13}}>✉️ {tr("emailTab")}</button>
                 </div>
               </>)}
               {authMode==="phone"&&authStep==="phone"&&(<>
@@ -1020,7 +1111,7 @@ function App(){
                 </div>
                 {authError&&<div style={{color:"#E74C3C",fontSize:13,marginTop:10}}>{authError}</div>}
                 <button disabled={authBusy} onClick={sendOtp} style={{...S.submitBtn,opacity:authBusy?0.7:1,cursor:authBusy?"not-allowed":"pointer"}}>
-                  {authBusy?"⏳ Sending OTP...":"📲 Send OTP"}
+                  {authBusy?"⏳ Sending OTP...":"📲 "+tr("sendOtp")}
                 </button>
               </>)}
 
@@ -1184,28 +1275,28 @@ function App(){
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
               <div>
                 <div style={{fontSize:29,fontWeight:900,color:C.accentG}}>₹{Number(selected.price).toLocaleString()}</div>
-                <div style={{fontSize:12,color:C.muted}}>{(selected.category||"rent")==="buy"?"total price":selected.category==="library"?"per seat / month":"per month"} / प्रति माह</div>
+                <div style={{fontSize:12,color:C.muted}}>{(selected.category||"rent")==="buy"?"total price":selected.category==="library"?"per seat / month":"per month"}</div>
               </div>
               <div style={S.badge(RC[selected.roomType]||C.accent)}>{selected.category==="library"?"📚 Study Space":`${rl(selected.roomType)?.icon||""} ${rl(selected.roomType)?.label||""}`}</div>
             </div>
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:7,marginBottom:9}}>
-              {(selected.category==="library"?[["Location",`${selected.area?selected.area+", ":""}${selected.location}${selected.pincode?" - "+selected.pincode:""}`],["Timings",selected.available||"Contact Owner"],["Total Seats",selected.bathrooms||"N/A"]]:[["Location",`${selected.area?selected.area+", ":""}${selected.location}${selected.pincode?" - "+selected.pincode:""}`],["Available",selected.available||"Contact Owner"],["Floor",selected.floor||"N/A"],["Bathrooms",selected.bathrooms||"N/A"],["Kitchen",selected.kitchen?"✅ Yes":"❌ No"],["Furnished",selected.furnished||"N/A"]]).map(([l,v])=>(
-                <div key={l} style={S.dbx}><div style={{fontSize:11,color:C.muted,textTransform:"uppercase",letterSpacing:1,marginBottom:3,fontWeight:600}}>{l}</div><div style={{fontSize:14,fontWeight:500}}>{v}</div></div>
+              {(selected.category==="library"?[["Location","locationLabel",`${selected.area?selected.area+", ":""}${selected.location}${selected.pincode?" - "+selected.pincode:""}`],["Timings",null,selected.available||"Contact Owner"],["Total Seats",null,selected.bathrooms||"N/A"]]:[["Location","locationLabel",`${selected.area?selected.area+", ":""}${selected.location}${selected.pincode?" - "+selected.pincode:""}`],["Available","availableLabel",selected.available||"Contact Owner"],["Floor","floorLabel",selected.floor||"N/A"],["Bathrooms","bathroomsLabel",selected.bathrooms||"N/A"],["Kitchen","kitchenLabel",selected.kitchen?"✅ Yes":"❌ No"],["Furnished","furnishedLabel",selected.furnished||"N/A"]]).map(([l,tk,v])=>(
+                <div key={l} style={S.dbx}><div style={{fontSize:11,color:C.muted,textTransform:"uppercase",letterSpacing:1,marginBottom:3,fontWeight:600}}>{tk?tr(tk):l}</div><div style={{fontSize:14,fontWeight:500}}>{v}</div></div>
               ))}
             </div>
-            {selected.tenantType&&<div style={{...S.dbx,marginBottom:9}}><div style={{fontSize:11,color:C.muted,textTransform:"uppercase",letterSpacing:1,marginBottom:3,fontWeight:600}}>Preferred Tenant</div><div style={{fontSize:14}}>{tl(selected.tenantType)}</div></div>}
-            {selected.amenities?.length>0&&<div style={{...S.dbx,marginBottom:9}}><div style={{fontSize:11,color:C.muted,textTransform:"uppercase",letterSpacing:1,marginBottom:6,fontWeight:600}}>Amenities</div><div style={{display:"flex",flexWrap:"wrap",gap:5}}>{selected.amenities.map(a=>{const am=al(a);return am?<span key={a} style={{background:C.surface,border:`1px solid ${C.border}`,borderRadius:5,padding:"2px 7px",fontSize:12,color:C.muted}}>{am.icon} {am.label}</span>:null;})}</div></div>}
-            {selected.docs?.length>0&&<div style={{...S.dbx,marginBottom:9}}><div style={{fontSize:11,color:C.muted,textTransform:"uppercase",letterSpacing:1,marginBottom:6,fontWeight:600}}>Required Docs</div><div style={{display:"flex",flexWrap:"wrap",gap:5}}>{selected.docs.map(d=>{const doc=DOCS.find(x=>x.id===d);return doc?<span key={d} style={{background:C.surface,border:`1px solid ${C.border}`,borderRadius:5,padding:"2px 7px",fontSize:12,color:C.muted}}>{doc.icon} {doc.label}</span>:null;})}</div></div>}
+            {selected.tenantType&&<div style={{...S.dbx,marginBottom:9}}><div style={{fontSize:11,color:C.muted,textTransform:"uppercase",letterSpacing:1,marginBottom:3,fontWeight:600}}>{tr("preferredTenantLabel")}</div><div style={{fontSize:14}}>{tl(selected.tenantType)}</div></div>}
+            {selected.amenities?.length>0&&<div style={{...S.dbx,marginBottom:9}}><div style={{fontSize:11,color:C.muted,textTransform:"uppercase",letterSpacing:1,marginBottom:6,fontWeight:600}}>{tr("amenitiesLabel")}</div><div style={{display:"flex",flexWrap:"wrap",gap:5}}>{selected.amenities.map(a=>{const am=al(a);return am?<span key={a} style={{background:C.surface,border:`1px solid ${C.border}`,borderRadius:5,padding:"2px 7px",fontSize:12,color:C.muted}}>{am.icon} {am.label}</span>:null;})}</div></div>}
+            {selected.docs?.length>0&&<div style={{...S.dbx,marginBottom:9}}><div style={{fontSize:11,color:C.muted,textTransform:"uppercase",letterSpacing:1,marginBottom:6,fontWeight:600}}>{tr("requiredDocsLabel")}</div><div style={{display:"flex",flexWrap:"wrap",gap:5}}>{selected.docs.map(d=>{const doc=DOCS.find(x=>x.id===d);return doc?<span key={d} style={{background:C.surface,border:`1px solid ${C.border}`,borderRadius:5,padding:"2px 7px",fontSize:12,color:C.muted}}>{doc.icon} {doc.label}</span>:null;})}</div></div>}
             <div style={{...S.dbx,marginBottom:12}}>
-              <div style={{fontSize:11,color:C.muted,textTransform:"uppercase",letterSpacing:1,marginBottom:6,fontWeight:600}}>Owner / मालिक</div>
+              <div style={{fontSize:11,color:C.muted,textTransform:"uppercase",letterSpacing:1,marginBottom:6,fontWeight:600}}>{tr("ownerLabel")}</div>
               <div style={{display:"flex",alignItems:"center",gap:8}}>
                 <div style={{width:32,height:32,borderRadius:"50%",background:`linear-gradient(135deg,${C.accent},${C.accentG})`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:17,fontWeight:700,color:"#fff"}}>{selected.ownerName?.[0]||"O"}</div>
                 <div><div style={{fontWeight:700,fontSize:16}}>{selected.ownerName}</div><div style={{fontSize:13,color:C.muted}}>📞 {selected.phone}</div></div>
               </div>
             </div>
-            <button style={{width:"100%",padding:"12px",background:"#58815722",border:"1px solid #58815755",color:C.green,borderRadius:9,fontSize:16,fontWeight:800,cursor:"pointer"}} onClick={()=>window.open(`tel:${selected.phone}`)}>📞 Call Owner / मालिक को कॉल करें</button>
-            <button style={{width:"100%",padding:"12px",background:"#25D36622",border:"1px solid #25D36644",color:"#25D366",borderRadius:9,fontSize:16,fontWeight:800,cursor:"pointer",marginTop:7}} onClick={()=>window.open(`https://wa.me/91${selected.phone}`)}>💬 WhatsApp Owner</button>
-            <button style={{width:"100%",padding:"12px",background:"#3498DB22",border:"1px solid #3498DB44",color:"#3498DB",borderRadius:9,fontSize:16,fontWeight:800,cursor:"pointer",marginTop:7}} onClick={()=>{const addr=(selected.area?selected.area+", ":"")+selected.location+(selected.pincode?" "+selected.pincode:"");window.open("https://www.google.com/maps/search/?api=1&query="+encodeURIComponent(addr));}}>📍 View on Map</button>
+            <button style={{width:"100%",padding:"12px",background:"#58815722",border:"1px solid #58815755",color:C.green,borderRadius:9,fontSize:16,fontWeight:800,cursor:"pointer"}} onClick={()=>window.open(`tel:${selected.phone}`)}>📞 {tr("callOwnerBtn")}</button>
+            <button style={{width:"100%",padding:"12px",background:"#25D36622",border:"1px solid #25D36644",color:"#25D366",borderRadius:9,fontSize:16,fontWeight:800,cursor:"pointer",marginTop:7}} onClick={()=>window.open(`https://wa.me/91${selected.phone}`)}>💬 {tr("whatsappOwnerBtn")}</button>
+            <button style={{width:"100%",padding:"12px",background:"#3498DB22",border:"1px solid #3498DB44",color:"#3498DB",borderRadius:9,fontSize:16,fontWeight:800,cursor:"pointer",marginTop:7}} onClick={()=>{const addr=(selected.area?selected.area+", ":"")+selected.location+(selected.pincode?" "+selected.pincode:"");window.open("https://www.google.com/maps/search/?api=1&query="+encodeURIComponent(addr));}}>📍 {tr("viewOnMapBtn")}</button>
             {user&&selected.ownerId&&selected.ownerId!==user.uid&&(
               <button style={{width:"100%",padding:"12px",background:"#B0896822",border:"1px solid #B0896844",color:C.accentG,borderRadius:9,fontSize:16,fontWeight:800,cursor:"pointer",marginTop:7}} onClick={()=>openChat(selected)}>💬 Message Owner</button>
             )}
@@ -1231,10 +1322,10 @@ function App(){
       {/* BOTTOM NAV */}
       <div style={{position:"fixed",bottom:0,left:0,right:0,background:C.surface,borderTop:`1px solid ${C.border}`,display:"flex",zIndex:150,boxShadow:"0 -2px 12px #00000011"}}>
         {[
-          {id:"rent",icon:"🏡",label:"Rent",onClick:()=>{setSection("rent");setTab("browse");},active:section==="rent"&&tab==="browse"},
-          {id:"buy",icon:"🏠",label:"Buy",onClick:()=>{setSection("buy");setTab("browse");},active:section==="buy"&&tab==="browse"},
-          {id:"library",icon:"📚",label:"Study",onClick:()=>{setSection("library");setTab("browse");},active:section==="library"&&tab==="browse"},
-          {id:"post",icon:"➕",label:"Post",onClick:()=>{if(!user){setTab("login");return;}setEditingId(null);setForm(EMPTY);setTab("post");},active:tab==="post"},
+          {id:"rent",icon:"🏡",label:tr("navRent"),onClick:()=>{setSection("rent");setTab("browse");},active:section==="rent"&&tab==="browse"},
+          {id:"buy",icon:"🏠",label:tr("navBuy"),onClick:()=>{setSection("buy");setTab("browse");},active:section==="buy"&&tab==="browse"},
+          {id:"library",icon:"📚",label:tr("navStudy"),onClick:()=>{setSection("library");setTab("browse");},active:section==="library"&&tab==="browse"},
+          {id:"post",icon:"➕",label:tr("navPost"),onClick:()=>{if(!user){setTab("login");return;}setEditingId(null);setForm(EMPTY);setTab("post");},active:tab==="post"},
         ].map(item=>(
           <button key={item.id} onClick={item.onClick} style={{flex:1,padding:"9px 4px 8px",background:"transparent",border:"none",cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:2}}>
             <span style={{fontSize:23,opacity:item.active?1:0.55}}>{item.icon}</span>
@@ -1262,25 +1353,44 @@ function App(){
                   {user.bio&&<div style={{fontSize:13,color:C.muted,marginTop:8,lineHeight:1.4}}>{user.bio}</div>}
                 </div>
                 <div style={{borderTop:`1px solid ${C.border}`,paddingTop:14,display:"flex",flexDirection:"column",gap:4}}>
-                  <button onClick={()=>{setTab("profile");setDrawerOpen(false);}} style={{textAlign:"left",padding:"10px 8px",background:"transparent",border:"none",borderRadius:8,color:C.text,fontSize:16,fontWeight:600,cursor:"pointer"}}>✏️ Edit Profile</button>
-                  <button onClick={()=>{setTab("mylistings");setDrawerOpen(false);}} style={{textAlign:"left",padding:"10px 8px",background:"transparent",border:"none",borderRadius:8,color:C.text,fontSize:16,fontWeight:600,cursor:"pointer"}}>📋 My Listings</button>
-                  <button onClick={()=>{setTab("chatlist");setDrawerOpen(false);}} style={{textAlign:"left",padding:"10px 8px",background:"transparent",border:"none",borderRadius:8,color:C.text,fontSize:16,fontWeight:600,cursor:"pointer"}}>💬 Messages{chats.length>0?` (${chats.length})`:""}</button>
-                  <button onClick={()=>{shareApp();setDrawerOpen(false);}} style={{textAlign:"left",padding:"10px 8px",background:"transparent",border:"none",borderRadius:8,color:C.text,fontSize:16,fontWeight:600,cursor:"pointer"}}>📤 Share App</button>
-                  <button onClick={()=>{setTab("terms");setDrawerOpen(false);}} style={{textAlign:"left",padding:"10px 8px",background:"transparent",border:"none",borderRadius:8,color:C.text,fontSize:16,fontWeight:600,cursor:"pointer"}}>📄 Terms & Conditions</button>
-                  <button onClick={doLogout} style={{textAlign:"left",padding:"10px 8px",background:"transparent",border:"none",borderRadius:8,color:"#E74C3C",fontSize:16,fontWeight:600,cursor:"pointer"}}>🚪 Logout</button>
+                  <button onClick={()=>{setTab("profile");setDrawerOpen(false);}} style={{textAlign:"left",padding:"10px 8px",background:"transparent",border:"none",borderRadius:8,color:C.text,fontSize:16,fontWeight:600,cursor:"pointer"}}>✏️ {tr("editProfile")}</button>
+                  <button onClick={()=>{setTab("mylistings");setDrawerOpen(false);}} style={{textAlign:"left",padding:"10px 8px",background:"transparent",border:"none",borderRadius:8,color:C.text,fontSize:16,fontWeight:600,cursor:"pointer"}}>📋 {tr("myListings")}</button>
+                  <button onClick={()=>{setTab("chatlist");setDrawerOpen(false);}} style={{textAlign:"left",padding:"10px 8px",background:"transparent",border:"none",borderRadius:8,color:C.text,fontSize:16,fontWeight:600,cursor:"pointer"}}>💬 {tr("messagesLabel")}{chats.length>0?` (${chats.length})`:""}</button>
+                  <button onClick={()=>setLangPickerOpen(true)} style={{textAlign:"left",padding:"10px 8px",background:"transparent",border:"none",borderRadius:8,color:C.text,fontSize:16,fontWeight:600,cursor:"pointer"}}>🌐 {LANGS.find(l=>l.code===lang)?.native||"Language"}</button>
+                  <button onClick={()=>{shareApp();setDrawerOpen(false);}} style={{textAlign:"left",padding:"10px 8px",background:"transparent",border:"none",borderRadius:8,color:C.text,fontSize:16,fontWeight:600,cursor:"pointer"}}>📤 {tr("shareApp")}</button>
+                  <button onClick={()=>{setTab("terms");setDrawerOpen(false);}} style={{textAlign:"left",padding:"10px 8px",background:"transparent",border:"none",borderRadius:8,color:C.text,fontSize:16,fontWeight:600,cursor:"pointer"}}>📄 {tr("termsConditions")}</button>
+                  <button onClick={doLogout} style={{textAlign:"left",padding:"10px 8px",background:"transparent",border:"none",borderRadius:8,color:"#E74C3C",fontSize:16,fontWeight:600,cursor:"pointer"}}>🚪 {tr("logout")}</button>
                 </div>
               </>
             ):(
               <div style={{textAlign:"center",paddingTop:30}}>
                 <div style={{fontSize:43,marginBottom:10}}>👤</div>
-                <div style={{fontSize:16,color:C.muted,marginBottom:16}}>Log in to post listings and manage your profile</div>
-                <button onClick={()=>{setTab("login");setDrawerOpen(false);}} style={{...S.submitBtn,marginTop:0}}>Login / Sign Up</button>
+                <div style={{fontSize:16,color:C.muted,marginBottom:16}}>{tr("drawerLoginPrompt")}</div>
+                <button onClick={()=>{setTab("login");setDrawerOpen(false);}} style={{...S.submitBtn,marginTop:0}}>{tr("loginSignup")}</button>
                 <div style={{borderTop:`1px solid ${C.border}`,marginTop:18,paddingTop:14,display:"flex",flexDirection:"column",gap:4}}>
-                  <button onClick={()=>{shareApp();setDrawerOpen(false);}} style={{textAlign:"left",padding:"10px 8px",background:"transparent",border:"none",borderRadius:8,color:C.text,fontSize:16,fontWeight:600,cursor:"pointer"}}>📤 Share App</button>
-                  <button onClick={()=>{setTab("terms");setDrawerOpen(false);}} style={{textAlign:"left",padding:"10px 8px",background:"transparent",border:"none",borderRadius:8,color:C.text,fontSize:16,fontWeight:600,cursor:"pointer"}}>📄 Terms & Conditions</button>
+                  <button onClick={()=>setLangPickerOpen(true)} style={{textAlign:"left",padding:"10px 8px",background:"transparent",border:"none",borderRadius:8,color:C.text,fontSize:16,fontWeight:600,cursor:"pointer"}}>🌐 {LANGS.find(l=>l.code===lang)?.native||"Language"}</button>
+                  <button onClick={()=>{shareApp();setDrawerOpen(false);}} style={{textAlign:"left",padding:"10px 8px",background:"transparent",border:"none",borderRadius:8,color:C.text,fontSize:16,fontWeight:600,cursor:"pointer"}}>📤 {tr("shareApp")}</button>
+                  <button onClick={()=>{setTab("terms");setDrawerOpen(false);}} style={{textAlign:"left",padding:"10px 8px",background:"transparent",border:"none",borderRadius:8,color:C.text,fontSize:16,fontWeight:600,cursor:"pointer"}}>📄 {tr("termsConditions")}</button>
                 </div>
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* LANGUAGE PICKER */}
+      {langPickerOpen&&(
+        <div style={{position:"fixed",inset:0,background:"#00000055",zIndex:300,display:"flex",alignItems:"flex-end",justifyContent:"center"}} onClick={()=>setLangPickerOpen(false)}>
+          <div style={{background:C.surface,borderTopLeftRadius:18,borderTopRightRadius:18,padding:18,width:"100%",maxWidth:460,maxHeight:"70vh",overflowY:"auto"}} onClick={e=>e.stopPropagation()}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
+              <div style={{fontSize:17,fontWeight:800}}>🌐 Choose Language / भाषा चुनें</div>
+              <button onClick={()=>setLangPickerOpen(false)} style={{background:C.card,border:"none",color:C.muted,width:28,height:28,borderRadius:7,cursor:"pointer",fontSize:14}}>✕</button>
+            </div>
+            <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(130px,1fr))",gap:8}}>
+              {LANGS.map(l=>(
+                <button key={l.code} onClick={()=>changeLang(l.code)} style={{padding:"10px 8px",borderRadius:9,border:`2px solid ${lang===l.code?C.accent:C.border}`,background:lang===l.code?"#6B908022":C.card,color:lang===l.code?C.accent:C.text,fontWeight:700,fontSize:15,cursor:"pointer"}}>{l.native}</button>
+              ))}
+            </div>
           </div>
         </div>
       )}
