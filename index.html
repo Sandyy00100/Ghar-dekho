@@ -1181,7 +1181,7 @@ function App(){
               <div style={{display:"flex",justifyContent:"center",marginBottom:18}}>
                 <div style={{position:"relative"}}>
                   {profileForm.picture?(
-                    <img src={profileForm.picture} style={{width:108,height:108,borderRadius:"50%",objectFit:"cover",border:`3px solid ${C.border}`}}/>
+                    <img src={profileForm.picture} onClick={()=>setLightbox({photos:[profileForm.picture],index:0})} style={{width:108,height:108,borderRadius:"50%",objectFit:"cover",border:`3px solid ${C.border}`,cursor:"pointer"}}/>
                   ):(
                     <div style={{width:108,height:108,borderRadius:"50%",background:`linear-gradient(135deg,${C.accent},${C.accentG})`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:48,fontWeight:800,color:"#fff"}}>{(profileForm.name||user.email||"?")[0].toUpperCase()}</div>
                   )}
@@ -1471,7 +1471,7 @@ function App(){
               <>
                 <div style={{textAlign:"center",marginBottom:18}}>
                   {user.picture?(
-                    <img src={user.picture} style={{width:92,height:92,borderRadius:"50%",objectFit:"cover",border:`3px solid ${C.border}`,margin:"0 auto 10px"}}/>
+                    <img src={user.picture} onClick={()=>setLightbox({photos:[user.picture],index:0})} style={{width:92,height:92,borderRadius:"50%",objectFit:"cover",border:`3px solid ${C.border}`,margin:"0 auto 10px",cursor:"pointer"}}/>
                   ):(
                     <div style={{width:92,height:92,borderRadius:"50%",background:`linear-gradient(135deg,${C.accent},${C.accentG})`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:42,fontWeight:800,color:"#fff",margin:"0 auto 10px"}}>{(user.name||user.email||"?")[0].toUpperCase()}</div>
                   )}
