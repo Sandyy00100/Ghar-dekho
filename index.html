@@ -256,7 +256,14 @@ function App(){
     try{return localStorage.getItem("gd_lang")||"en";}catch(e){return "en";}
   });
   const[langPickerOpen,setLangPickerOpen]=useState(false);
-  const tr=(key)=>t(lang,key);
+  const tr=(key)=>{
+    const val=t(lang,key);
+    if(lang==="en")return val;
+    // Devanagari and other Indic scripts render visually smaller/lighter
+    // than Latin text at the same pixel size, so bump size + weight for
+    // any non-English string to keep it equally readable and noticeable.
+    return <span style={{fontSize:"1.16em",fontWeight:700}}>{val}</span>;
+  };
   const changeLang=(code)=>{
     setLang(code);
     try{localStorage.setItem("gd_lang",code);}catch(e){}
@@ -865,7 +872,7 @@ function App(){
           <div style={{fontSize:14,color:C.muted,marginBottom:22}}>Direct from owners • No broker fee • Firebase powered</div>
           <div style={{display:"flex",gap:5,maxWidth:500,margin:"0 auto 18px",background:C.surface,borderRadius:11,padding:4,border:`1px solid ${C.border}`}}>
             <span style={{color:C.muted,padding:"8px 6px 8px 10px"}}>🔍</span>
-            <input style={{flex:1,background:"transparent",border:"none",outline:"none",color:C.text,fontSize:16,padding:"7px 6px"}} placeholder={tr("searchPlaceholder")} value={search} onChange={e=>setSearch(e.target.value)}/>
+            <input style={{flex:1,background:"transparent",border:"none",outline:"none",color:C.text,fontSize:16,padding:"7px 6px"}} placeholder={t(lang,"searchPlaceholder")} value={search} onChange={e=>setSearch(e.target.value)}/>
             <button style={{background:`linear-gradient(135deg,${C.accent},${C.accentG})`,border:"none",borderRadius:8,padding:"8px 14px",color:"#fff",fontWeight:700,cursor:"pointer",fontSize:14}} onClick={load}>🔄</button>
           </div>
           <div style={{display:"flex",justifyContent:"center",gap:24,flexWrap:"wrap"}}>
@@ -1221,7 +1228,7 @@ function App(){
                 </div>
                 {authError&&<div style={{color:"#E74C3C",fontSize:13,marginTop:10}}>{authError}</div>}
                 <button disabled={authBusy} onClick={sendOtp} style={{...S.submitBtn,opacity:authBusy?0.7:1,cursor:authBusy?"not-allowed":"pointer"}}>
-                  {authBusy?"⏳ Sending OTP...":"📲 "+tr("sendOtp")}
+                  {authBusy?"⏳ Sending OTP...":<>📲 {tr("sendOtp")}</>}
                 </button>
               </>)}
 
