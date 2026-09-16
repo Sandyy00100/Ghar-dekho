@@ -19,6 +19,7 @@ service cloud.firestore {
           && d.price is number && d.price >= 0 && d.price <= 100000000
           && (!('bathrooms' in d) || (d.bathrooms is number && d.bathrooms >= 0 && d.bathrooms <= 50))
           && (!('ownerName' in d) || (d.ownerName is string && d.ownerName.size() <= 80))
+          && (!('ownerPicture' in d) || (d.ownerPicture is string && d.ownerPicture.size() <= 500))
           && (!('phone' in d) || (d.phone is string && d.phone.size() <= 20))
           && (!('bio' in d) || (d.bio is string && d.bio.size() <= 300))
           // Note: Firestore rules can't loop over list elements, so this caps
