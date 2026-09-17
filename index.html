@@ -118,7 +118,7 @@ const toFS=(obj)=>{const f={};for(const[k,v]of Object.entries(obj)){if(v===null|
 const fromFS=(doc)=>{const o={id:doc.name?.split("/").pop()};for(const[k,v]of Object.entries(doc.fields||{})){if(v.stringValue!==undefined)o[k]=v.stringValue;else if(v.integerValue!==undefined)o[k]=Number(v.integerValue);else if(v.booleanValue!==undefined)o[k]=v.booleanValue;else if(v.arrayValue)o[k]=(v.arrayValue.values||[]).map(i=>i.stringValue||"");}return o;};
 
 const C={bg:"#F7F5F0",surface:"#FFFFFF",card:"#FBF9F5",border:"#E6E2D8",accent:"#6B9080",accentG:"#B08968",green:"#588157",text:"#3A3A3A",muted:"#8A8778",dim:"#C9C6BB"};
-const ROOM_TYPES=[{id:"single",icon:"🛏️",label:"Single Room",hi:"एकल कमरा"},{id:"1bhk",icon:"🏠",label:"1 BHK",hi:"1 बीएचके"},{id:"2bhk",icon:"🏡",label:"2 BHK",hi:"2 बीएचके"},{id:"3bhk",icon:"🏘️",label:"3 BHK",hi:"3 बीएचके"},{id:"pg",icon:"🏨",label:"PG / Hostel",hi:"पीजी"},{id:"flat",icon:"🏢",label:"Full Flat",hi:"पूरा फ्लैट"}];
+const ROOM_TYPES=[{id:"single",icon:"🛏️",label:"Single Room",hi:"एकल कमरा"},{id:"1bhk",icon:"🏠",label:"1 BHK",hi:"1 बीएचके"},{id:"2bhk",icon:"🏡",label:"2 BHK",hi:"2 बीएचके"},{id:"3bhk",icon:"🏘️",label:"3 BHK",hi:"3 बीएचके"},{id:"pg",icon:"🏨",label:"PG / Hostel",hi:"पीजी"},{id:"flat",icon:"🏢",label:"Full Flat",hi:"पूरा फ्लैट"},{id:"plot",icon:"📐",label:"Plot / Land",hi:"प्लॉट"},{id:"shop",icon:"🏪",label:"Shop",hi:"दुकान"}];
 const AMENITIES=[{id:"wifi",icon:"📶",label:"WiFi"},{id:"ac",icon:"❄️",label:"AC"},{id:"parking",icon:"🚗",label:"Parking"},{id:"geyser",icon:"🚿",label:"Geyser"},{id:"fridge",icon:"🧊",label:"Fridge"},{id:"washing",icon:"🫧",label:"Washing Machine"},{id:"gas",icon:"🍳",label:"Gas Stove"},{id:"cctv",icon:"📹",label:"CCTV"},{id:"lift",icon:"🛗",label:"Lift"},{id:"power",icon:"⚡",label:"Power Backup"},{id:"garden",icon:"🌿",label:"Garden"},{id:"guard",icon:"💂",label:"Security Guard"}];
 const TENANT_TYPES=[{id:"family",icon:"👨‍👩‍👧",label:"Family Only",hi:"सिर्फ परिवार"},{id:"single_male",icon:"👨",label:"Single Male",hi:"अकेला पुरुष"},{id:"single_female",icon:"👩",label:"Single Female",hi:"अकेली महिला"},{id:"working",icon:"💼",label:"Working Professional",hi:"कामकाजी"},{id:"student",icon:"📚",label:"Student",hi:"छात्र"},{id:"any",icon:"🤝",label:"Anyone Welcome",hi:"सभी स्वागत"}];
 const DOCS=[{id:"aadhar",icon:"🪪",label:"Aadhar Card"},{id:"pan",icon:"📄",label:"PAN Card"},{id:"agreement",icon:"📝",label:"Rent Agreement"},{id:"police",icon:"👮",label:"Police Verification"},{id:"employment",icon:"💼",label:"Employment Proof"},{id:"photo",icon:"📸",label:"Passport Photo"}];
@@ -242,7 +242,7 @@ pa:[
 // falling back to English (it would look correctly localized but say
 // something the reader didn't actually agree to). These fall back to
 // English below until genuinely translated for these specific languages.
-const RC={single:"#6B9080","1bhk":"#B08968","2bhk":"#588157","3bhk":"#3498DB",pg:"#9B59B6",flat:"#E74C3C"};
+const RC={single:"#6B9080","1bhk":"#B08968","2bhk":"#588157","3bhk":"#3498DB",pg:"#9B59B6",flat:"#E74C3C",plot:"#8A9A5B",shop:"#D68910"};
 const rl=id=>ROOM_TYPES.find(r=>r.id===id);
 const al=id=>AMENITIES.find(a=>a.id===id);
 const tl=id=>TENANT_TYPES.find(t=>t.id===id)?.label||id;
