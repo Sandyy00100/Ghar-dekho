@@ -119,7 +119,12 @@ const fromFS=(doc)=>{const o={id:doc.name?.split("/").pop()};for(const[k,v]of Ob
 
 const C={bg:"#F7F5F0",surface:"#FFFFFF",card:"#FBF9F5",border:"#E6E2D8",accent:"#6B9080",accentG:"#B08968",green:"#588157",text:"#3A3A3A",muted:"#8A8778",dim:"#C9C6BB"};
 const ROOM_TYPES=[{id:"single",icon:"🛏️",label:"Single Room",hi:"एकल कमरा"},{id:"1bhk",icon:"🏠",label:"1 BHK",hi:"1 बीएचके"},{id:"2bhk",icon:"🏡",label:"2 BHK",hi:"2 बीएचके"},{id:"3bhk",icon:"🏘️",label:"3 BHK",hi:"3 बीएचके"},{id:"pg",icon:"🏨",label:"PG / Hostel",hi:"पीजी"},{id:"flat",icon:"🏢",label:"Full Flat",hi:"पूरा फ्लैट"},{id:"plot",icon:"📐",label:"Plot / Land",hi:"प्लॉट"},{id:"shop",icon:"🏪",label:"Shop",hi:"दुकान"}];
-const AMENITIES=[{id:"wifi",icon:"📶",label:"WiFi"},{id:"ac",icon:"❄️",label:"AC"},{id:"parking",icon:"🚗",label:"Parking"},{id:"geyser",icon:"🚿",label:"Geyser"},{id:"fridge",icon:"🧊",label:"Fridge"},{id:"washing",icon:"🫧",label:"Washing Machine"},{id:"gas",icon:"🍳",label:"Gas Stove"},{id:"cctv",icon:"📹",label:"CCTV"},{id:"lift",icon:"🛗",label:"Lift"},{id:"power",icon:"⚡",label:"Power Backup"},{id:"garden",icon:"🌿",label:"Garden"},{id:"guard",icon:"💂",label:"Security Guard"}];
+const AMENITIES=[{id:"wifi",icon:"📶",label:"WiFi"},{id:"ac",icon:"❄️",label:"AC"},{id:"parking",icon:"🚗",label:"Parking"},{id:"water",icon:"🚰",label:"Water Supply"},{id:"geyser",icon:"🚿",label:"Geyser"},{id:"fridge",icon:"🧊",label:"Fridge"},{id:"washing",icon:"🫧",label:"Washing Machine"},{id:"gas",icon:"🍳",label:"Gas Stove"},{id:"cctv",icon:"📹",label:"CCTV"},{id:"lift",icon:"🛗",label:"Lift"},{id:"power",icon:"⚡",label:"Power Backup"},{id:"garden",icon:"🌿",label:"Garden"},{id:"guard",icon:"💂",label:"Security Guard"}];
+const STATUS_OPTS=[{id:"available",icon:"✅",label:"Available"},{id:"rented",icon:"🔑",label:"Rented Out"},{id:"sold",icon:"💰",label:"Sold"},{id:"unavailable",icon:"⛔",label:"Unavailable"}];
+const RECENT_MS=3*24*60*60*1000;
+const isRecentPost=createdAt=>!!createdAt&&(Date.now()-new Date(createdAt).getTime())<RECENT_MS;
+const propertyCode=id=>"GHAR-"+String(id||"").slice(-6).toUpperCase();
+const bedroomsOf=roomType=>({single:"1 (Single Room)","1bhk":"1","2bhk":"2","3bhk":"3"})[roomType]||"N/A";
 const TENANT_TYPES=[{id:"family",icon:"👨‍👩‍👧",label:"Family Only",hi:"सिर्फ परिवार"},{id:"single_male",icon:"👨",label:"Single Male",hi:"अकेला पुरुष"},{id:"single_female",icon:"👩",label:"Single Female",hi:"अकेली महिला"},{id:"working",icon:"💼",label:"Working Professional",hi:"कामकाजी"},{id:"student",icon:"📚",label:"Student",hi:"छात्र"},{id:"any",icon:"🤝",label:"Anyone Welcome",hi:"सभी स्वागत"}];
 const DOCS=[{id:"aadhar",icon:"🪪",label:"Aadhar Card"},{id:"pan",icon:"📄",label:"PAN Card"},{id:"agreement",icon:"📝",label:"Rent Agreement"},{id:"police",icon:"👮",label:"Police Verification"},{id:"employment",icon:"💼",label:"Employment Proof"},{id:"photo",icon:"📸",label:"Passport Photo"}];
 const TERMS_TEXT=[
@@ -249,7 +254,8 @@ const tl=id=>TENANT_TYPES.find(t=>t.id===id)?.label||id;
 const CLOUD_NAME="xwzoozmh";
 const UPLOAD_PRESET="ghar.dekho.photos";
 const CLOUDINARY_URL=`https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`;
-const EMPTY={title:"",titleHi:"",location:"",area:"",pincode:"",roomType:"",price:"",floor:"",bathrooms:"1",furnished:"Unfurnished",kitchen:false,tenantType:"",amenities:[],docs:[],ownerName:"",phone:"",available:"",category:"rent",photos:[]};
+const EMPTY={title:"",titleHi:"",location:"",area:"",pincode:"",roomType:"",price:"",deposit:"",negotiable:false,floor:"",bathrooms:"1",furnished:"Unfurnished",kitchen:false,tenantType:"",amenities:[],docs:[],ownerName:"",phone:"",available:"",category:"rent",photos:[]};
+const EMPTY_ADV={minPrice:"",maxPrice:"",furnished:"",tenantType:"",amenities:[],negotiableOnly:false,recentOnly:false};
 
 function App(){
   const[lang,setLang]=useState(()=>{
@@ -301,6 +307,14 @@ function App(){
   const[profileForm,setProfileForm]=useState({name:"",phone:"",bio:"",picture:""});
   const[profileBusy,setProfileBusy]=useState(false);
   const[uploadingPic,setUploadingPic]=useState(false);
+  const[savedDocs,setSavedDocs]=useState([]);
+  const savedIds=new Set(savedDocs.map(d=>d.id));
+  const[compareIds,setCompareIds]=useState([]);
+  const[recentIds,setRecentIds]=useState(()=>{
+    try{return JSON.parse(localStorage.getItem("gd_recent")||"[]");}catch(e){return[];}
+  });
+  const[advOpen,setAdvOpen]=useState(false);
+  const[adv,setAdv]=useState(EMPTY_ADV);
 
   const msg=(text,type="ok")=>{setToast({text,type});setTimeout(()=>setToast(null),3500);};
   const upd=(k,v)=>setForm(f=>({...f,[k]:v}));
@@ -476,7 +490,7 @@ function App(){
     const id=params.get("listing");
     if(id){
       const found=listings.find(l=>l.id===id);
-      if(found){setSelected(found);setSection(found.category||"rent");}
+      if(found){recordRecentView(found.id);setSelected(found);setSection(found.category||"rent");}
     }
     setDeepLinkDone(true);
   },[listings]);
@@ -564,6 +578,73 @@ function App(){
     const unsub=loadMyChats();
     return unsub;
   },[user]);
+
+  // ---- Saved / Shortlisted properties ----
+  // Denormalized snapshot stored per-save (not just the id) so a listing
+  // that's later deleted still shows something in "Saved" instead of
+  // silently vanishing — matches the ownerName/ownerPicture denormalization
+  // pattern already used on listings.
+  useEffect(()=>{
+    if(!user){setSavedDocs([]);return;}
+    const unsub=db.collection("users").doc(user.uid).collection("saved")
+      .onSnapshot(snap=>{
+        setSavedDocs(snap.docs.map(d=>({id:d.id,...d.data()})));
+      },e=>{msg("❌ Could not load saved properties: "+(e.message||"permission error"),"err");});
+    return unsub;
+  },[user]);
+
+  const toggleSave=async(l)=>{
+    if(!user){msg("⚠️ Please log in to save properties","err");setTab("login");return;}
+    const ref=db.collection("users").doc(user.uid).collection("saved").doc(l.id);
+    try{
+      if(savedIds.has(l.id)){
+        await ref.delete();
+        msg("💔 Removed from saved");
+      }else{
+        await ref.set({
+          listingId:l.id,title:l.title||"",price:Number(l.price)||0,category:l.category||"rent",
+          roomType:l.roomType||"",location:l.location||"",photo:(l.photos&&l.photos[0])||"",
+          savedAt:firebase.firestore.FieldValue.serverTimestamp()
+        });
+        msg("❤️ Saved!");
+      }
+    }catch(e){msg("❌ Could not update saved properties: "+e.message,"err");}
+  };
+
+  // ---- Compare (up to 4, session-only — no need to persist a scratch list) ----
+  const toggleCompare=(id)=>{
+    setCompareIds(ids=>{
+      if(ids.includes(id))return ids.filter(x=>x!==id);
+      if(ids.length>=4){msg("⚖️ You can compare up to 4 properties at a time","err");return ids;}
+      return[...ids,id];
+    });
+  };
+
+  // ---- Recently viewed (per-device via localStorage — avoids extra Firestore reads/writes) ----
+  const recordRecentView=(id)=>{
+    setRecentIds(ids=>{
+      const next=[id,...ids.filter(x=>x!==id)].slice(0,20);
+      try{localStorage.setItem("gd_recent",JSON.stringify(next));}catch(e){}
+      return next;
+    });
+  };
+  const viewListing=(l)=>{recordRecentView(l.id);setSelected(l);};
+  const clearRecentViews=()=>{
+    setRecentIds([]);
+    try{localStorage.removeItem("gd_recent");}catch(e){}
+  };
+
+  // ---- Listing status (Available/Rented/Sold/Unavailable) ----
+  // Uses the compat SDK's set(...,{merge:true}) rather than the raw REST
+  // PATCH used in submit() — a merge here means this can't ever silently
+  // wipe the rest of the listing's fields the way a maskless PATCH would.
+  const setListingStatus=async(id,status)=>{
+    try{
+      await db.collection("listings").doc(id).set({status,updatedAt:new Date().toISOString()},{merge:true});
+      setListings(ls=>ls.map(l=>l.id===id?{...l,status,updatedAt:new Date().toISOString()}:l));
+      msg("✅ Status updated");
+    }catch(e){msg("❌ Could not update status: "+e.message,"err");}
+  };
 
   const sendChatMessage=async()=>{
     if(!chatText.trim()||!activeChat||!user)return;
@@ -771,7 +852,11 @@ function App(){
     setPosting(true);
     try{
       const hdr=await authHeader();
-      const payload=toFS({...form,ownerId:user.uid,ownerPicture:user.picture||"",price:Number(form.price),bathrooms:Number(form.bathrooms),icon:rl(form.roomType)?.icon||"🏠",createdAt:new Date().toISOString()});
+      const now=new Date().toISOString();
+      // createdAt must only be set on first post — it previously got reset to
+      // "now" on every edit too (since it was spread in unconditionally),
+      // which broke "Recently Posted" and Posted-vs-Last-Updated tracking.
+      const payload=toFS({...form,ownerId:user.uid,ownerPicture:user.picture||"",price:Number(form.price),deposit:form.deposit?Number(form.deposit):0,bathrooms:Number(form.bathrooms),icon:rl(form.roomType)?.icon||"🏠",status:form.status||"available",createdAt:editingId?form.createdAt:now,updatedAt:now});
       const url=editingId?`${BASE}/listings/${editingId}?key=${KEY}`:`${BASE}/listings?key=${KEY}`;
       const res=await fetch(url,{method:editingId?"PATCH":"POST",headers:{"Content-Type":"application/json",...hdr},body:JSON.stringify(payload)});
       if(res.ok){msg(editingId?"✅ Listing updated!":"✅ Room posted! / कमरा पोस्ट हो गया!");setForm(EMPTY);setEditingId(null);setTab("browse");await load();}
@@ -800,8 +885,20 @@ function App(){
   const filtered=listings.filter(l=>{
     const q=search.toLowerCase();
     const cat=l.category||"rent";
-    return cat===section&&(!q||[l.title,l.location,l.area].some(s=>(s||"").toLowerCase().includes(q)))&&(filter==="all"||l.roomType===filter);
+    if(cat!==section)return false;
+    if(q&&![l.title,l.location,l.area].some(s=>(s||"").toLowerCase().includes(q)))return false;
+    if(filter!=="all"&&l.roomType!==filter)return false;
+    if((l.status||"available")!=="available")return false; // sold/rented/unavailable stay out of normal browse results
+    if(adv.minPrice&&Number(l.price)<Number(adv.minPrice))return false;
+    if(adv.maxPrice&&Number(l.price)>Number(adv.maxPrice))return false;
+    if(adv.furnished&&l.furnished!==adv.furnished)return false;
+    if(adv.tenantType&&l.tenantType!==adv.tenantType)return false;
+    if(adv.amenities.length>0&&!adv.amenities.every(a=>(l.amenities||[]).includes(a)))return false;
+    if(adv.negotiableOnly&&!l.negotiable)return false;
+    if(adv.recentOnly&&!isRecentPost(l.createdAt))return false;
+    return true;
   });
+  const advActiveCount=(adv.minPrice?1:0)+(adv.maxPrice?1:0)+(adv.furnished?1:0)+(adv.tenantType?1:0)+adv.amenities.length+(adv.negotiableOnly?1:0)+(adv.recentOnly?1:0);
 
   const S={
     hdr:{background:C.surface,borderBottom:`1px solid ${C.border}`,padding:"0 14px",position:"sticky",top:0,zIndex:100},
@@ -902,16 +999,58 @@ function App(){
       <main style={{maxWidth:1100,margin:"0 auto",padding:"22px 14px 78px"}}>
         {/* BROWSE - RENT/BUY */}
         {tab==="browse"&&(<>
-          {section!=="library"&&(
-          <div style={{display:"flex",gap:5,marginBottom:18,flexWrap:"wrap",alignItems:"center"}}>
+          {section!=="library"&&(<>
+          <div style={{display:"flex",gap:5,marginBottom:10,flexWrap:"wrap",alignItems:"center"}}>
             <span style={{fontSize:12,color:C.muted,fontWeight:700,textTransform:"uppercase",letterSpacing:1}}>Filter:</span>
             {[{id:"all",label:tr("filterAll")},...ROOM_TYPES].map(f=>(
               <button key={f.id} onClick={()=>setFilter(f.id)} style={{padding:"5px 12px",borderRadius:18,border:`1px solid ${filter===f.id?C.accent:C.border}`,background:filter===f.id?"#6B908022":C.surface,color:filter===f.id?C.accent:C.muted,cursor:"pointer",fontSize:13,fontWeight:600}}>
                 {f.icon?f.icon+" ":""}{f.label}
               </button>
             ))}
+            <button onClick={()=>setAdvOpen(o=>!o)} style={{padding:"5px 12px",borderRadius:18,border:`1px solid ${advActiveCount>0?C.accentG:C.border}`,background:advActiveCount>0?"#B0896822":C.surface,color:advActiveCount>0?C.accentG:C.muted,cursor:"pointer",fontSize:13,fontWeight:700}}>
+              ⚙️ More Filters{advActiveCount>0?` (${advActiveCount})`:""}
+            </button>
           </div>
+          {advOpen&&(
+            <div style={{background:C.surface,border:`1px solid ${C.border}`,borderRadius:12,padding:14,marginBottom:18}}>
+              <div style={S.row2}>
+                <div><div style={S.lbl}>Min Price ₹</div><input style={S.inp} type="number" placeholder="e.g. 3000" value={adv.minPrice} onChange={e=>setAdv(a=>({...a,minPrice:e.target.value}))}/></div>
+                <div><div style={S.lbl}>Max Price ₹</div><input style={S.inp} type="number" placeholder="e.g. 15000" value={adv.maxPrice} onChange={e=>setAdv(a=>({...a,maxPrice:e.target.value}))}/></div>
+              </div>
+              <div style={S.row2}>
+                <div>
+                  <div style={S.lbl}>Furnishing</div>
+                  <select style={S.sel} value={adv.furnished} onChange={e=>setAdv(a=>({...a,furnished:e.target.value}))}>
+                    <option value="">Any</option><option>Unfurnished</option><option>Semi-Furnished</option><option>Fully Furnished</option>
+                  </select>
+                </div>
+                <div>
+                  <div style={S.lbl}>Preferred Tenant</div>
+                  <select style={S.sel} value={adv.tenantType} onChange={e=>setAdv(a=>({...a,tenantType:e.target.value}))}>
+                    <option value="">Any</option>
+                    {TENANT_TYPES.map(t=><option key={t.id} value={t.id}>{t.label}</option>)}
+                  </select>
+                </div>
+              </div>
+              <div style={S.lbl}>Amenities</div>
+              <div style={{display:"flex",flexWrap:"wrap",gap:6,marginBottom:9}}>
+                {AMENITIES.map(a=><button key={a.id} style={S.chip(adv.amenities.includes(a.id))} onClick={()=>setAdv(s=>({...s,amenities:s.amenities.includes(a.id)?s.amenities.filter(x=>x!==a.id):[...s.amenities,a.id]}))}>{a.icon} {a.label}</button>)}
+              </div>
+              <div style={{display:"flex",flexWrap:"wrap",gap:14,marginBottom:9}}>
+                <label style={{display:"flex",alignItems:"center",gap:6,cursor:"pointer",fontSize:14,color:C.muted}}>
+                  <input type="checkbox" checked={adv.negotiableOnly} onChange={e=>setAdv(a=>({...a,negotiableOnly:e.target.checked}))} style={{width:14,height:14,accentColor:C.accent}}/>🏷️ Negotiable price only
+                </label>
+                <label style={{display:"flex",alignItems:"center",gap:6,cursor:"pointer",fontSize:14,color:C.muted}}>
+                  <input type="checkbox" checked={adv.recentOnly} onChange={e=>setAdv(a=>({...a,recentOnly:e.target.checked}))} style={{width:14,height:14,accentColor:C.accent}}/>🆕 Recently posted only
+                </label>
+              </div>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                <span style={{fontSize:13,color:C.muted}}>{filtered.length} matching</span>
+                <button onClick={()=>setAdv(EMPTY_ADV)} style={{background:"transparent",border:"none",color:C.accent,fontWeight:700,fontSize:13,cursor:"pointer",textDecoration:"underline"}}>Clear All</button>
+              </div>
+            </div>
           )}
+          </>)}
           {section==="library"&&<div style={S.secTitle}>📍 Available Libraries</div>}
           {loading?(
             <div style={{textAlign:"center",padding:"60px 20px",color:C.muted}}>
@@ -930,7 +1069,7 @@ function App(){
               <div style={{marginBottom:12,fontSize:13,color:C.muted}}>{filtered.length} rooms found / {filtered.length} कमरे मिले</div>
               <div style={S.grid}>
                 {filtered.map(l=>(
-                  <div key={l.id} style={S.card} onClick={()=>setSelected(l)}>
+                  <div key={l.id} style={S.card} onClick={()=>viewListing(l)}>
                     <div style={{height:150,position:"relative",background:"linear-gradient(135deg,#FFFFFF,#F7F5F0)"}}>
                       {l.photos&&l.photos.length>0?(
                         <img src={l.photos[0]} style={{width:"100%",height:"100%",objectFit:"cover"}}/>
@@ -938,6 +1077,14 @@ function App(){
                         <div style={{height:"100%",display:"flex",alignItems:"center",justifyContent:"center",fontSize:48}}>{l.icon||rl(l.roomType)?.icon||(l.category==="library"?"📚":"🏠")}</div>
                       )}
                       {l.photos&&l.photos.length>1&&<div style={{position:"absolute",bottom:6,right:6,background:"#00000088",color:"#fff",fontSize:11,padding:"2px 7px",borderRadius:10}}>📷 +{l.photos.length-1}</div>}
+                      <button onClick={e=>{e.stopPropagation();toggleSave(l);}} style={{position:"absolute",top:8,right:8,width:34,height:34,borderRadius:"50%",background:"#FFFFFFdd",border:"none",cursor:"pointer",fontSize:17,display:"flex",alignItems:"center",justifyContent:"center",boxShadow:"0 1px 4px #00000033"}}>{savedIds.has(l.id)?"❤️":"🤍"}</button>
+                      <label onClick={e=>e.stopPropagation()} style={{position:"absolute",top:8,left:8,background:"#FFFFFFdd",borderRadius:7,padding:"4px 8px",fontSize:11,fontWeight:700,color:C.text,display:"flex",alignItems:"center",gap:4,cursor:"pointer",boxShadow:"0 1px 4px #00000033"}}>
+                        <input type="checkbox" checked={compareIds.includes(l.id)} onChange={()=>toggleCompare(l.id)} style={{width:13,height:13,accentColor:C.accentG}}/>⚖️ Compare
+                      </label>
+                      <div style={{position:"absolute",bottom:6,left:6,display:"flex",gap:4}}>
+                        {isRecentPost(l.createdAt)&&<span style={{background:"#588157dd",color:"#fff",fontSize:10,fontWeight:800,padding:"2px 7px",borderRadius:10}}>🆕 NEW</span>}
+                        {l.negotiable&&<span style={{background:"#3498DBdd",color:"#fff",fontSize:10,fontWeight:800,padding:"2px 7px",borderRadius:10}}>🏷️ Negotiable</span>}
+                      </div>
                     </div>
                     <div style={{padding:13}}>
                       <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:5}}>
@@ -1102,6 +1249,15 @@ function App(){
                   <div><div style={S.lbl}>Floor</div><input style={S.inp} placeholder="e.g. 2nd Floor" value={form.floor} onChange={e=>upd("floor",e.target.value)}/></div>
                   <div><div style={S.lbl}>Bathrooms</div><select style={S.sel} value={form.bathrooms} onChange={e=>upd("bathrooms",e.target.value)}>{[1,2,3,4].map(n=><option key={n}>{n}</option>)}</select></div>
                 </div>
+                <div style={S.row2}>
+                  <div><div style={S.lbl}>Security Deposit ₹ (optional)</div><input style={S.inp} type="number" placeholder="e.g. 10000" value={form.deposit} onChange={e=>upd("deposit",e.target.value)}/></div>
+                  <div style={{display:"flex",alignItems:"flex-end",paddingBottom:11}}>
+                    <label style={{display:"flex",alignItems:"center",gap:7,cursor:"pointer"}}>
+                      <input type="checkbox" checked={form.negotiable} onChange={e=>upd("negotiable",e.target.checked)} style={{width:14,height:14,accentColor:C.accent}}/>
+                      <span style={{fontSize:14,color:C.muted}}>🏷️ Price Negotiable</span>
+                    </label>
+                  </div>
+                </div>
                 <label style={{display:"flex",alignItems:"center",gap:7,cursor:"pointer",marginBottom:9}}>
                   <input type="checkbox" checked={form.kitchen} onChange={e=>upd("kitchen",e.target.checked)} style={{width:14,height:14,accentColor:C.accent}}/>
                   <span style={{fontSize:14,color:C.muted}}>🍳 Kitchen Available / रसोई उपलब्ध</span>
@@ -1170,7 +1326,14 @@ function App(){
                     </div>
                     <div style={{padding:12}}>
                       <div style={{fontSize:16,fontWeight:700,marginBottom:2}}>{l.title}</div>
-                      <div style={{fontSize:12,color:C.muted,marginBottom:9}}>₹{Number(l.price).toLocaleString()} • {l.category==="library"?"Library":l.category==="buy"?"For Sale":"For Rent"}</div>
+                      <div style={{fontSize:12,color:C.muted,marginBottom:5}}>₹{Number(l.price).toLocaleString()} • {l.category==="library"?"Library":l.category==="buy"?"For Sale":"For Rent"}</div>
+                      <div style={{fontSize:11,color:C.dim,marginBottom:9}}>
+                        Posted {l.createdAt?new Date(l.createdAt).toLocaleDateString():"—"}
+                        {l.updatedAt&&l.updatedAt!==l.createdAt?` • Updated ${new Date(l.updatedAt).toLocaleDateString()}`:""}
+                      </div>
+                      <select value={l.status||"available"} onChange={e=>setListingStatus(l.id,e.target.value)} style={{...S.sel,marginBottom:8,padding:"6px 8px",fontSize:13}}>
+                        {STATUS_OPTS.map(s=><option key={s.id} value={s.id}>{s.icon} {s.label}</option>)}
+                      </select>
                       <div style={{display:"flex",gap:6}}>
                         <button onClick={()=>startEdit(l)} style={{flex:1,padding:"7px",background:"#6B908022",border:"1px solid #6B908044",color:C.accent,borderRadius:7,fontSize:13,fontWeight:700,cursor:"pointer"}}>✏️ Edit</button>
                         <button onClick={()=>deleteListing(l.id)} style={{flex:1,padding:"7px",background:"#E74C3C22",border:"1px solid #E74C3C44",color:"#E74C3C",borderRadius:7,fontSize:13,fontWeight:700,cursor:"pointer"}}>🗑️ Delete</button>
@@ -1180,6 +1343,139 @@ function App(){
                 ))}
               </div>
             )}
+          </div>
+        )}
+
+        {/* SAVED PROPERTIES */}
+        {tab==="saved"&&(
+          <div style={{maxWidth:700,margin:"0 auto"}}>
+            <div style={{marginBottom:18}}>
+              <div style={{fontSize:20,fontWeight:800,marginBottom:3}}>❤️ Saved Properties{savedDocs.length>0?` (${savedDocs.length})`:""}</div>
+              <div style={{fontSize:13,color:C.muted}}>Properties you've shortlisted</div>
+            </div>
+            {savedDocs.length===0?(
+              <div style={{textAlign:"center",padding:"40px 20px",color:C.muted}}>
+                <div style={{fontSize:43,marginBottom:10}}>🤍</div>
+                <div>Nothing saved yet — tap the heart on any listing</div>
+              </div>
+            ):(
+              <div style={S.grid}>
+                {savedDocs.map(d=>{
+                  const live=listings.find(l=>l.id===d.id);
+                  const gone=!live||(live.status&&live.status!=="available");
+                  return(
+                    <div key={d.id} style={{...S.card,cursor:live?"pointer":"default",opacity:gone?0.7:1}} onClick={()=>live&&viewListing(live)}>
+                      <div style={{height:120,position:"relative",background:"linear-gradient(135deg,#FFFFFF,#F7F5F0)"}}>
+                        {(live?.photos?.[0]||d.photo)?<img src={live?.photos?.[0]||d.photo} style={{width:"100%",height:"100%",objectFit:"cover"}}/>:(
+                          <div style={{height:"100%",display:"flex",alignItems:"center",justifyContent:"center",fontSize:38}}>🏠</div>
+                        )}
+                      </div>
+                      <div style={{padding:12}}>
+                        <div style={{fontSize:16,fontWeight:700,marginBottom:2}}>{live?.title||d.title}</div>
+                        <div style={{fontSize:12,color:C.muted,marginBottom:5}}>₹{Number(live?.price??d.price).toLocaleString()} • {(live?.location||d.location)}</div>
+                        {gone&&<div style={{fontSize:11,fontWeight:700,color:"#E74C3C",marginBottom:6}}>{!live?"⚠️ No longer available":"⚠️ Currently unavailable"}</div>}
+                        <button onClick={e=>{e.stopPropagation();toggleSave({id:d.id});}} style={{width:"100%",padding:"7px",background:"#E74C3C22",border:"1px solid #E74C3C44",color:"#E74C3C",borderRadius:7,fontSize:13,fontWeight:700,cursor:"pointer"}}>💔 Remove</button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* RECENTLY VIEWED */}
+        {tab==="recent"&&(
+          <div style={{maxWidth:700,margin:"0 auto"}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:18}}>
+              <div>
+                <div style={{fontSize:20,fontWeight:800,marginBottom:3}}>👀 Recently Viewed</div>
+                <div style={{fontSize:13,color:C.muted}}>Kept on this device only</div>
+              </div>
+              {recentIds.length>0&&<button onClick={clearRecentViews} style={{background:"transparent",border:"none",color:C.accent,fontWeight:700,fontSize:13,cursor:"pointer",textDecoration:"underline"}}>Clear History</button>}
+            </div>
+            {recentIds.length===0?(
+              <div style={{textAlign:"center",padding:"40px 20px",color:C.muted}}>
+                <div style={{fontSize:43,marginBottom:10}}>👀</div>
+                <div>Properties you view will show up here</div>
+              </div>
+            ):(
+              <div style={S.grid}>
+                {recentIds.map(id=>listings.find(l=>l.id===id)).filter(Boolean).map(l=>(
+                  <div key={l.id} style={S.card} onClick={()=>viewListing(l)}>
+                    <div style={{height:120,position:"relative",background:"linear-gradient(135deg,#FFFFFF,#F7F5F0)"}}>
+                      {l.photos&&l.photos.length>0?<img src={l.photos[0]} style={{width:"100%",height:"100%",objectFit:"cover"}}/>:(
+                        <div style={{height:"100%",display:"flex",alignItems:"center",justifyContent:"center",fontSize:38}}>{l.icon||"🏠"}</div>
+                      )}
+                    </div>
+                    <div style={{padding:12}}>
+                      <div style={{fontSize:16,fontWeight:700,marginBottom:2}}>{l.title}</div>
+                      <div style={{fontSize:12,color:C.muted}}>₹{Number(l.price).toLocaleString()} • {l.location}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* COMPARE */}
+        {tab==="compare"&&(
+          <div>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:18}}>
+              <div>
+                <div style={{fontSize:20,fontWeight:800,marginBottom:3}}>⚖️ Compare Properties</div>
+                <div style={{fontSize:13,color:C.muted}}>Up to 4 side by side</div>
+              </div>
+              {compareIds.length>0&&<button onClick={()=>setCompareIds([])} style={{background:"transparent",border:"none",color:C.accent,fontWeight:700,fontSize:13,cursor:"pointer",textDecoration:"underline"}}>Clear All</button>}
+            </div>
+            {(() => {
+              const items=compareIds.map(id=>listings.find(l=>l.id===id)).filter(Boolean);
+              if(items.length===0)return(
+                <div style={{textAlign:"center",padding:"40px 20px",color:C.muted}}>
+                  <div style={{fontSize:43,marginBottom:10}}>⚖️</div>
+                  <div>Tick "Compare" on 2–4 listings to see them side by side</div>
+                </div>
+              );
+              const rows=[
+                ["Price/Rent",l=>"₹"+Number(l.price).toLocaleString()],
+                ["Security Deposit",l=>l.deposit?"₹"+Number(l.deposit).toLocaleString():"N/A"],
+                ["Type",l=>l.category==="library"?"Library":rl(l.roomType)?.label||"—"],
+                ["Bedrooms",l=>bedroomsOf(l.roomType)],
+                ["Bathrooms",l=>l.bathrooms||"N/A"],
+                ["Furnishing",l=>l.furnished||"N/A"],
+                ["Parking",l=>(l.amenities||[]).includes("parking")?"✅ Yes":"❌ No"],
+                ["Water Supply",l=>(l.amenities||[]).includes("water")?"✅ Yes":"❌ No"],
+                ["Power Backup",l=>(l.amenities||[]).includes("power")?"✅ Yes":"❌ No"],
+                ["Amenities",l=>(l.amenities||[]).length],
+                ["Location",l=>`${l.area?l.area+", ":""}${l.location}`],
+                ["Availability",l=>l.available||"Contact Owner"],
+                ["Negotiable",l=>l.negotiable?"🏷️ Yes":"No"],
+              ];
+              return(
+                <div style={{display:"flex",gap:12,overflowX:"auto",paddingBottom:8}}>
+                  {items.map(l=>(
+                    <div key={l.id} style={{minWidth:220,maxWidth:220,flexShrink:0,background:C.surface,border:`1px solid ${C.border}`,borderRadius:13,overflow:"hidden"}}>
+                      <div style={{height:110,position:"relative",background:"linear-gradient(135deg,#FFFFFF,#F7F5F0)"}}>
+                        {l.photos&&l.photos.length>0?<img src={l.photos[0]} style={{width:"100%",height:"100%",objectFit:"cover"}}/>:(
+                          <div style={{height:"100%",display:"flex",alignItems:"center",justifyContent:"center",fontSize:34}}>{l.icon||"🏠"}</div>
+                        )}
+                        <button onClick={()=>toggleCompare(l.id)} style={{position:"absolute",top:6,right:6,width:24,height:24,borderRadius:"50%",background:"#00000088",color:"#fff",border:"none",fontSize:13,cursor:"pointer"}}>✕</button>
+                      </div>
+                      <div style={{padding:10}}>
+                        <div onClick={()=>viewListing(l)} style={{fontSize:14,fontWeight:800,marginBottom:8,cursor:"pointer"}}>{l.title}</div>
+                        {rows.map(([label,fn])=>(
+                          <div key={label} style={{marginBottom:8,paddingBottom:8,borderBottom:`1px solid ${C.border}`}}>
+                            <div style={{fontSize:10,color:C.muted,textTransform:"uppercase",letterSpacing:0.5}}>{label}</div>
+                            <div style={{fontSize:12,fontWeight:600}}>{fn(l)}</div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              );
+            })()}
           </div>
         )}
 
@@ -1395,12 +1691,23 @@ function App(){
       {selected&&(
         <div style={{position:"fixed",inset:0,background:"#00000055",backdropFilter:"blur(5px)",zIndex:200,display:"flex",alignItems:"center",justifyContent:"center",padding:14}} onClick={()=>setSelected(null)}>
           <div style={{background:C.surface,borderRadius:16,border:`1px solid ${C.border}`,padding:20,maxWidth:480,width:"100%",maxHeight:"90vh",overflowY:"auto"}} onClick={e=>e.stopPropagation()}>
-            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
               <div>
                 <div style={{fontSize:19,fontWeight:800}}>{selected.title}</div>
                 {selected.titleHi&&<div style={{fontSize:13,color:C.muted}}>{selected.titleHi}</div>}
               </div>
-              <button style={{background:C.card,border:"none",color:C.muted,width:28,height:28,borderRadius:7,cursor:"pointer",fontSize:16}} onClick={()=>setSelected(null)}>✕</button>
+              <div style={{display:"flex",gap:6}}>
+                <button onClick={()=>toggleSave(selected)} style={{background:C.card,border:"none",color:C.muted,width:28,height:28,borderRadius:7,cursor:"pointer",fontSize:16}}>{savedIds.has(selected.id)?"❤️":"🤍"}</button>
+                <button style={{background:C.card,border:"none",color:C.muted,width:28,height:28,borderRadius:7,cursor:"pointer",fontSize:16}} onClick={()=>setSelected(null)}>✕</button>
+              </div>
+            </div>
+            <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:12}}>
+              <span style={{fontSize:11,color:C.dim}}>{propertyCode(selected.id)}</span>
+              {isRecentPost(selected.createdAt)&&<span style={{background:"#58815722",color:C.green,fontSize:11,fontWeight:700,padding:"2px 8px",borderRadius:10}}>🆕 Recently Posted</span>}
+              {selected.negotiable&&<span style={{background:"#3498DB22",color:"#3498DB",fontSize:11,fontWeight:700,padding:"2px 8px",borderRadius:10}}>🏷️ Negotiable</span>}
+              <label style={{display:"flex",alignItems:"center",gap:4,fontSize:11,fontWeight:700,color:C.accentG,cursor:"pointer"}}>
+                <input type="checkbox" checked={compareIds.includes(selected.id)} onChange={()=>toggleCompare(selected.id)} style={{width:12,height:12,accentColor:C.accentG}}/>⚖️ Add to Compare
+              </label>
             </div>
             {selected.photos&&selected.photos.length>0?(
               <div style={{display:"flex",gap:6,overflowX:"auto",marginBottom:12,paddingBottom:2}}>
@@ -1417,9 +1724,13 @@ function App(){
               <div style={S.badge(RC[selected.roomType]||C.accent)}>{selected.category==="library"?"📚 Library":`${rl(selected.roomType)?.icon||""} ${rl(selected.roomType)?.label||""}`}</div>
             </div>
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:7,marginBottom:9}}>
-              {(selected.category==="library"?[["Location","locationLabel",`${selected.area?selected.area+", ":""}${selected.location}${selected.pincode?" - "+selected.pincode:""}`],["Timings",null,selected.available||"Contact Owner"],["Total Seats",null,selected.bathrooms||"N/A"]]:[["Location","locationLabel",`${selected.area?selected.area+", ":""}${selected.location}${selected.pincode?" - "+selected.pincode:""}`],["Available","availableLabel",selected.available||"Contact Owner"],["Floor","floorLabel",selected.floor||"N/A"],["Bathrooms","bathroomsLabel",selected.bathrooms||"N/A"],["Kitchen","kitchenLabel",selected.kitchen?"✅ Yes":"❌ No"],["Furnished","furnishedLabel",selected.furnished||"N/A"]]).map(([l,tk,v])=>(
+              {(selected.category==="library"?[["Location","locationLabel",`${selected.area?selected.area+", ":""}${selected.location}${selected.pincode?" - "+selected.pincode:""}`],["Timings",null,selected.available||"Contact Owner"],["Total Seats",null,selected.bathrooms||"N/A"]]:[["Location","locationLabel",`${selected.area?selected.area+", ":""}${selected.location}${selected.pincode?" - "+selected.pincode:""}`],["Available","availableLabel",selected.available||"Contact Owner"],["Floor","floorLabel",selected.floor||"N/A"],["Bathrooms","bathroomsLabel",selected.bathrooms||"N/A"],["Kitchen","kitchenLabel",selected.kitchen?"✅ Yes":"❌ No"],["Furnished","furnishedLabel",selected.furnished||"N/A"],...(selected.deposit?[["Security Deposit",null,"₹"+Number(selected.deposit).toLocaleString()]]:[])]).map(([l,tk,v])=>(
                 <div key={l} style={S.dbx}><div style={{fontSize:11,color:C.muted,textTransform:"uppercase",letterSpacing:1,marginBottom:3,fontWeight:600}}>{tk?tr(tk):l}</div><div style={{fontSize:14,fontWeight:500}}>{v}</div></div>
               ))}
+            </div>
+            <div style={{fontSize:11,color:C.dim,marginBottom:9}}>
+              Posted {selected.createdAt?new Date(selected.createdAt).toLocaleDateString():"—"}
+              {selected.updatedAt&&selected.updatedAt!==selected.createdAt?` • Updated ${new Date(selected.updatedAt).toLocaleDateString()}`:""}
             </div>
             {selected.tenantType&&<div style={{...S.dbx,marginBottom:9}}><div style={{fontSize:11,color:C.muted,textTransform:"uppercase",letterSpacing:1,marginBottom:3,fontWeight:600}}>{tr("preferredTenantLabel")}</div><div style={{fontSize:14}}>{tl(selected.tenantType)}</div></div>}
             {selected.amenities?.length>0&&<div style={{...S.dbx,marginBottom:9}}><div style={{fontSize:11,color:C.muted,textTransform:"uppercase",letterSpacing:1,marginBottom:6,fontWeight:600}}>{tr("amenitiesLabel")}</div><div style={{display:"flex",flexWrap:"wrap",gap:5}}>{selected.amenities.map(a=>{const am=al(a);return am?<span key={a} style={{background:C.surface,border:`1px solid ${C.border}`,borderRadius:5,padding:"2px 7px",fontSize:12,color:C.muted}}>{am.icon} {am.label}</span>:null;})}</div></div>}
@@ -1457,6 +1768,17 @@ function App(){
             <button style={{position:"absolute",right:10,top:"50%",transform:"translateY(-50%)",width:40,height:40,borderRadius:"50%",background:"#FFFFFF33",color:"#fff",border:"none",fontSize:22,cursor:"pointer"}} onClick={e=>{e.stopPropagation();setLightbox(l=>({...l,index:(l.index+1)%l.photos.length}));}}>›</button>
           )}
           {lightbox.photos.length>1&&<div style={{color:"#fff",fontSize:13,marginTop:12}}>{lightbox.index+1} / {lightbox.photos.length}</div>}
+        </div>
+      )}
+
+      {/* COMPARE BAR */}
+      {compareIds.length>0&&tab!=="compare"&&(
+        <div style={{position:"fixed",bottom:66,left:0,right:0,background:C.accentG,color:"#fff",padding:"9px 14px",display:"flex",alignItems:"center",justifyContent:"space-between",zIndex:151,cursor:"pointer"}} onClick={()=>setTab("compare")}>
+          <span style={{fontWeight:700,fontSize:14}}>⚖️ {compareIds.length} selected to compare</span>
+          <span style={{display:"flex",gap:10,alignItems:"center"}}>
+            <span onClick={e=>{e.stopPropagation();setCompareIds([]);}} style={{fontSize:13,textDecoration:"underline"}}>Clear</span>
+            <span style={{fontSize:13,fontWeight:800}}>View →</span>
+          </span>
         </div>
       )}
 
@@ -1498,6 +1820,8 @@ function App(){
                 <div style={{borderTop:`1px solid ${C.border}`,paddingTop:14,display:"flex",flexDirection:"column",gap:4}}>
                   <button onClick={()=>{setTab("profile");setDrawerOpen(false);}} style={{textAlign:"left",padding:"10px 8px",background:"transparent",border:"none",borderRadius:8,color:C.text,fontSize:16,fontWeight:600,cursor:"pointer"}}>✏️ {tr("editProfile")}</button>
                   <button onClick={()=>{setTab("mylistings");setDrawerOpen(false);}} style={{textAlign:"left",padding:"10px 8px",background:"transparent",border:"none",borderRadius:8,color:C.text,fontSize:16,fontWeight:600,cursor:"pointer"}}>📋 {tr("myListings")}</button>
+                  <button onClick={()=>{setTab("saved");setDrawerOpen(false);}} style={{textAlign:"left",padding:"10px 8px",background:"transparent",border:"none",borderRadius:8,color:C.text,fontSize:16,fontWeight:600,cursor:"pointer"}}>❤️ Saved Properties{savedDocs.length>0?` (${savedDocs.length})`:""}</button>
+                  <button onClick={()=>{setTab("recent");setDrawerOpen(false);}} style={{textAlign:"left",padding:"10px 8px",background:"transparent",border:"none",borderRadius:8,color:C.text,fontSize:16,fontWeight:600,cursor:"pointer"}}>👀 Recently Viewed</button>
                   <button onClick={()=>{setTab("chatlist");setDrawerOpen(false);}} style={{textAlign:"left",padding:"10px 8px",background:"transparent",border:"none",borderRadius:8,color:C.text,fontSize:16,fontWeight:600,cursor:"pointer"}}>💬 {tr("messagesLabel")}{chats.length>0?` (${chats.length})`:""}</button>
                   <button onClick={()=>setLangPickerOpen(true)} style={{textAlign:"left",padding:"10px 8px",background:"transparent",border:"none",borderRadius:8,color:C.text,fontSize:16,fontWeight:600,cursor:"pointer"}}>🌐 {LANGS.find(l=>l.code===lang)?.native||"Language"}</button>
                   <button onClick={()=>{shareApp();setDrawerOpen(false);}} style={{textAlign:"left",padding:"10px 8px",background:"transparent",border:"none",borderRadius:8,color:C.text,fontSize:16,fontWeight:600,cursor:"pointer"}}>📤 {tr("shareApp")}</button>
@@ -1511,6 +1835,7 @@ function App(){
                 <div style={{fontSize:16,color:C.muted,marginBottom:16}}>{tr("drawerLoginPrompt")}</div>
                 <button onClick={()=>{setTab("login");setDrawerOpen(false);}} style={{...S.submitBtn,marginTop:0}}>{tr("loginSignup")}</button>
                 <div style={{borderTop:`1px solid ${C.border}`,marginTop:18,paddingTop:14,display:"flex",flexDirection:"column",gap:4}}>
+                  <button onClick={()=>{setTab("recent");setDrawerOpen(false);}} style={{textAlign:"left",padding:"10px 8px",background:"transparent",border:"none",borderRadius:8,color:C.text,fontSize:16,fontWeight:600,cursor:"pointer"}}>👀 Recently Viewed</button>
                   <button onClick={()=>setLangPickerOpen(true)} style={{textAlign:"left",padding:"10px 8px",background:"transparent",border:"none",borderRadius:8,color:C.text,fontSize:16,fontWeight:600,cursor:"pointer"}}>🌐 {LANGS.find(l=>l.code===lang)?.native||"Language"}</button>
                   <button onClick={()=>{shareApp();setDrawerOpen(false);}} style={{textAlign:"left",padding:"10px 8px",background:"transparent",border:"none",borderRadius:8,color:C.text,fontSize:16,fontWeight:600,cursor:"pointer"}}>📤 {tr("shareApp")}</button>
                   <button onClick={()=>{setTab("terms");setDrawerOpen(false);}} style={{textAlign:"left",padding:"10px 8px",background:"transparent",border:"none",borderRadius:8,color:C.text,fontSize:16,fontWeight:600,cursor:"pointer"}}>📄 {tr("termsConditions")}</button>
