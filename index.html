@@ -121,6 +121,7 @@ const C={bg:"#F7F5F0",surface:"#FFFFFF",card:"#FBF9F5",border:"#E6E2D8",accent:"
 const ROOM_TYPES=[{id:"single",icon:"🛏️",label:"Single Room",hi:"एकल कमरा"},{id:"1bhk",icon:"🏠",label:"1 BHK",hi:"1 बीएचके"},{id:"2bhk",icon:"🏡",label:"2 BHK",hi:"2 बीएचके"},{id:"3bhk",icon:"🏘️",label:"3 BHK",hi:"3 बीएचके"},{id:"pg",icon:"🏨",label:"PG / Hostel",hi:"पीजी"},{id:"flat",icon:"🏢",label:"Full Flat",hi:"पूरा फ्लैट"},{id:"plot",icon:"📐",label:"Plot / Land",hi:"प्लॉट"},{id:"shop",icon:"🏪",label:"Shop",hi:"दुकान"}];
 const AMENITIES=[{id:"wifi",icon:"📶",label:"WiFi"},{id:"ac",icon:"❄️",label:"AC"},{id:"parking",icon:"🚗",label:"Parking"},{id:"water",icon:"🚰",label:"Water Supply"},{id:"geyser",icon:"🚿",label:"Geyser"},{id:"fridge",icon:"🧊",label:"Fridge"},{id:"washing",icon:"🫧",label:"Washing Machine"},{id:"gas",icon:"🍳",label:"Gas Stove"},{id:"cctv",icon:"📹",label:"CCTV"},{id:"lift",icon:"🛗",label:"Lift"},{id:"power",icon:"⚡",label:"Power Backup"},{id:"garden",icon:"🌿",label:"Garden"},{id:"guard",icon:"💂",label:"Security Guard"}];
 const STATUS_OPTS=[{id:"available",icon:"✅",label:"Available"},{id:"rented",icon:"🔑",label:"Rented Out"},{id:"sold",icon:"💰",label:"Sold"},{id:"unavailable",icon:"⛔",label:"Unavailable"}];
+const VISIT_STATUS_LABELS={pending:"⏳ Pending",confirmed:"✅ Confirmed",rejected:"❌ Declined",rescheduled:"🔄 New Time Suggested",completed:"✅ Completed",cancelled:"🚫 Cancelled"};
 const RECENT_MS=3*24*60*60*1000;
 const isRecentPost=createdAt=>!!createdAt&&(Date.now()-new Date(createdAt).getTime())<RECENT_MS;
 const propertyCode=id=>"GHAR-"+String(id||"").slice(-6).toUpperCase();
@@ -315,6 +316,13 @@ function App(){
   });
   const[advOpen,setAdvOpen]=useState(false);
   const[adv,setAdv]=useState(EMPTY_ADV);
+  const[visitsAsSeeker,setVisitsAsSeeker]=useState([]);
+  const[visitsAsOwner,setVisitsAsOwner]=useState([]);
+  const[visitModal,setVisitModal]=useState(null);
+  const[visitForm,setVisitForm]=useState({date:"",time:"",message:""});
+  const[reschedulingId,setReschedulingId]=useState(null);
+  const[rescheduleForm,setRescheduleForm]=useState({date:"",time:""});
+  const[notifications,setNotifications]=useState([]);
 
   const msg=(text,type="ok")=>{setToast({text,type});setTimeout(()=>setToast(null),3500);};
   const upd=(k,v)=>setForm(f=>({...f,[k]:v}));
@@ -646,6 +654,122 @@ function App(){
     }catch(e){msg("❌ Could not update status: "+e.message,"err");}
   };
 
+  // ---- In-app notifications ----
+  // Scoped deliberately: only visit-related events write a notification here.
+  // New chat messages already surface via the Messages badge in the drawer,
+  // and "new matching property" needs Search Alerts (Cloud Functions, not
+  // built yet) — duplicating either into this collection would just be
+  // extra writes for no extra signal.
+  useEffect(()=>{
+    if(!user){setNotifications([]);return;}
+    const unsub=db.collection("users").doc(user.uid).collection("notifications")
+      .orderBy("createdAt","desc").limit(50)
+      .onSnapshot(snap=>{
+        setNotifications(snap.docs.map(d=>({id:d.id,...d.data()})));
+      },e=>{msg("❌ Could not load notifications: "+(e.message||"permission error"),"err");});
+    return unsub;
+  },[user]);
+
+  const notify=async(toUid,type,title,body,link)=>{
+    if(!user||toUid===user.uid)return; // never notify yourself about your own action
+    try{
+      await db.collection("users").doc(toUid).collection("notifications").add({
+        type,title,body,read:false,senderId:user.uid,link:link||{},
+        createdAt:firebase.firestore.FieldValue.serverTimestamp()
+      });
+    }catch(e){/* best-effort — a failed notification shouldn't block the action that triggered it */}
+  };
+
+  const markNotifRead=(id)=>{
+    if(!user)return;
+    db.collection("users").doc(user.uid).collection("notifications").doc(id).update({read:true}).catch(()=>{});
+  };
+  const markAllNotifsRead=()=>{
+    if(!user)return;
+    notifications.filter(n=>!n.read).forEach(n=>{
+      db.collection("users").doc(user.uid).collection("notifications").doc(n.id).update({read:true}).catch(()=>{});
+    });
+  };
+  const unreadNotifCount=notifications.filter(n=>!n.read).length;
+
+  // ---- Schedule Visit ----
+  useEffect(()=>{
+    if(!user){setVisitsAsSeeker([]);setVisitsAsOwner([]);return;}
+    const unsub1=db.collection("visits").where("seekerId","==",user.uid)
+      .onSnapshot(snap=>{
+        const list=snap.docs.map(d=>({id:d.id,...d.data()}));
+        list.sort((a,b)=>(b.createdAt?.toMillis?.()||0)-(a.createdAt?.toMillis?.()||0));
+        setVisitsAsSeeker(list);
+      },e=>{msg("❌ Could not load your visits: "+(e.message||"permission error"),"err");});
+    const unsub2=db.collection("visits").where("listingOwnerId","==",user.uid)
+      .onSnapshot(snap=>{
+        const list=snap.docs.map(d=>({id:d.id,...d.data()}));
+        list.sort((a,b)=>(b.createdAt?.toMillis?.()||0)-(a.createdAt?.toMillis?.()||0));
+        setVisitsAsOwner(list);
+      },e=>{msg("❌ Could not load visit requests: "+(e.message||"permission error"),"err");});
+    return()=>{unsub1();unsub2();};
+  },[user]);
+
+  const todayStr=()=>new Date().toISOString().slice(0,10);
+
+  const submitVisitRequest=async()=>{
+    if(!user||!visitModal)return;
+    if(!visitForm.date||!visitForm.time){msg("⚠️ Pick a date and time","err");return;}
+    if(visitForm.date<todayStr()){msg("⚠️ Pick a date that isn't in the past","err");return;}
+    try{
+      const ref=await db.collection("visits").add({
+        listingId:visitModal.id,listingTitle:visitModal.title,listingOwnerId:visitModal.ownerId,
+        seekerId:user.uid,seekerName:user.name||"Seeker",
+        date:visitForm.date,time:visitForm.time,message:visitForm.message||"",
+        status:"pending",createdAt:firebase.firestore.FieldValue.serverTimestamp(),updatedAt:firebase.firestore.FieldValue.serverTimestamp()
+      });
+      await notify(visitModal.ownerId,"visit_request","📅 New visit request",
+        `${user.name||"Someone"} wants to visit "${visitModal.title}" on ${visitForm.date} at ${visitForm.time}`,{tab:"visits"});
+      msg("✅ Visit request sent!");
+      setVisitModal(null);setVisitForm({date:"",time:"",message:""});
+    }catch(e){msg("❌ Could not send visit request: "+e.message,"err");}
+  };
+
+  const respondVisit=async(v,status)=>{
+    try{
+      await db.collection("visits").doc(v.id).update({status,updatedAt:firebase.firestore.FieldValue.serverTimestamp()});
+      const label={confirmed:"✅ confirmed",rejected:"❌ declined",completed:"✅ marked completed",cancelled:"🚫 cancelled"}[status]||status;
+      if(status==="confirmed"||status==="rejected"||status==="cancelled"){
+        const otherParty=user.uid===v.seekerId?v.listingOwnerId:v.seekerId;
+        await notify(otherParty,"visit_status",`Visit ${label}`,`The visit to "${v.listingTitle}" on ${v.date} at ${v.time} was ${label}.`,{tab:"visits"});
+      }
+      msg("✅ Visit "+label);
+    }catch(e){msg("❌ Could not update visit: "+e.message,"err");}
+  };
+
+  const sendReschedule=async(v)=>{
+    if(!rescheduleForm.date||!rescheduleForm.time){msg("⚠️ Pick a new date and time","err");return;}
+    if(rescheduleForm.date<todayStr()){msg("⚠️ Pick a date that isn't in the past","err");return;}
+    try{
+      await db.collection("visits").doc(v.id).update({
+        status:"rescheduled",proposedDate:rescheduleForm.date,proposedTime:rescheduleForm.time,
+        updatedAt:firebase.firestore.FieldValue.serverTimestamp()
+      });
+      await notify(v.seekerId,"visit_status","🔄 New time suggested",
+        `The owner suggested ${rescheduleForm.date} at ${rescheduleForm.time} for "${v.listingTitle}" instead.`,{tab:"visits"});
+      msg("✅ New time sent to seeker");
+      setReschedulingId(null);setRescheduleForm({date:"",time:""});
+    }catch(e){msg("❌ Could not send new time: "+e.message,"err");}
+  };
+
+  const acceptReschedule=async(v)=>{
+    try{
+      await db.collection("visits").doc(v.id).update({
+        status:"confirmed",date:v.proposedDate,time:v.proposedTime,
+        proposedDate:firebase.firestore.FieldValue.delete(),proposedTime:firebase.firestore.FieldValue.delete(),
+        updatedAt:firebase.firestore.FieldValue.serverTimestamp()
+      });
+      await notify(v.listingOwnerId,"visit_status","✅ New time accepted",
+        `${v.seekerName||"The seeker"} accepted ${v.proposedDate} at ${v.proposedTime} for "${v.listingTitle}".`,{tab:"visits"});
+      msg("✅ Visit confirmed");
+    }catch(e){msg("❌ Could not confirm visit: "+e.message,"err");}
+  };
+
   const sendChatMessage=async()=>{
     if(!chatText.trim()||!activeChat||!user)return;
     setChatSending(true);
@@ -849,6 +973,18 @@ function App(){
   const submit=async()=>{
     if(!user){msg("⚠️ Please log in to post a listing","err");setTab("login");return;}
     if(!form.title||!form.location||(form.category!=="library"&&!form.roomType)||!form.price||!form.ownerName||!form.phone){msg("⚠️ Fill all required fields","err");return;}
+    // Non-blocking duplicate check — only on a fresh post, only against your
+    // own existing listings, and only a same-owner/category/type/location
+    // match within 10% price is flagged. It never blocks the post outright,
+    // just asks for confirmation, since two legitimately different rooms in
+    // the same building can easily share all of this.
+    if(!editingId){
+      const dup=listings.find(l=>l.ownerId===user.uid&&(l.category||"rent")===form.category
+        &&(form.category==="library"||l.roomType===form.roomType)
+        &&(l.location||"").trim().toLowerCase()===(form.location||"").trim().toLowerCase()
+        &&Math.abs(Number(l.price)-Number(form.price))<=Number(form.price)*0.1);
+      if(dup&&!window.confirm(`⚠️ This looks similar to your existing listing "${dup.title}" (₹${Number(dup.price).toLocaleString()}, ${dup.location}).\n\nPost this as a separate listing anyway?`))return;
+    }
     setPosting(true);
     try{
       const hdr=await authHeader();
@@ -904,7 +1040,6 @@ function App(){
     hdr:{background:C.surface,borderBottom:`1px solid ${C.border}`,padding:"0 14px",position:"sticky",top:0,zIndex:100},
     hdrIn:{maxWidth:1100,margin:"0 auto",display:"flex",alignItems:"center",justifyContent:"space-between",height:58},
     logoTxt:{fontSize:27,fontWeight:900,letterSpacing:0.3,background:`linear-gradient(135deg,#33544A,#7A5A3A)`,WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent"},
-    live:{display:"flex",alignItems:"center",gap:4,background:"#58815722",border:"1px solid #58815744",color:"#588157",padding:"2px 8px",borderRadius:20,fontSize:11,fontWeight:700},
     navTabs:{display:"flex",gap:3,background:C.border,borderRadius:9,padding:3},
     navTab:a=>({padding:"6px 13px",borderRadius:7,border:"none",cursor:"pointer",fontSize:13,fontWeight:700,background:a?`linear-gradient(135deg,${C.accent},${C.accentG})`:"transparent",color:a?"#fff":C.muted}),
     hero:{background:`linear-gradient(160deg,#EAF4EF,#F7F5F0 60%,#F0EDE2)`,padding:"40px 16px 32px",textAlign:"center",borderBottom:`1px solid ${C.border}`},
@@ -939,7 +1074,12 @@ function App(){
               </div>
             </div>
           </div>
-          <div style={S.live}>🔴 LIVE</div>
+          {user&&(
+            <button onClick={()=>setTab("notifications")} style={{position:"relative",width:36,height:36,borderRadius:9,border:`1px solid ${C.border}`,background:C.card,color:C.text,fontSize:18,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
+              🔔
+              {unreadNotifCount>0&&<span style={{position:"absolute",top:-4,right:-4,background:"#E74C3C",color:"#fff",fontSize:10,fontWeight:800,borderRadius:9,minWidth:17,height:17,display:"flex",alignItems:"center",justifyContent:"center",padding:"0 3px"}}>{unreadNotifCount>9?"9+":unreadNotifCount}</span>}
+            </button>
+          )}
         </div>
       </header>
 
@@ -1132,6 +1272,40 @@ function App(){
               </div>
             </>
           )}
+          {(()=>{
+            // Cheap, on-device heuristic: same room type or same location as
+            // something you've recently viewed or saved. No search/behavior
+            // data leaves the client, and nothing here is sensitive — just
+            // property/location signals already visible in the UI.
+            const seedIds=new Set([...recentIds,...savedDocs.map(d=>d.id)]);
+            if(seedIds.size===0)return null;
+            const seeds=listings.filter(l=>seedIds.has(l.id));
+            const wantRoomTypes=new Set(seeds.map(l=>l.roomType).filter(Boolean));
+            const wantLocations=new Set(seeds.map(l=>(l.location||"").toLowerCase()));
+            const recs=listings.filter(l=>(l.category||"rent")===section&&(l.status||"available")==="available"&&!seedIds.has(l.id)
+              &&(wantRoomTypes.has(l.roomType)||wantLocations.has((l.location||"").toLowerCase()))).slice(0,6);
+            if(recs.length===0)return null;
+            return(
+              <div style={{marginTop:28}}>
+                <div style={S.secTitle}>✨ You May Also Like</div>
+                <div style={{display:"flex",gap:12,overflowX:"auto",paddingBottom:8}}>
+                  {recs.map(l=>(
+                    <div key={l.id} style={{...S.card,minWidth:200,maxWidth:200,flexShrink:0}} onClick={()=>viewListing(l)}>
+                      <div style={{height:110,position:"relative",background:"linear-gradient(135deg,#FFFFFF,#F7F5F0)"}}>
+                        {l.photos&&l.photos.length>0?<img src={l.photos[0]} style={{width:"100%",height:"100%",objectFit:"cover"}}/>:(
+                          <div style={{height:"100%",display:"flex",alignItems:"center",justifyContent:"center",fontSize:34}}>{l.icon||"🏠"}</div>
+                        )}
+                      </div>
+                      <div style={{padding:10}}>
+                        <div style={{fontSize:14,fontWeight:700,marginBottom:2}}>{l.title}</div>
+                        <div style={{fontSize:12,color:C.muted}}>₹{Number(l.price).toLocaleString()} • {l.location}</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            );
+          })()}
         </>)}
 
         {/* POST FORM - PROPERTY (rent/buy/library) */}
@@ -1479,6 +1653,112 @@ function App(){
           </div>
         )}
 
+        {/* MY VISITS */}
+        {tab==="visits"&&(
+          <div style={{maxWidth:700,margin:"0 auto"}}>
+            <div style={{marginBottom:18}}>
+              <div style={{fontSize:20,fontWeight:800,marginBottom:3}}>📅 My Visits</div>
+              <div style={{fontSize:13,color:C.muted}}>Requests you've sent and received</div>
+            </div>
+
+            <div style={S.secTitle}>📥 Requests To You (as Owner){visitsAsOwner.length>0?` (${visitsAsOwner.length})`:""}</div>
+            {visitsAsOwner.length===0?(
+              <div style={{textAlign:"center",padding:"20px",color:C.muted,marginBottom:24}}>No visit requests yet</div>
+            ):(
+              <div style={{display:"flex",flexDirection:"column",gap:10,marginBottom:24}}>
+                {visitsAsOwner.map(v=>(
+                  <div key={v.id} style={{...S.dbx,background:C.surface}}>
+                    <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:6}}>
+                      <div style={{fontWeight:700,fontSize:15}}>{v.listingTitle}</div>
+                      <span style={{fontSize:11,fontWeight:700,color:C.muted}}>{VISIT_STATUS_LABELS[v.status]||v.status}</span>
+                    </div>
+                    <div style={{fontSize:13,color:C.text,marginBottom:4}}>👤 {v.seekerName} — 📆 {v.date} at {v.time}</div>
+                    {v.message&&<div style={{fontSize:12,color:C.muted,marginBottom:6,fontStyle:"italic"}}>"{v.message}"</div>}
+                    {v.status==="rescheduled"&&<div style={{fontSize:12,color:C.accentG,marginBottom:6}}>Waiting for seeker to respond to {v.proposedDate} at {v.proposedTime}</div>}
+                    {v.status==="pending"&&(
+                      <div>
+                        <div style={{display:"flex",gap:6,marginBottom:6}}>
+                          <button onClick={()=>respondVisit(v,"confirmed")} style={{flex:1,padding:"7px",background:"#58815722",border:"1px solid #58815744",color:C.green,borderRadius:7,fontSize:12,fontWeight:700,cursor:"pointer"}}>✅ Accept</button>
+                          <button onClick={()=>respondVisit(v,"rejected")} style={{flex:1,padding:"7px",background:"#E74C3C22",border:"1px solid #E74C3C44",color:"#E74C3C",borderRadius:7,fontSize:12,fontWeight:700,cursor:"pointer"}}>❌ Reject</button>
+                          <button onClick={()=>{setReschedulingId(id=>id===v.id?null:v.id);setRescheduleForm({date:"",time:""});}} style={{flex:1,padding:"7px",background:"#3498DB22",border:"1px solid #3498DB44",color:"#3498DB",borderRadius:7,fontSize:12,fontWeight:700,cursor:"pointer"}}>🔄 New Time</button>
+                        </div>
+                        {reschedulingId===v.id&&(
+                          <div style={{display:"flex",gap:6,alignItems:"flex-end"}}>
+                            <input style={{...S.inp,padding:"7px 8px"}} type="date" min={todayStr()} value={rescheduleForm.date} onChange={e=>setRescheduleForm(f=>({...f,date:e.target.value}))}/>
+                            <input style={{...S.inp,padding:"7px 8px"}} type="time" value={rescheduleForm.time} onChange={e=>setRescheduleForm(f=>({...f,time:e.target.value}))}/>
+                            <button onClick={()=>sendReschedule(v)} style={{padding:"7px 10px",background:C.accent,border:"none",color:"#fff",borderRadius:7,fontSize:12,fontWeight:700,cursor:"pointer"}}>Send</button>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                    {v.status==="confirmed"&&v.date<=todayStr()&&(
+                      <button onClick={()=>respondVisit(v,"completed")} style={{width:"100%",padding:"7px",background:"#6B908022",border:"1px solid #6B908044",color:C.accent,borderRadius:7,fontSize:12,fontWeight:700,cursor:"pointer"}}>✅ Mark Completed</button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <div style={S.secTitle}>📤 Your Requests (as Seeker){visitsAsSeeker.length>0?` (${visitsAsSeeker.length})`:""}</div>
+            {visitsAsSeeker.length===0?(
+              <div style={{textAlign:"center",padding:"20px",color:C.muted}}>You haven't requested any visits yet</div>
+            ):(
+              <div style={{display:"flex",flexDirection:"column",gap:10}}>
+                {visitsAsSeeker.map(v=>(
+                  <div key={v.id} style={{...S.dbx,background:C.surface}}>
+                    <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:6}}>
+                      <div style={{fontWeight:700,fontSize:15}}>{v.listingTitle}</div>
+                      <span style={{fontSize:11,fontWeight:700,color:C.muted}}>{VISIT_STATUS_LABELS[v.status]||v.status}</span>
+                    </div>
+                    <div style={{fontSize:13,color:C.text,marginBottom:6}}>📆 {v.date} at {v.time}</div>
+                    {v.status==="rescheduled"&&(
+                      <div style={{marginBottom:6}}>
+                        <div style={{fontSize:12,color:C.accentG,marginBottom:6}}>Owner suggested {v.proposedDate} at {v.proposedTime}</div>
+                        <div style={{display:"flex",gap:6}}>
+                          <button onClick={()=>acceptReschedule(v)} style={{flex:1,padding:"7px",background:"#58815722",border:"1px solid #58815744",color:C.green,borderRadius:7,fontSize:12,fontWeight:700,cursor:"pointer"}}>✅ Accept New Time</button>
+                          <button onClick={()=>respondVisit(v,"cancelled")} style={{flex:1,padding:"7px",background:"#E74C3C22",border:"1px solid #E74C3C44",color:"#E74C3C",borderRadius:7,fontSize:12,fontWeight:700,cursor:"pointer"}}>Decline</button>
+                        </div>
+                      </div>
+                    )}
+                    {(v.status==="pending"||v.status==="confirmed")&&(
+                      <button onClick={()=>respondVisit(v,"cancelled")} style={{width:"100%",padding:"7px",background:"#E74C3C22",border:"1px solid #E74C3C44",color:"#E74C3C",borderRadius:7,fontSize:12,fontWeight:700,cursor:"pointer"}}>🚫 Cancel Request</button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* NOTIFICATIONS */}
+        {tab==="notifications"&&(
+          <div style={{maxWidth:700,margin:"0 auto"}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:18}}>
+              <div style={{fontSize:20,fontWeight:800}}>🔔 Notifications</div>
+              {unreadNotifCount>0&&<button onClick={markAllNotifsRead} style={{background:"transparent",border:"none",color:C.accent,fontWeight:700,fontSize:13,cursor:"pointer",textDecoration:"underline"}}>Mark all as read</button>}
+            </div>
+            {notifications.length===0?(
+              <div style={{textAlign:"center",padding:"40px 20px",color:C.muted}}>
+                <div style={{fontSize:43,marginBottom:10}}>🔔</div>
+                <div>Nothing here yet</div>
+              </div>
+            ):(
+              <div style={{display:"flex",flexDirection:"column",gap:8}}>
+                {notifications.map(n=>(
+                  <div key={n.id} onClick={()=>{markNotifRead(n.id);if(n.link?.tab)setTab(n.link.tab);}} style={{...S.dbx,background:n.read?C.surface:"#6B908015",borderColor:n.read?C.border:C.accent,cursor:"pointer"}}>
+                    <div style={{display:"flex",justifyContent:"space-between",gap:8}}>
+                      <div style={{fontWeight:n.read?600:800,fontSize:14}}>{n.title}</div>
+                      {!n.read&&<span style={{width:8,height:8,borderRadius:"50%",background:C.accent,flexShrink:0,marginTop:5}}/>}
+                    </div>
+                    <div style={{fontSize:13,color:C.muted,marginTop:2}}>{n.body}</div>
+                    <div style={{fontSize:11,color:C.dim,marginTop:4}}>{n.createdAt?.toDate?.()?.toLocaleString?.()||""}</div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
         {/* EDIT PROFILE */}
         {tab==="profile"&&user&&(
           <div style={{maxWidth:420,margin:"0 auto"}}>
@@ -1749,10 +2029,31 @@ function App(){
             <button style={{width:"100%",padding:"12px",background:"#58815722",border:"1px solid #58815755",color:C.green,borderRadius:9,fontSize:16,fontWeight:800,cursor:"pointer"}} onClick={()=>window.open(`tel:${selected.phone}`)}>📞 {tr("callOwnerBtn")}</button>
             <button style={{width:"100%",padding:"12px",background:"#25D36622",border:"1px solid #25D36644",color:"#25D366",borderRadius:9,fontSize:16,fontWeight:800,cursor:"pointer",marginTop:7}} onClick={()=>window.open(`https://wa.me/91${selected.phone}`)}>💬 {tr("whatsappOwnerBtn")}</button>
             <button style={{width:"100%",padding:"12px",background:"#3498DB22",border:"1px solid #3498DB44",color:"#3498DB",borderRadius:9,fontSize:16,fontWeight:800,cursor:"pointer",marginTop:7}} onClick={()=>{const addr=(selected.area?selected.area+", ":"")+selected.location+(selected.pincode?" "+selected.pincode:"");window.open("https://www.google.com/maps/search/?api=1&query="+encodeURIComponent(addr));}}>📍 {tr("viewOnMapBtn")}</button>
-            {user&&selected.ownerId&&selected.ownerId!==user.uid&&(
+            {user&&selected.ownerId&&selected.ownerId!==user.uid&&(<>
               <button style={{width:"100%",padding:"12px",background:"#B0896822",border:"1px solid #B0896844",color:C.accentG,borderRadius:9,fontSize:16,fontWeight:800,cursor:"pointer",marginTop:7}} onClick={()=>openChat(selected)}>💬 Message Owner</button>
-            )}
+              <button style={{width:"100%",padding:"12px",background:"#8A9A5B22",border:"1px solid #8A9A5B55",color:"#5f6b40",borderRadius:9,fontSize:16,fontWeight:800,cursor:"pointer",marginTop:7}} onClick={()=>{setVisitModal(selected);setVisitForm({date:"",time:"",message:""});}}>📅 Schedule Visit</button>
+            </>)}
             <button style={{width:"100%",padding:"12px",background:C.card,border:`1px solid ${C.border}`,color:C.text,borderRadius:9,fontSize:16,fontWeight:800,cursor:"pointer",marginTop:7}} onClick={()=>shareListing(selected)}>🔗 Share this Listing</button>
+          </div>
+        </div>
+      )}
+
+      {/* SCHEDULE VISIT MODAL */}
+      {visitModal&&(
+        <div style={{position:"fixed",inset:0,background:"#00000055",backdropFilter:"blur(5px)",zIndex:210,display:"flex",alignItems:"center",justifyContent:"center",padding:14}} onClick={()=>setVisitModal(null)}>
+          <div style={{background:C.surface,borderRadius:16,border:`1px solid ${C.border}`,padding:20,maxWidth:420,width:"100%"}} onClick={e=>e.stopPropagation()}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
+              <div style={{fontSize:18,fontWeight:800}}>📅 Schedule a Visit</div>
+              <button style={{background:C.card,border:"none",color:C.muted,width:28,height:28,borderRadius:7,cursor:"pointer",fontSize:16}} onClick={()=>setVisitModal(null)}>✕</button>
+            </div>
+            <div style={{fontSize:13,color:C.muted,marginBottom:14}}>{visitModal.title} — {visitModal.location}</div>
+            <div style={S.row2}>
+              <div><div style={S.lbl}>Date *</div><input style={S.inp} type="date" min={todayStr()} value={visitForm.date} onChange={e=>setVisitForm(f=>({...f,date:e.target.value}))}/></div>
+              <div><div style={S.lbl}>Preferred Time *</div><input style={S.inp} type="time" value={visitForm.time} onChange={e=>setVisitForm(f=>({...f,time:e.target.value}))}/></div>
+            </div>
+            <div style={S.lbl}>Message to owner (optional)</div>
+            <input style={{...S.inp,marginBottom:14}} maxLength={300} placeholder="Anything the owner should know" value={visitForm.message} onChange={e=>setVisitForm(f=>({...f,message:e.target.value}))}/>
+            <button style={S.submitBtn} onClick={submitVisitRequest}>Send Visit Request</button>
           </div>
         </div>
       )}
@@ -1822,6 +2123,8 @@ function App(){
                   <button onClick={()=>{setTab("mylistings");setDrawerOpen(false);}} style={{textAlign:"left",padding:"10px 8px",background:"transparent",border:"none",borderRadius:8,color:C.text,fontSize:16,fontWeight:600,cursor:"pointer"}}>📋 {tr("myListings")}</button>
                   <button onClick={()=>{setTab("saved");setDrawerOpen(false);}} style={{textAlign:"left",padding:"10px 8px",background:"transparent",border:"none",borderRadius:8,color:C.text,fontSize:16,fontWeight:600,cursor:"pointer"}}>❤️ Saved Properties{savedDocs.length>0?` (${savedDocs.length})`:""}</button>
                   <button onClick={()=>{setTab("recent");setDrawerOpen(false);}} style={{textAlign:"left",padding:"10px 8px",background:"transparent",border:"none",borderRadius:8,color:C.text,fontSize:16,fontWeight:600,cursor:"pointer"}}>👀 Recently Viewed</button>
+                  <button onClick={()=>{setTab("visits");setDrawerOpen(false);}} style={{textAlign:"left",padding:"10px 8px",background:"transparent",border:"none",borderRadius:8,color:C.text,fontSize:16,fontWeight:600,cursor:"pointer"}}>📅 My Visits{(visitsAsOwner.length+visitsAsSeeker.length)>0?` (${visitsAsOwner.length+visitsAsSeeker.length})`:""}</button>
+                  <button onClick={()=>{setTab("notifications");setDrawerOpen(false);}} style={{textAlign:"left",padding:"10px 8px",background:"transparent",border:"none",borderRadius:8,color:C.text,fontSize:16,fontWeight:600,cursor:"pointer"}}>🔔 Notifications{unreadNotifCount>0?` (${unreadNotifCount})`:""}</button>
                   <button onClick={()=>{setTab("chatlist");setDrawerOpen(false);}} style={{textAlign:"left",padding:"10px 8px",background:"transparent",border:"none",borderRadius:8,color:C.text,fontSize:16,fontWeight:600,cursor:"pointer"}}>💬 {tr("messagesLabel")}{chats.length>0?` (${chats.length})`:""}</button>
                   <button onClick={()=>setLangPickerOpen(true)} style={{textAlign:"left",padding:"10px 8px",background:"transparent",border:"none",borderRadius:8,color:C.text,fontSize:16,fontWeight:600,cursor:"pointer"}}>🌐 {LANGS.find(l=>l.code===lang)?.native||"Language"}</button>
                   <button onClick={()=>{shareApp();setDrawerOpen(false);}} style={{textAlign:"left",padding:"10px 8px",background:"transparent",border:"none",borderRadius:8,color:C.text,fontSize:16,fontWeight:600,cursor:"pointer"}}>📤 {tr("shareApp")}</button>
