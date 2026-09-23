@@ -52,6 +52,35 @@ service cloud.firestore {
           && (!('photo' in d) || (d.photo is string && d.photo.size() <= 500));
     }
 
+    // ---- schedule visit ----
+    function validVisitFields() {
+      let d = request.resource.data;
+      return (!('date' in d) || (d.date is string && d.date.size() <= 20))
+          && (!('time' in d) || (d.time is string && d.time.size() <= 20))
+          && (!('message' in d) || (d.message is string && d.message.size() <= 300))
+          && (!('status' in d) || d.status in ['pending','confirmed','rejected','rescheduled','completed','cancelled'])
+          && (!('proposedDate' in d) || (d.proposedDate is string && d.proposedDate.size() <= 20))
+          && (!('proposedTime' in d) || (d.proposedTime is string && d.proposedTime.size() <= 20));
+    }
+
+    // ---- in-app notifications ----
+    // Written by the OTHER party to an event (e.g. a seeker requesting a
+    // visit writes into the owner's notifications subcollection), so create
+    // can't be restricted to "only the subcollection owner" the way saved/
+    // is — it's the same cross-user-write trust model already accepted for
+    // /chats/{chatId} creation. Kept narrow: sender is always attributable
+    // (senderId must match the caller), fields are tightly size-capped, and
+    // once created only the recipient can touch it, and only to flip `read`.
+    function validNotification() {
+      let d = request.resource.data;
+      return d.type is string && d.type.size() <= 40
+          && d.title is string && d.title.size() <= 120
+          && d.body is string && d.body.size() <= 300
+          && d.read == false
+          && d.senderId is string
+          && (!('link' in d) || d.link is map);
+    }
+
     match /listings/{id} {
       allow read: if true;
       allow create: if isSignedIn()
@@ -81,6 +110,40 @@ service cloud.firestore {
         allow read, delete: if isSignedIn() && request.auth.uid == uid;
         allow create, update: if isSignedIn() && request.auth.uid == uid && validSaved();
       }
+
+      match /notifications/{notifId} {
+        allow read, delete: if isSignedIn() && request.auth.uid == uid;
+        allow update: if isSignedIn() && request.auth.uid == uid
+                      && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read']);
+        allow create: if isSignedIn() && request.resource.data.senderId == request.auth.uid && validNotification();
+      }
+    }
+
+    match /visits/{visitId} {
+      allow read: if isSignedIn() && (request.auth.uid == resource.data.seekerId || request.auth.uid == resource.data.listingOwnerId);
+      allow create: if isSignedIn()
+                    && request.resource.data.seekerId == request.auth.uid
+                    && request.resource.data.listingOwnerId is string
+                    && request.resource.data.listingOwnerId != request.auth.uid // can't request a visit to your own listing
+                    && request.resource.data.listingId is string && request.resource.data.listingId.size() <= 200
+                    && request.resource.data.listingTitle is string && request.resource.data.listingTitle.size() <= 120
+                    && request.resource.data.seekerName is string && request.resource.data.seekerName.size() <= 80
+                    && request.resource.data.date is string && request.resource.data.date.size() <= 20
+                    && request.resource.data.time is string && request.resource.data.time.size() <= 20
+                    && request.resource.data.status == 'pending'
+                    && validVisitFields();
+      // Only the two fixed participants can update, and only the two of
+      // them — identity fields (who/which listing) are frozen post-create,
+      // same pattern as /chats/{chatId}.
+      allow update: if isSignedIn()
+                    && (request.auth.uid == resource.data.seekerId || request.auth.uid == resource.data.listingOwnerId)
+                    && request.resource.data.seekerId == resource.data.seekerId
+                    && request.resource.data.listingOwnerId == resource.data.listingOwnerId
+                    && request.resource.data.listingId == resource.data.listingId
+                    && request.resource.data.listingTitle == resource.data.listingTitle
+                    && request.resource.data.seekerName == resource.data.seekerName
+                    && validVisitFields();
+      allow delete: if false;
     }
 
     match /chats/{chatId} {
