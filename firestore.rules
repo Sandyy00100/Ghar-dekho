@@ -29,7 +29,27 @@ service cloud.firestore {
           // moving uploads behind a signed, server-verified flow.
           && (!('photos' in d) || (d.photos is list && d.photos.size() <= 10))
           && (!('amenities' in d) || (d.amenities is list && d.amenities.size() <= 30))
-          && (!('docs' in d) || (d.docs is list && d.docs.size() <= 20));
+          && (!('docs' in d) || (d.docs is list && d.docs.size() <= 20))
+          && (!('deposit' in d) || (d.deposit is number && d.deposit >= 0 && d.deposit <= 100000000))
+          && (!('negotiable' in d) || d.negotiable is bool)
+          && (!('status' in d) || d.status in ['available','rented','sold','unavailable'])
+          && (!('updatedAt' in d) || (d.updatedAt is string && d.updatedAt.size() <= 40));
+    }
+
+    // ---- saved/shortlisted properties ----
+    // A small denormalized snapshot (not just the listing id) so "Saved
+    // Properties" still shows something if the listing is later deleted,
+    // matching the ownerName/ownerPicture denormalization already used on
+    // listings themselves.
+    function validSaved() {
+      let d = request.resource.data;
+      return d.listingId is string && d.listingId.size() <= 200
+          && d.title is string && d.title.size() <= 120
+          && d.price is number && d.price >= 0 && d.price <= 100000000
+          && d.category is string && d.category.size() <= 20
+          && (!('roomType' in d) || (d.roomType is string && d.roomType.size() <= 20))
+          && d.location is string && d.location.size() <= 120
+          && (!('photo' in d) || (d.photo is string && d.photo.size() <= 500));
     }
 
     match /listings/{id} {
@@ -56,6 +76,11 @@ service cloud.firestore {
                     && (!('name' in request.resource.data) || (request.resource.data.name is string && request.resource.data.name.size() <= 80))
                     && (!('bio' in request.resource.data) || (request.resource.data.bio is string && request.resource.data.bio.size() <= 300));
       allow delete: if isSignedIn() && request.auth.uid == uid;
+
+      match /saved/{listingId} {
+        allow read, delete: if isSignedIn() && request.auth.uid == uid;
+        allow create, update: if isSignedIn() && request.auth.uid == uid && validSaved();
+      }
     }
 
     match /chats/{chatId} {
