@@ -804,37 +804,37 @@ function App(){
     return unsub;
   },[]);
 
-  useEffect(()=>{
-    auth.getRedirectResult().then(async(result)=>{
-      if(!result||!result.user)return;
+  // signInWithPopup instead of signInWithRedirect: the redirect flow sends
+  // the whole page to accounts.google.com and depends on Firebase handing
+  // the result back via storage shared with the firebaseapp.com auth
+  // domain — a different origin than this app's own domain. Chrome
+  // increasingly partitions/blocks that kind of cross-origin storage, which
+  // matched the exact symptom reported: Google's own consent screen worked
+  // fine, but the return trip silently lost the result with no error. A
+  // popup never navigates the app away, so there's no cross-origin handoff
+  // to lose.
+  const signInWithGoogle=async()=>{
+    setAuthError("");
+    try{
+      const result=await auth.signInWithPopup(googleProvider);
       const fbUser=result.user;
       setDrawerOpen(false);
-      try{
-        const token=await fbUser.getIdToken();
-        const res=await fetch(`${BASE}/users/${fbUser.uid}?key=${KEY}`,{headers:{Authorization:`Bearer ${token}`}});
-        if(res.ok){
-          setTab("browse");
-        }else{
-          setAuthForm(f=>({...f,name:fbUser.displayName||""}));
-          setIsNewUser(true);
-          setAuthStep("profile");
-          setTab("login");
-        }
-      }catch(e){
-        const text=(e.message||"Google sign-in failed").replace("Firebase: ","");
-        setAuthError(text);setTab("login");msg("❌ Google sign-in: "+text,"err");
+      const token=await fbUser.getIdToken();
+      const res=await fetch(`${BASE}/users/${fbUser.uid}?key=${KEY}`,{headers:{Authorization:`Bearer ${token}`}});
+      if(res.ok){
+        setTab("browse");
+      }else{
+        setAuthForm(f=>({...f,name:fbUser.displayName||""}));
+        setIsNewUser(true);
+        setAuthStep("profile");
+        setTab("login");
       }
-    }).catch(e=>{
+    }catch(e){
+      // Not real errors — the user just backed out of the popup.
+      if(e.code==="auth/popup-closed-by-user"||e.code==="auth/cancelled-popup-request")return;
       const text=(e.message||"Google sign-in failed").replace("Firebase: ","");
-      setDrawerOpen(false);setAuthError(text);setTab("login");msg("❌ Google sign-in: "+text,"err");
-    });
-  },[]);
-
-  const signInWithGoogle=()=>{
-    setAuthError("");
-    auth.signInWithRedirect(googleProvider).catch(e=>{
-      setAuthError((e.message||"Could not start Google sign-in").replace("Firebase: ",""));
-    });
+      setAuthError(text);msg("❌ Google sign-in: "+text,"err");
+    }
   };
 
   const authHeader=async()=>{
