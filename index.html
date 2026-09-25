@@ -295,13 +295,11 @@ function App(){
   const[chatText,setChatText]=useState("");
   const[chatSending,setChatSending]=useState(false);
   const[user,setUser]=useState(null);
-  const[authStep,setAuthStep]=useState("phone");
-  const[authForm,setAuthForm]=useState({name:"",phone:"",otp:"",role:"seeker"});
-  const[confirmResult,setConfirmResult]=useState(null);
+  const[authStep,setAuthStep]=useState("form");
+  const[authForm,setAuthForm]=useState({name:"",role:"seeker"});
   const[isNewUser,setIsNewUser]=useState(false);
   const[authError,setAuthError]=useState("");
   const[authBusy,setAuthBusy]=useState(false);
-  const[authMode,setAuthMode]=useState("phone");
   const[emailMode,setEmailMode]=useState("login");
   const[emailForm,setEmailForm]=useState({name:"",email:"",password:"",role:"seeker"});
   const[drawerOpen,setDrawerOpen]=useState(false);
@@ -845,50 +843,6 @@ function App(){
     return{Authorization:`Bearer ${token}`};
   };
 
-  const setupRecaptcha=()=>{
-    if(window.recaptchaVerifier)return window.recaptchaVerifier;
-    window.recaptchaVerifier=new firebase.auth.RecaptchaVerifier("recaptcha-container",{size:"invisible"});
-    return window.recaptchaVerifier;
-  };
-
-  const sendOtp=async()=>{
-    const digits=(authForm.phone||"").replace(/[^0-9]/g,"");
-    if(digits.length!==10){setAuthError("Enter a valid 10-digit mobile number");return;}
-    setAuthBusy(true);setAuthError("");
-    try{
-      const verifier=setupRecaptcha();
-      const result=await auth.signInWithPhoneNumber("+91"+digits,verifier);
-      setConfirmResult(result);
-      setAuthStep("otp");
-    }catch(e){
-      setAuthError((e.message||"Could not send OTP").replace("Firebase: ",""));
-      if(window.recaptchaVerifier){try{window.recaptchaVerifier.clear();}catch(x){}window.recaptchaVerifier=null;}
-    }
-    setAuthBusy(false);
-  };
-
-  const verifyOtp=async()=>{
-    const code=(authForm.otp||"").replace(/[^0-9]/g,"");
-    if(code.length<6){setAuthError("Enter the 6-digit OTP");return;}
-    if(!confirmResult){setAuthError("Please request a new OTP");return;}
-    setAuthBusy(true);setAuthError("");
-    try{
-      const cred=await confirmResult.confirm(code);
-      const token=await cred.user.getIdToken();
-      const res=await fetch(`${BASE}/users/${cred.user.uid}?key=${KEY}`,{headers:{Authorization:`Bearer ${token}`}});
-      if(res.ok){
-        setAuthForm({name:"",phone:"",otp:"",role:"seeker"});
-        setAuthStep("phone");
-        setConfirmResult(null);
-        setTab("browse");
-      }else{
-        setIsNewUser(true);
-        setAuthStep("profile");
-      }
-    }catch(e){setAuthError((e.message||"Invalid OTP").replace("Firebase: ",""));}
-    setAuthBusy(false);
-  };
-
   const completeSignup=async()=>{
     if(!authForm.name.trim()){setAuthError("Please enter your name");return;}
     setAuthBusy(true);setAuthError("");
@@ -896,9 +850,8 @@ function App(){
       const fbUser=auth.currentUser;
       await db.collection("users").doc(fbUser.uid).set({name:authForm.name.trim(),phone:fbUser.phoneNumber||"",email:fbUser.email||"",role:authForm.role},{merge:true});
       setUser(u=>({...(u||{}),uid:fbUser.uid,name:authForm.name.trim(),role:authForm.role,phone:fbUser.phoneNumber||""}));
-      setAuthForm({name:"",phone:"",otp:"",role:"seeker"});
-      setAuthStep("phone");
-      setConfirmResult(null);
+      setAuthForm({name:"",role:"seeker"});
+      setAuthStep("form");
       setIsNewUser(false);
       setTab("browse");
     }catch(e){setAuthError((e.message||"Could not save profile").replace("Firebase: ",""));}
@@ -939,7 +892,7 @@ function App(){
     setAuthBusy(false);
   };
 
-  const doLogout=()=>{auth.signOut();setTab("browse");setDrawerOpen(false);setAuthStep("phone");setConfirmResult(null);setAuthMode("phone");};
+  const doLogout=()=>{auth.signOut();setTab("browse");setDrawerOpen(false);setAuthStep("form");};
 
   const handleProfilePic=async(e)=>{
     const file=e.target.files&&e.target.files[0];
@@ -1798,7 +1751,7 @@ function App(){
           <div style={{maxWidth:420,margin:"0 auto"}}>
             <div style={{textAlign:"center",marginBottom:20}}>
               <div style={{fontSize:24,fontWeight:800}}>{authStep==="profile"?"Almost done!":tr("welcomeApp")}</div>
-              <div style={{fontSize:14,color:C.muted}}>{authStep==="profile"?"Tell us a bit about yourself":authMode==="phone"?(authStep==="phone"?tr("loginPromptPhone"):"Enter the code we sent you"):(emailMode==="signup"?"Create an account with your email":"Login with your email and password")}</div>
+              <div style={{fontSize:14,color:C.muted}}>{authStep==="profile"?"Tell us a bit about yourself":(emailMode==="signup"?"Create an account with your email":"Login with your email and password")}</div>
             </div>
             <div style={{background:C.surface,borderRadius:15,border:`1px solid ${C.border}`,padding:20}}>
               {authStep!=="profile"&&(<>
@@ -1808,35 +1761,6 @@ function App(){
                 <div style={{display:"flex",alignItems:"center",gap:10,margin:"4px 0 14px",color:C.dim,fontSize:12}}>
                   <div style={{flex:1,height:1,background:C.border}}/>or<div style={{flex:1,height:1,background:C.border}}/>
                 </div>
-                <div style={{display:"flex",gap:8,marginBottom:16}}>
-                  <button onClick={()=>{setAuthMode("phone");setAuthError("");}} style={{flex:1,padding:9,borderRadius:9,border:`2px solid ${authMode==="phone"?C.accent:C.border}`,background:authMode==="phone"?"#6B908022":C.card,color:authMode==="phone"?C.accent:C.muted,fontWeight:700,cursor:"pointer",fontSize:13}}>📱 {tr("phoneTab")}</button>
-                  <button onClick={()=>{setAuthMode("email");setAuthError("");}} style={{flex:1,padding:9,borderRadius:9,border:`2px solid ${authMode==="email"?C.accent:C.border}`,background:authMode==="email"?"#6B908022":C.card,color:authMode==="email"?C.accent:C.muted,fontWeight:700,cursor:"pointer",fontSize:13}}>✉️ {tr("emailTab")}</button>
-                </div>
-              </>)}
-              {authMode==="phone"&&authStep==="phone"&&(<>
-                <div style={S.lbl}>Mobile Number</div>
-                <div style={{display:"flex",gap:8,alignItems:"center"}}>
-                  <div style={{padding:"10px 12px",background:C.card,border:`1px solid ${C.border}`,borderRadius:8,fontSize:16,fontWeight:700}}>+91</div>
-                  <input style={S.inp} type="tel" placeholder="10-digit number" value={authForm.phone} onChange={e=>setAuthForm(f=>({...f,phone:e.target.value.replace(/[^0-9]/g,"").slice(0,10)}))}/>
-                </div>
-                {authError&&<div style={{color:"#E74C3C",fontSize:13,marginTop:10}}>{authError}</div>}
-                <button disabled={authBusy} onClick={sendOtp} style={{...S.submitBtn,opacity:authBusy?0.7:1,cursor:authBusy?"not-allowed":"pointer"}}>
-                  {authBusy?"⏳ Sending OTP...":<>📲 {tr("sendOtp")}</>}
-                </button>
-              </>)}
-
-              {authMode==="phone"&&authStep==="otp"&&(<>
-                <div style={{fontSize:13,color:C.muted,marginBottom:12}}>OTP sent to +91 {authForm.phone}</div>
-                <div style={S.lbl}>6-Digit OTP</div>
-                <input style={{...S.inp,letterSpacing:6,fontWeight:700,textAlign:"center"}} type="tel" placeholder="______" value={authForm.otp} onChange={e=>setAuthForm(f=>({...f,otp:e.target.value.replace(/[^0-9]/g,"").slice(0,6)}))}/>
-                {authError&&<div style={{color:"#E74C3C",fontSize:13,marginTop:10}}>{authError}</div>}
-                <button disabled={authBusy} onClick={verifyOtp} style={{...S.submitBtn,opacity:authBusy?0.7:1,cursor:authBusy?"not-allowed":"pointer"}}>
-                  {authBusy?"⏳ Verifying...":"✅ Verify & Continue"}
-                </button>
-                <button onClick={()=>{setAuthStep("phone");setAuthForm(f=>({...f,otp:""}));setAuthError("");setConfirmResult(null);}} style={{width:"100%",padding:"10px",background:"transparent",border:"none",color:C.muted,fontSize:14,cursor:"pointer",marginTop:8,textDecoration:"underline"}}>Change number</button>
-              </>)}
-
-              {authMode==="email"&&authStep!=="profile"&&(<>
                 <div style={{display:"flex",gap:8,marginBottom:14}}>
                   <button onClick={()=>{setEmailMode("login");setAuthError("");}} style={{flex:1,padding:8,borderRadius:8,border:"none",background:emailMode==="login"?C.accent:C.card,color:emailMode==="login"?"#fff":C.muted,fontWeight:700,cursor:"pointer",fontSize:13}}>Login</button>
                   <button onClick={()=>{setEmailMode("signup");setAuthError("");}} style={{flex:1,padding:8,borderRadius:8,border:"none",background:emailMode==="signup"?C.accent:C.card,color:emailMode==="signup"?"#fff":C.muted,fontWeight:700,cursor:"pointer",fontSize:13}}>Sign Up</button>
@@ -1880,7 +1804,6 @@ function App(){
                 By continuing you agree to our <span style={{color:C.accent,fontWeight:700,cursor:"pointer"}} onClick={()=>setTab("terms")}>Terms & Conditions</span>
               </div>
             </div>
-            <div id="recaptcha-container"></div>
           </div>
         )}
 
