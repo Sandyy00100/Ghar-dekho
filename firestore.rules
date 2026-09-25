@@ -3,6 +3,16 @@ service cloud.firestore {
   match /databases/{database}/documents {
 
     function isSignedIn() { return request.auth != null; }
+    // isAdmin is only ever true if it was set directly in the Firebase
+    // Console — see the create/update rules on /users/{uid} below, which
+    // never let a client set or change this field on any account, their
+    // own included. Costs one extra document read wherever it's used.
+    function isAdmin() {
+      return isSignedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
+    }
+    function isSuspended(uid) {
+      return get(/databases/$(database)/documents/users/$(uid)).data.suspended == true;
+    }
 
     // ---- listings ----
     // Field-shape validation added: without this, any signed-in user (trivial
@@ -85,11 +95,12 @@ service cloud.firestore {
       allow read: if true;
       allow create: if isSignedIn()
                     && request.resource.data.ownerId == request.auth.uid
+                    && !isSuspended(request.auth.uid)
                     && validListing();
       allow update: if isSignedIn() && resource.data.ownerId == request.auth.uid
                     && request.resource.data.ownerId == resource.data.ownerId // can't reassign to someone else
                     && validListing();
-      allow delete: if isSignedIn() && resource.data.ownerId == request.auth.uid;
+      allow delete: if isSignedIn() && (resource.data.ownerId == request.auth.uid || isAdmin());
     }
 
     match /users/{uid} {
@@ -97,13 +108,27 @@ service cloud.firestore {
       // their own ownerName/phone — so the correct rule today is self-only. If you later build a
       // public "view owner" page, expose a separate, smaller `publicProfiles` collection instead of
       // reopening this one.
-      allow get: if isSignedIn() && request.auth.uid == uid;
-      allow list: if false;
-      allow create: if isSignedIn() && request.auth.uid == uid;
-      allow update: if isSignedIn() && request.auth.uid == uid
-                    && request.resource.data.role == resource.data.role // role fixed at creation
-                    && (!('name' in request.resource.data) || (request.resource.data.name is string && request.resource.data.name.size() <= 80))
-                    && (!('bio' in request.resource.data) || (request.resource.data.bio is string && request.resource.data.bio.size() <= 300));
+      allow get: if isSignedIn() && (request.auth.uid == uid || isAdmin());
+      // Only an admin can list every profile (powers the Admin Dashboard's
+      // user list) — everyone else stays self-read-only, as before.
+      allow list: if isAdmin();
+      allow create: if isSignedIn() && request.auth.uid == uid
+                    && request.resource.data.role in ['owner','seeker'] // 'admin' can never be self-assigned, even at signup
+                    && !('isAdmin' in request.resource.data);
+      // Self-update keeps the existing shape checks and can never touch
+      // isAdmin. A separate admin-only branch can flip `suspended` on ANY
+      // account (never their own) but nothing else — this is the entire
+      // moderation surface an admin has over another user's profile.
+      allow update: if isSignedIn() && (
+        (request.auth.uid == uid
+          && request.resource.data.role == resource.data.role // role fixed at creation
+          && (!('isAdmin' in request.resource.data) || request.resource.data.isAdmin == resource.data.isAdmin)
+          && (!('name' in request.resource.data) || (request.resource.data.name is string && request.resource.data.name.size() <= 80))
+          && (!('bio' in request.resource.data) || (request.resource.data.bio is string && request.resource.data.bio.size() <= 300)))
+        || (isAdmin() && request.auth.uid != uid
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['suspended'])
+          && request.resource.data.suspended is bool)
+      );
       allow delete: if isSignedIn() && request.auth.uid == uid;
 
       match /saved/{listingId} {
