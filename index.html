@@ -929,7 +929,7 @@ function App(){
     const email=(emailForm.email||"").trim();
     if(!emailForm.name.trim()){setAuthError("Please enter your name");return;}
     if(!email||!emailForm.password){setAuthError("Enter email and password");return;}
-    if(emailForm.password.length<6){setAuthError("Password must be at least 6 characters");return;}
+    if(emailForm.password.length<8){setAuthError("Password must be at least 8 characters");return;}
     setAuthBusy(true);setAuthError("");
     try{
       const cred=await auth.createUserWithEmailAndPassword(email,emailForm.password);
@@ -1881,7 +1881,7 @@ function App(){
                 <div style={S.lbl}>Email</div>
                 <input style={{...S.inp,marginBottom:10}} type="email" placeholder="you@example.com" value={emailForm.email} onChange={e=>setEmailForm(f=>({...f,email:e.target.value}))}/>
                 <div style={S.lbl}>Password</div>
-                <input style={S.inp} type="password" placeholder={emailMode==="signup"?"At least 6 characters":"Your password"} value={emailForm.password} onChange={e=>setEmailForm(f=>({...f,password:e.target.value}))}/>
+                <input style={S.inp} type="password" placeholder={emailMode==="signup"?"At least 8 characters":"Your password"} value={emailForm.password} onChange={e=>setEmailForm(f=>({...f,password:e.target.value}))}/>
                 {emailMode==="signup"&&(<>
                   <div style={{...S.lbl,marginTop:10}}>I am a</div>
                   <div style={{display:"flex",gap:8,marginBottom:4}}>
