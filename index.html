@@ -321,6 +321,10 @@ function App(){
   const[reschedulingId,setReschedulingId]=useState(null);
   const[rescheduleForm,setRescheduleForm]=useState({date:"",time:""});
   const[notifications,setNotifications]=useState([]);
+  const[allUsers,setAllUsers]=useState([]);
+  const[adminUsersLoaded,setAdminUsersLoaded]=useState(false);
+  const[adminTab,setAdminTab]=useState("listings");
+  const[adminSearch,setAdminSearch]=useState("");
 
   const msg=(text,type="ok")=>{setToast({text,type});setTimeout(()=>setToast(null),3500);};
   const upd=(k,v)=>setForm(f=>({...f,[k]:v}));
@@ -652,6 +656,50 @@ function App(){
     }catch(e){msg("❌ Could not update status: "+e.message,"err");}
   };
 
+  // ---- Admin dashboard ----
+  // Everything here only succeeds against Firestore because the rules
+  // separately check isAdmin() server-side — these functions don't grant
+  // any access themselves, they just call operations the rules already
+  // allow for an admin account. isAdmin is never client-settable; see
+  // firestore.rules.
+  const loadAllUsers=async()=>{
+    if(!user?.isAdmin)return;
+    try{
+      const snap=await db.collection("users").get();
+      setAllUsers(snap.docs.map(d=>({uid:d.id,...d.data()})));
+      setAdminUsersLoaded(true);
+    }catch(e){msg("❌ Could not load users: "+e.message,"err");}
+  };
+
+  // The client SDK can only ever delete/disable the CURRENTLY signed-in
+  // account — there's no way to revoke someone else's login without a
+  // Cloud Function (Admin SDK), which this project doesn't have. So
+  // "suspend" is the real moderation lever here: it blocks the account
+  // from posting new listings (enforced in firestore.rules) and, when
+  // suspending, pulls its existing listings out of Browse by marking them
+  // unavailable — the same status field owners already use themselves.
+  // Un-suspending does NOT restore those listings automatically; the
+  // owner (or an admin) still has to review and re-list them one by one.
+  const suspendUser=async(targetUid,suspended)=>{
+    if(!user?.isAdmin||targetUid===user.uid)return;
+    try{
+      await db.collection("users").doc(targetUid).update({suspended});
+      setAllUsers(us=>us.map(u=>u.uid===targetUid?{...u,suspended}:u));
+      if(suspended){
+        const theirListings=listings.filter(l=>l.ownerId===targetUid&&(l.status||"available")==="available");
+        await Promise.all(theirListings.map(l=>
+          db.collection("listings").doc(l.id).set({status:"unavailable",updatedAt:new Date().toISOString()},{merge:true})
+        ));
+        if(theirListings.length>0)await load();
+      }
+      msg(suspended?"🚫 User suspended":"✅ User unsuspended");
+    }catch(e){msg("❌ Could not update user: "+e.message,"err");}
+  };
+
+  useEffect(()=>{
+    if(tab==="admin"&&user?.isAdmin&&!adminUsersLoaded)loadAllUsers();
+  },[tab,user]);
+
   // ---- In-app notifications ----
   // Scoped deliberately: only visit-related events write a notification here.
   // New chat messages already surface via the Messages badge in the drawer,
@@ -788,7 +836,7 @@ function App(){
           const res=await fetch(`${BASE}/users/${fbUser.uid}?key=${KEY}`,{headers:{Authorization:`Bearer ${token}`}});
           if(res.ok){
             const profile=fromFS(await res.json());
-            const u={uid:fbUser.uid,phone:profile.phone||fbUser.phoneNumber||"",name:profile.name||fbUser.phoneNumber||"User",role:profile.role||"seeker",picture:profile.picture||"",bio:profile.bio||""};
+            const u={uid:fbUser.uid,phone:profile.phone||fbUser.phoneNumber||"",name:profile.name||fbUser.phoneNumber||"User",role:profile.role||"seeker",picture:profile.picture||"",bio:profile.bio||"",isAdmin:!!profile.isAdmin,suspended:!!profile.suspended};
             setUser(u);
             setProfileForm({name:u.name,phone:u.phone,bio:u.bio,picture:u.picture});
             if(profile.city){setMyLocation(profile.city);}
@@ -881,7 +929,7 @@ function App(){
     const email=(emailForm.email||"").trim();
     if(!emailForm.name.trim()){setAuthError("Please enter your name");return;}
     if(!email||!emailForm.password){setAuthError("Enter email and password");return;}
-    if(emailForm.password.length<6){setAuthError("Password must be at least 6 characters");return;}
+    if(emailForm.password.length<8){setAuthError("Password must be at least 8 characters");return;}
     setAuthBusy(true);setAuthError("");
     try{
       const cred=await auth.createUserWithEmailAndPassword(email,emailForm.password);
@@ -1712,6 +1760,61 @@ function App(){
           </div>
         )}
 
+        {/* ADMIN DASHBOARD */}
+        {tab==="admin"&&user?.isAdmin&&(
+          <div style={{maxWidth:800,margin:"0 auto"}}>
+            <div style={{marginBottom:18}}>
+              <div style={{fontSize:20,fontWeight:800,marginBottom:3}}>🛡️ Admin Dashboard</div>
+              <div style={{fontSize:13,color:C.muted}}>Visible only to your account</div>
+            </div>
+            <div style={{display:"flex",gap:8,marginBottom:16}}>
+              <button onClick={()=>setAdminTab("listings")} style={{flex:1,padding:9,borderRadius:9,border:`2px solid ${adminTab==="listings"?C.accent:C.border}`,background:adminTab==="listings"?"#6B908022":C.card,color:adminTab==="listings"?C.accent:C.muted,fontWeight:700,cursor:"pointer",fontSize:13}}>🏠 Listings ({listings.length})</button>
+              <button onClick={()=>{setAdminTab("users");if(!adminUsersLoaded)loadAllUsers();}} style={{flex:1,padding:9,borderRadius:9,border:`2px solid ${adminTab==="users"?C.accent:C.border}`,background:adminTab==="users"?"#6B908022":C.card,color:adminTab==="users"?C.accent:C.muted,fontWeight:700,cursor:"pointer",fontSize:13}}>👤 Users ({allUsers.length})</button>
+            </div>
+            <input style={{...S.inp,marginBottom:14}} placeholder={adminTab==="listings"?"Search by title, location or owner...":"Search by name, email or phone..."} value={adminSearch} onChange={e=>setAdminSearch(e.target.value)}/>
+
+            {adminTab==="listings"&&(()=>{
+              const q=adminSearch.toLowerCase();
+              const rows=listings.filter(l=>!q||[l.title,l.location,l.ownerName].some(s=>(s||"").toLowerCase().includes(q)));
+              return(
+                <div style={{display:"flex",flexDirection:"column",gap:8}}>
+                  {rows.length===0&&<div style={{textAlign:"center",padding:30,color:C.muted}}>No listings match</div>}
+                  {rows.map(l=>(
+                    <div key={l.id} style={{...S.dbx,display:"flex",justifyContent:"space-between",alignItems:"center",gap:10}}>
+                      <div style={{minWidth:0}}>
+                        <div style={{fontWeight:700,fontSize:14,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{l.title}</div>
+                        <div style={{fontSize:12,color:C.muted}}>₹{Number(l.price).toLocaleString()} • {l.location} • by {l.ownerName||"—"} • {STATUS_OPTS.find(s=>s.id===(l.status||"available"))?.label||l.status}</div>
+                      </div>
+                      <button onClick={()=>deleteListing(l.id)} style={{flexShrink:0,padding:"7px 12px",background:"#E74C3C22",border:"1px solid #E74C3C44",color:"#E74C3C",borderRadius:7,fontSize:12,fontWeight:700,cursor:"pointer"}}>🗑️ Delete</button>
+                    </div>
+                  ))}
+                </div>
+              );
+            })()}
+
+            {adminTab==="users"&&(()=>{
+              const q=adminSearch.toLowerCase();
+              const rows=allUsers.filter(u=>!q||[u.name,u.email,u.phone].some(s=>(s||"").toLowerCase().includes(q)));
+              return(
+                <div style={{display:"flex",flexDirection:"column",gap:8}}>
+                  {rows.length===0&&<div style={{textAlign:"center",padding:30,color:C.muted}}>{adminUsersLoaded?"No users match":"Loading..."}</div>}
+                  {rows.map(u=>(
+                    <div key={u.uid} style={{...S.dbx,display:"flex",justifyContent:"space-between",alignItems:"center",gap:10}}>
+                      <div style={{minWidth:0}}>
+                        <div style={{fontWeight:700,fontSize:14}}>{u.name||"—"}{u.isAdmin?" 🛡️":""}{u.suspended?" 🚫":""}</div>
+                        <div style={{fontSize:12,color:C.muted,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{u.email||u.phone||"—"} • {u.role||"seeker"}</div>
+                      </div>
+                      {u.uid!==user.uid&&!u.isAdmin&&(
+                        <button onClick={()=>suspendUser(u.uid,!u.suspended)} style={{flexShrink:0,padding:"7px 12px",background:u.suspended?"#58815722":"#E74C3C22",border:`1px solid ${u.suspended?"#58815744":"#E74C3C44"}`,color:u.suspended?C.green:"#E74C3C",borderRadius:7,fontSize:12,fontWeight:700,cursor:"pointer"}}>{u.suspended?"✅ Unsuspend":"🚫 Suspend"}</button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              );
+            })()}
+          </div>
+        )}
+
         {/* EDIT PROFILE */}
         {tab==="profile"&&user&&(
           <div style={{maxWidth:420,margin:"0 auto"}}>
@@ -1778,7 +1881,7 @@ function App(){
                 <div style={S.lbl}>Email</div>
                 <input style={{...S.inp,marginBottom:10}} type="email" placeholder="you@example.com" value={emailForm.email} onChange={e=>setEmailForm(f=>({...f,email:e.target.value}))}/>
                 <div style={S.lbl}>Password</div>
-                <input style={S.inp} type="password" placeholder={emailMode==="signup"?"At least 6 characters":"Your password"} value={emailForm.password} onChange={e=>setEmailForm(f=>({...f,password:e.target.value}))}/>
+                <input style={S.inp} type="password" placeholder={emailMode==="signup"?"At least 8 characters":"Your password"} value={emailForm.password} onChange={e=>setEmailForm(f=>({...f,password:e.target.value}))}/>
                 {emailMode==="signup"&&(<>
                   <div style={{...S.lbl,marginTop:10}}>I am a</div>
                   <div style={{display:"flex",gap:8,marginBottom:4}}>
@@ -2054,6 +2157,9 @@ function App(){
                   <button onClick={()=>{setTab("recent");setDrawerOpen(false);}} style={{textAlign:"left",padding:"10px 8px",background:"transparent",border:"none",borderRadius:8,color:C.text,fontSize:16,fontWeight:600,cursor:"pointer"}}>👀 Recently Viewed</button>
                   <button onClick={()=>{setTab("visits");setDrawerOpen(false);}} style={{textAlign:"left",padding:"10px 8px",background:"transparent",border:"none",borderRadius:8,color:C.text,fontSize:16,fontWeight:600,cursor:"pointer"}}>📅 My Visits{(visitsAsOwner.length+visitsAsSeeker.length)>0?` (${visitsAsOwner.length+visitsAsSeeker.length})`:""}</button>
                   <button onClick={()=>{setTab("notifications");setDrawerOpen(false);}} style={{textAlign:"left",padding:"10px 8px",background:"transparent",border:"none",borderRadius:8,color:C.text,fontSize:16,fontWeight:600,cursor:"pointer"}}>🔔 Notifications{unreadNotifCount>0?` (${unreadNotifCount})`:""}</button>
+                  {user.isAdmin&&(
+                    <button onClick={()=>{setTab("admin");setDrawerOpen(false);}} style={{textAlign:"left",padding:"10px 8px",background:"transparent",border:"none",borderRadius:8,color:C.accentG,fontSize:16,fontWeight:700,cursor:"pointer"}}>🛡️ Admin Dashboard</button>
+                  )}
                   <button onClick={()=>{setTab("chatlist");setDrawerOpen(false);}} style={{textAlign:"left",padding:"10px 8px",background:"transparent",border:"none",borderRadius:8,color:C.text,fontSize:16,fontWeight:600,cursor:"pointer"}}>💬 {tr("messagesLabel")}{chats.length>0?` (${chats.length})`:""}</button>
                   <button onClick={()=>setLangPickerOpen(true)} style={{textAlign:"left",padding:"10px 8px",background:"transparent",border:"none",borderRadius:8,color:C.text,fontSize:16,fontWeight:600,cursor:"pointer"}}>🌐 {LANGS.find(l=>l.code===lang)?.native||"Language"}</button>
                   <button onClick={()=>{shareApp();setDrawerOpen(false);}} style={{textAlign:"left",padding:"10px 8px",background:"transparent",border:"none",borderRadius:8,color:C.text,fontSize:16,fontWeight:600,cursor:"pointer"}}>📤 {tr("shareApp")}</button>
