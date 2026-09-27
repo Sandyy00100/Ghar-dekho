@@ -583,6 +583,25 @@ function App(){
     return unsub;
   },[activeChat]);
 
+  // Mark the other person's messages seen while this chat is actually open —
+  // read receipts, not just a "delivered" state we can't really verify.
+  useEffect(()=>{
+    if(!activeChat||!user)return;
+    const unseen=chatMessages.filter(m=>m.senderId!==user.uid&&!m.seenAt);
+    if(unseen.length===0)return;
+    unseen.forEach(m=>{
+      db.collection("chats").doc(activeChat.id).collection("messages").doc(m.id)
+        .update({seenAt:firebase.firestore.FieldValue.serverTimestamp()}).catch(()=>{});
+    });
+  },[chatMessages,activeChat,user]);
+
+  const deleteMessage=async(messageId)=>{
+    if(!activeChat||!window.confirm("Delete this message?"))return;
+    try{
+      await db.collection("chats").doc(activeChat.id).collection("messages").doc(messageId).delete();
+    }catch(e){msg("❌ Could not delete — it may already be seen","err");}
+  };
+
   useEffect(()=>{
     if(!user){setChats([]);return;}
     const unsub=loadMyChats();
@@ -1023,7 +1042,7 @@ function App(){
     const q=search.toLowerCase();
     const cat=l.category||"rent";
     if(cat!==section)return false;
-    if(q&&![l.title,l.location,l.area].some(s=>(s||"").toLowerCase().includes(q)))return false;
+    if(q&&![l.title,l.location,l.area,l.pincode].some(s=>(s||"").toLowerCase().includes(q)))return false;
     if(filter!=="all"&&l.roomType!==filter)return false;
     if((l.status||"available")!=="available")return false; // sold/rented/unavailable stay out of normal browse results
     if(adv.minPrice&&Number(l.price)<Number(adv.minPrice))return false;
@@ -1673,7 +1692,7 @@ function App(){
                       <div style={{fontWeight:700,fontSize:15}}>{v.listingTitle}</div>
                       <span style={{fontSize:11,fontWeight:700,color:C.muted}}>{VISIT_STATUS_LABELS[v.status]||v.status}</span>
                     </div>
-                    <div style={{fontSize:13,color:C.text,marginBottom:4}}>👤 {v.seekerName} — 📆 {v.date} at {v.time}</div>
+                    <div style={{fontSize:13,color:C.text,marginBottom:4}}>👤 {v.seekerName} — {v.date} at {v.time}</div>
                     {v.message&&<div style={{fontSize:12,color:C.muted,marginBottom:6,fontStyle:"italic"}}>"{v.message}"</div>}
                     {v.status==="rescheduled"&&<div style={{fontSize:12,color:C.accentG,marginBottom:6}}>Waiting for seeker to respond to {v.proposedDate} at {v.proposedTime}</div>}
                     {v.status==="pending"&&(
@@ -1711,7 +1730,7 @@ function App(){
                       <div style={{fontWeight:700,fontSize:15}}>{v.listingTitle}</div>
                       <span style={{fontSize:11,fontWeight:700,color:C.muted}}>{VISIT_STATUS_LABELS[v.status]||v.status}</span>
                     </div>
-                    <div style={{fontSize:13,color:C.text,marginBottom:6}}>📆 {v.date} at {v.time}</div>
+                    <div style={{fontSize:13,color:C.text,marginBottom:6}}>{v.date} at {v.time}</div>
                     {v.status==="rescheduled"&&(
                       <div style={{marginBottom:6}}>
                         <div style={{fontSize:12,color:C.accentG,marginBottom:6}}>Owner suggested {v.proposedDate} at {v.proposedTime}</div>
@@ -1986,9 +2005,20 @@ function App(){
             <div style={{background:C.surface,borderRadius:15,border:`1px solid ${C.border}`,padding:14,minHeight:340,maxHeight:440,overflowY:"auto",display:"flex",flexDirection:"column",gap:8,marginBottom:12}}>
               {chatMessages.length===0?(
                 <div style={{margin:"auto",color:C.muted,fontSize:13,textAlign:"center"}}>Say hello 👋 to start the conversation</div>
-              ):chatMessages.map(m=>(
-                <div key={m.id} style={{alignSelf:m.senderId===user?.uid?"flex-end":"flex-start",maxWidth:"78%",background:m.senderId===user?.uid?`linear-gradient(135deg,${C.accent},${C.accentG})`:C.card,color:m.senderId===user?.uid?"#fff":C.text,padding:"9px 13px",borderRadius:13,fontSize:14,border:m.senderId===user?.uid?"none":`1px solid ${C.border}`}}>{m.text}</div>
-              ))}
+              ):chatMessages.map(m=>{
+                const mine=m.senderId===user?.uid;
+                return(
+                  <div key={m.id} style={{alignSelf:mine?"flex-end":"flex-start",maxWidth:"78%",display:"flex",flexDirection:"column",alignItems:mine?"flex-end":"flex-start"}}>
+                    <div style={{background:mine?`linear-gradient(135deg,${C.accent},${C.accentG})`:C.card,color:mine?"#fff":C.text,padding:"9px 13px",borderRadius:13,fontSize:14,border:mine?"none":`1px solid ${C.border}`}}>{m.text}</div>
+                    <div style={{display:"flex",alignItems:"center",gap:6,marginTop:2,padding:"0 4px"}}>
+                      {mine&&!m.seenAt&&(
+                        <span onClick={()=>deleteMessage(m.id)} style={{fontSize:11,color:C.dim,cursor:"pointer",textDecoration:"underline"}}>delete</span>
+                      )}
+                      {mine&&<span style={{fontSize:12,color:m.seenAt?"#3498DB":C.dim}}>{m.seenAt?"✓✓":"✓"}</span>}
+                    </div>
+                  </div>
+                );
+              })}
             </div>
             <div style={{display:"flex",gap:8}}>
               <input style={S.inp} maxLength={2000} placeholder="Type a message..." value={chatText} onChange={e=>setChatText(e.target.value)} onKeyDown={e=>{if(e.key==="Enter")sendChatMessage();}}/>

@@ -214,7 +214,18 @@ service cloud.firestore {
                     && request.resource.data.text is string
                     && request.resource.data.text.size() > 0
                     && request.resource.data.text.size() <= 2000;
-        allow update, delete: if false;
+        // Only the recipient (never the sender) can touch a message after
+        // it's created, and only to flip seenAt — a read receipt, not
+        // editable content. The sender can delete their own message, but
+        // only before seenAt exists: once the other person has actually
+        // seen it, it's permanent — that's the whole point of the receipt.
+        allow update: if isSignedIn()
+                    && request.auth.uid in get(/databases/$(database)/documents/chats/$(chatId)).data.participants
+                    && request.auth.uid != resource.data.senderId
+                    && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['seenAt']);
+        allow delete: if isSignedIn()
+                    && resource.data.senderId == request.auth.uid
+                    && !('seenAt' in resource.data);
       }
     }
   }
