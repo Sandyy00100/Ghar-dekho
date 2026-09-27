@@ -325,6 +325,8 @@ function App(){
   const[adminUsersLoaded,setAdminUsersLoaded]=useState(false);
   const[adminTab,setAdminTab]=useState("listings");
   const[adminSearch,setAdminSearch]=useState("");
+  const[adminUsersError,setAdminUsersError]=useState("");
+  const[adminUserDetail,setAdminUserDetail]=useState(null);
 
   const msg=(text,type="ok")=>{setToast({text,type});setTimeout(()=>setToast(null),3500);};
   const upd=(k,v)=>setForm(f=>({...f,[k]:v}));
@@ -683,11 +685,15 @@ function App(){
   // firestore.rules.
   const loadAllUsers=async()=>{
     if(!user?.isAdmin)return;
+    setAdminUsersError("");
     try{
       const snap=await db.collection("users").get();
       setAllUsers(snap.docs.map(d=>({uid:d.id,...d.data()})));
       setAdminUsersLoaded(true);
-    }catch(e){msg("❌ Could not load users: "+e.message,"err");}
+    }catch(e){
+      setAdminUsersError(e.message||"permission error");
+      msg("❌ Could not load users: "+e.message,"err");
+    }
   };
 
   // The client SDK can only ever delete/disable the CURRENTLY signed-in
@@ -1799,12 +1805,18 @@ function App(){
                 <div style={{display:"flex",flexDirection:"column",gap:8}}>
                   {rows.length===0&&<div style={{textAlign:"center",padding:30,color:C.muted}}>No listings match</div>}
                   {rows.map(l=>(
-                    <div key={l.id} style={{...S.dbx,display:"flex",justifyContent:"space-between",alignItems:"center",gap:10}}>
-                      <div style={{minWidth:0}}>
+                    <div key={l.id} onClick={()=>setSelected(l)} style={{...S.dbx,display:"flex",justifyContent:"space-between",alignItems:"center",gap:10,cursor:"pointer"}}>
+                      {l.photos&&l.photos.length>0?(
+                        <img src={l.photos[0]} style={{width:46,height:46,borderRadius:8,objectFit:"cover",flexShrink:0}}/>
+                      ):(
+                        <div style={{width:46,height:46,borderRadius:8,background:C.surface,display:"flex",alignItems:"center",justifyContent:"center",fontSize:22,flexShrink:0}}>{l.icon||"🏠"}</div>
+                      )}
+                      <div style={{minWidth:0,flex:1}}>
                         <div style={{fontWeight:700,fontSize:14,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{l.title}</div>
                         <div style={{fontSize:12,color:C.muted}}>₹{Number(l.price).toLocaleString()} • {l.location} • by {l.ownerName||"—"} • {STATUS_OPTS.find(s=>s.id===(l.status||"available"))?.label||l.status}</div>
+                        <div style={{fontSize:11,color:C.dim}}>{propertyCode(l.id)}</div>
                       </div>
-                      <button onClick={()=>deleteListing(l.id)} style={{flexShrink:0,padding:"7px 12px",background:"#E74C3C22",border:"1px solid #E74C3C44",color:"#E74C3C",borderRadius:7,fontSize:12,fontWeight:700,cursor:"pointer"}}>🗑️ Delete</button>
+                      <button onClick={e=>{e.stopPropagation();deleteListing(l.id);}} style={{flexShrink:0,padding:"7px 12px",background:"#E74C3C22",border:"1px solid #E74C3C44",color:"#E74C3C",borderRadius:7,fontSize:12,fontWeight:700,cursor:"pointer"}}>🗑️ Delete</button>
                     </div>
                   ))}
                 </div>
@@ -1816,15 +1828,27 @@ function App(){
               const rows=allUsers.filter(u=>!q||[u.name,u.email,u.phone].some(s=>(s||"").toLowerCase().includes(q)));
               return(
                 <div style={{display:"flex",flexDirection:"column",gap:8}}>
-                  {rows.length===0&&<div style={{textAlign:"center",padding:30,color:C.muted}}>{adminUsersLoaded?"No users match":"Loading..."}</div>}
+                  {adminUsersError&&(
+                    <div style={{textAlign:"center",padding:24,color:"#E74C3C",fontSize:13}}>
+                      <div style={{marginBottom:10}}>Couldn't load users: {adminUsersError}</div>
+                      <div style={{color:C.muted,marginBottom:12}}>If this says "permissions", the latest firestore.rules haven't been published in the Firebase console yet.</div>
+                      <button onClick={loadAllUsers} style={{padding:"7px 16px",background:C.accent,border:"none",color:"#fff",borderRadius:7,fontSize:13,fontWeight:700,cursor:"pointer"}}>Retry</button>
+                    </div>
+                  )}
+                  {!adminUsersError&&rows.length===0&&<div style={{textAlign:"center",padding:30,color:C.muted}}>{adminUsersLoaded?"No users match":"Loading..."}</div>}
                   {rows.map(u=>(
-                    <div key={u.uid} style={{...S.dbx,display:"flex",justifyContent:"space-between",alignItems:"center",gap:10}}>
-                      <div style={{minWidth:0}}>
+                    <div key={u.uid} onClick={()=>setAdminUserDetail(u.uid)} style={{...S.dbx,display:"flex",justifyContent:"space-between",alignItems:"center",gap:10,cursor:"pointer"}}>
+                      {u.picture?(
+                        <img src={u.picture} style={{width:40,height:40,borderRadius:"50%",objectFit:"cover",flexShrink:0}}/>
+                      ):(
+                        <div style={{width:40,height:40,borderRadius:"50%",background:`linear-gradient(135deg,${C.accent},${C.accentG})`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:17,fontWeight:800,color:"#fff",flexShrink:0}}>{(u.name||"?")[0].toUpperCase()}</div>
+                      )}
+                      <div style={{minWidth:0,flex:1}}>
                         <div style={{fontWeight:700,fontSize:14}}>{u.name||"—"}{u.isAdmin?" 🛡️":""}{u.suspended?" 🚫":""}</div>
-                        <div style={{fontSize:12,color:C.muted,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{u.email||u.phone||"—"} • {u.role||"seeker"}</div>
+                        <div style={{fontSize:12,color:C.muted,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{u.email||u.phone||"—"} • {u.role||"seeker"} • {listings.filter(l=>l.ownerId===u.uid).length} listings</div>
                       </div>
                       {u.uid!==user.uid&&!u.isAdmin&&(
-                        <button onClick={()=>suspendUser(u.uid,!u.suspended)} style={{flexShrink:0,padding:"7px 12px",background:u.suspended?"#58815722":"#E74C3C22",border:`1px solid ${u.suspended?"#58815744":"#E74C3C44"}`,color:u.suspended?C.green:"#E74C3C",borderRadius:7,fontSize:12,fontWeight:700,cursor:"pointer"}}>{u.suspended?"✅ Unsuspend":"🚫 Suspend"}</button>
+                        <button onClick={e=>{e.stopPropagation();suspendUser(u.uid,!u.suspended);}} style={{flexShrink:0,padding:"7px 12px",background:u.suspended?"#58815722":"#E74C3C22",border:`1px solid ${u.suspended?"#58815744":"#E74C3C44"}`,color:u.suspended?C.green:"#E74C3C",borderRadius:7,fontSize:12,fontWeight:700,cursor:"pointer"}}>{u.suspended?"✅ Unsuspend":"🚫 Suspend"}</button>
                       )}
                     </div>
                   ))}
@@ -2099,6 +2123,62 @@ function App(){
           </div>
         </div>
       )}
+
+      {/* ADMIN: USER DETAIL */}
+      {adminUserDetail&&user?.isAdmin&&(()=>{
+        const u=allUsers.find(x=>x.uid===adminUserDetail);
+        if(!u)return null;
+        const theirListings=listings.filter(l=>l.ownerId===u.uid);
+        const row=(label,val)=>(
+          <div style={{...S.dbx,marginBottom:7}}>
+            <div style={{fontSize:11,color:C.muted,textTransform:"uppercase",letterSpacing:1,marginBottom:3,fontWeight:600}}>{label}</div>
+            <div style={{fontSize:14,wordBreak:"break-all"}}>{val||"—"}</div>
+          </div>
+        );
+        return(
+          <div style={{position:"fixed",inset:0,background:"#00000055",backdropFilter:"blur(5px)",zIndex:195,display:"flex",alignItems:"center",justifyContent:"center",padding:14}} onClick={()=>setAdminUserDetail(null)}>
+            <div style={{background:C.surface,borderRadius:16,border:`1px solid ${C.border}`,padding:20,maxWidth:480,width:"100%",maxHeight:"90vh",overflowY:"auto"}} onClick={e=>e.stopPropagation()}>
+              <div style={{display:"flex",justifyContent:"flex-end"}}>
+                <button style={{background:C.card,border:"none",color:C.muted,width:28,height:28,borderRadius:7,cursor:"pointer",fontSize:16}} onClick={()=>setAdminUserDetail(null)}>✕</button>
+              </div>
+              <div style={{textAlign:"center",marginBottom:16}}>
+                {u.picture?(
+                  <img src={u.picture} onClick={()=>setLightbox({photos:[u.picture],index:0})} style={{width:92,height:92,borderRadius:"50%",objectFit:"cover",border:`3px solid ${C.border}`,margin:"0 auto 10px",cursor:"pointer",display:"block"}}/>
+                ):(
+                  <div style={{width:92,height:92,borderRadius:"50%",background:`linear-gradient(135deg,${C.accent},${C.accentG})`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:42,fontWeight:800,color:"#fff",margin:"0 auto 10px"}}>{(u.name||"?")[0].toUpperCase()}</div>
+                )}
+                <div style={{fontWeight:900,fontSize:20}}>{u.name||"—"}</div>
+                <div style={{display:"flex",gap:6,justifyContent:"center",flexWrap:"wrap",marginTop:6}}>
+                  <span style={S.badge(u.role==="owner"?C.accent:C.accentG)}>{u.role==="owner"?"🏠 Owner":"🔍 Seeker"}</span>
+                  {u.isAdmin&&<span style={S.badge("#3498DB")}>🛡️ Admin</span>}
+                  {u.suspended&&<span style={S.badge("#E74C3C")}>🚫 Suspended</span>}
+                </div>
+              </div>
+              {row("Email",u.email)}
+              {row("Phone",u.phone)}
+              {row("City",u.city)}
+              {row("Bio",u.bio)}
+              {row("User ID",u.uid)}
+              <div style={{...S.secTitle,marginTop:14}}>🏠 Their Listings ({theirListings.length})</div>
+              {theirListings.length===0?(
+                <div style={{fontSize:13,color:C.muted,marginBottom:12}}>No listings posted</div>
+              ):(
+                <div style={{display:"flex",flexDirection:"column",gap:6,marginBottom:12}}>
+                  {theirListings.map(l=>(
+                    <div key={l.id} onClick={()=>setSelected(l)} style={{...S.dbx,marginBottom:0,cursor:"pointer"}}>
+                      <div style={{fontWeight:700,fontSize:14}}>{l.title}</div>
+                      <div style={{fontSize:12,color:C.muted}}>₹{Number(l.price).toLocaleString()} • {l.location} • {STATUS_OPTS.find(s=>s.id===(l.status||"available"))?.label||l.status}</div>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {u.uid!==user.uid&&!u.isAdmin&&(
+                <button onClick={()=>suspendUser(u.uid,!u.suspended)} style={{...S.submitBtn,background:u.suspended?C.green:"#E74C3C"}}>{u.suspended?"✅ Unsuspend User":"🚫 Suspend User"}</button>
+              )}
+            </div>
+          </div>
+        );
+      })()}
 
       {/* SCHEDULE VISIT MODAL */}
       {visitModal&&(
