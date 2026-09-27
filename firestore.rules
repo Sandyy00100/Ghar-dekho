@@ -123,7 +123,8 @@ service cloud.firestore {
       allow list: if isAdmin();
       allow create: if isSignedIn() && request.auth.uid == uid
                     && request.resource.data.role in ['owner','seeker'] // 'admin' can never be self-assigned, even at signup
-                    && !('isAdmin' in request.resource.data);
+                    && !('isAdmin' in request.resource.data)
+                    && !('suspended' in request.resource.data);
       // Self-update keeps the existing shape checks and can never touch
       // isAdmin. A separate admin-only branch can flip `suspended` on ANY
       // account (never their own) but nothing else — this is the entire
@@ -131,14 +132,20 @@ service cloud.firestore {
       allow update: if isSignedIn() && (
         (request.auth.uid == uid
           && request.resource.data.role == resource.data.role // role fixed at creation
-          && (!('isAdmin' in request.resource.data) || request.resource.data.isAdmin == resource.data.isAdmin)
+          // Neither flag can be changed by the account itself — otherwise a
+          // suspended user could just write suspended:false on their own doc.
+          && request.resource.data.get('isAdmin', false) == resource.data.get('isAdmin', false)
+          && request.resource.data.get('suspended', false) == resource.data.get('suspended', false)
           && (!('name' in request.resource.data) || (request.resource.data.name is string && request.resource.data.name.size() <= 80))
           && (!('bio' in request.resource.data) || (request.resource.data.bio is string && request.resource.data.bio.size() <= 300)))
         || (isAdmin() && request.auth.uid != uid
           && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['suspended'])
           && request.resource.data.suspended is bool)
       );
-      allow delete: if isSignedIn() && request.auth.uid == uid;
+      // No client deletes of a profile — the app never does this, and
+      // allowing it would let a suspended user delete their doc and
+      // re-create it without the suspended flag.
+      allow delete: if false;
 
       match /saved/{listingId} {
         allow read, delete: if isSignedIn() && request.auth.uid == uid;
