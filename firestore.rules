@@ -3,6 +3,16 @@ service cloud.firestore {
   match /databases/{database}/documents {
 
     function isSignedIn() { return request.auth != null; }
+    // isAdmin is only ever true if it was set directly in the Firebase
+    // Console — see the create/update rules on /users/{uid} below, which
+    // never let a client set or change this field on any account, their
+    // own included. Costs one extra document read wherever it's used.
+    function isAdmin() {
+      return isSignedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
+    }
+    function isSuspended(uid) {
+      return get(/databases/$(database)/documents/users/$(uid)).data.suspended == true;
+    }
 
     // ---- listings ----
     // Field-shape validation added: without this, any signed-in user (trivial
@@ -85,11 +95,21 @@ service cloud.firestore {
       allow read: if true;
       allow create: if isSignedIn()
                     && request.resource.data.ownerId == request.auth.uid
+                    && !isSuspended(request.auth.uid)
                     && validListing();
-      allow update: if isSignedIn() && resource.data.ownerId == request.auth.uid
-                    && request.resource.data.ownerId == resource.data.ownerId // can't reassign to someone else
-                    && validListing();
-      allow delete: if isSignedIn() && resource.data.ownerId == request.auth.uid;
+      allow update: if isSignedIn() && (
+        (resource.data.ownerId == request.auth.uid
+          && request.resource.data.ownerId == resource.data.ownerId // can't reassign to someone else
+          && validListing())
+        // Admin can pull a listing out of Browse (via status) without deleting
+        // it outright — used when suspending a user — but can't touch its
+        // actual content (title/price/photos/etc), same restraint as the
+        // admin branch on /users/{uid} below.
+        || (isAdmin()
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status','updatedAt'])
+          && request.resource.data.status in ['available','rented','sold','unavailable'])
+      );
+      allow delete: if isSignedIn() && (resource.data.ownerId == request.auth.uid || isAdmin());
     }
 
     match /users/{uid} {
@@ -97,14 +117,35 @@ service cloud.firestore {
       // their own ownerName/phone — so the correct rule today is self-only. If you later build a
       // public "view owner" page, expose a separate, smaller `publicProfiles` collection instead of
       // reopening this one.
-      allow get: if isSignedIn() && request.auth.uid == uid;
-      allow list: if false;
-      allow create: if isSignedIn() && request.auth.uid == uid;
-      allow update: if isSignedIn() && request.auth.uid == uid
-                    && request.resource.data.role == resource.data.role // role fixed at creation
-                    && (!('name' in request.resource.data) || (request.resource.data.name is string && request.resource.data.name.size() <= 80))
-                    && (!('bio' in request.resource.data) || (request.resource.data.bio is string && request.resource.data.bio.size() <= 300));
-      allow delete: if isSignedIn() && request.auth.uid == uid;
+      allow get: if isSignedIn() && (request.auth.uid == uid || isAdmin());
+      // Only an admin can list every profile (powers the Admin Dashboard's
+      // user list) — everyone else stays self-read-only, as before.
+      allow list: if isAdmin();
+      allow create: if isSignedIn() && request.auth.uid == uid
+                    && request.resource.data.role in ['owner','seeker'] // 'admin' can never be self-assigned, even at signup
+                    && !('isAdmin' in request.resource.data)
+                    && !('suspended' in request.resource.data);
+      // Self-update keeps the existing shape checks and can never touch
+      // isAdmin. A separate admin-only branch can flip `suspended` on ANY
+      // account (never their own) but nothing else — this is the entire
+      // moderation surface an admin has over another user's profile.
+      allow update: if isSignedIn() && (
+        (request.auth.uid == uid
+          && request.resource.data.role == resource.data.role // role fixed at creation
+          // Neither flag can be changed by the account itself — otherwise a
+          // suspended user could just write suspended:false on their own doc.
+          && request.resource.data.get('isAdmin', false) == resource.data.get('isAdmin', false)
+          && request.resource.data.get('suspended', false) == resource.data.get('suspended', false)
+          && (!('name' in request.resource.data) || (request.resource.data.name is string && request.resource.data.name.size() <= 80))
+          && (!('bio' in request.resource.data) || (request.resource.data.bio is string && request.resource.data.bio.size() <= 300)))
+        || (isAdmin() && request.auth.uid != uid
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['suspended'])
+          && request.resource.data.suspended is bool)
+      );
+      // No client deletes of a profile — the app never does this, and
+      // allowing it would let a suspended user delete their doc and
+      // re-create it without the suspended flag.
+      allow delete: if false;
 
       match /saved/{listingId} {
         allow read, delete: if isSignedIn() && request.auth.uid == uid;
@@ -146,9 +187,21 @@ service cloud.firestore {
       allow delete: if false;
     }
 
+    // A chat's create had no shape checks at all — any signed-in user could
+    // write arbitrarily large listingTitle/names fields into a doc the
+    // other participant is forced to load every time their inbox opens.
+    function validChat() {
+      let d = request.resource.data;
+      return d.participants is list && d.participants.size() == 2
+          && d.listingId is string && d.listingId.size() <= 200
+          && d.listingTitle is string && d.listingTitle.size() <= 120
+          && d.names is map
+          && (!('lastMessage' in d) || (d.lastMessage is string && d.lastMessage.size() <= 2000));
+    }
+
     match /chats/{chatId} {
       allow read: if isSignedIn() && resource != null && request.auth.uid in resource.data.participants;
-      allow create: if isSignedIn() && request.auth.uid in request.resource.data.participants;
+      allow create: if isSignedIn() && request.auth.uid in request.resource.data.participants && validChat();
       // Previously only `participants` was locked, which let either side rewrite
       // `listingTitle`/`names` after creation — e.g. spoofing the other
       // participant's displayed name inside the chat UI. Now every field except
@@ -168,7 +221,18 @@ service cloud.firestore {
                     && request.resource.data.text is string
                     && request.resource.data.text.size() > 0
                     && request.resource.data.text.size() <= 2000;
-        allow update, delete: if false;
+        // Only the recipient (never the sender) can touch a message after
+        // it's created, and only to flip seenAt — a read receipt, not
+        // editable content. The sender can delete their own message, but
+        // only before seenAt exists: once the other person has actually
+        // seen it, it's permanent — that's the whole point of the receipt.
+        allow update: if isSignedIn()
+                    && request.auth.uid in get(/databases/$(database)/documents/chats/$(chatId)).data.participants
+                    && request.auth.uid != resource.data.senderId
+                    && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['seenAt']);
+        allow delete: if isSignedIn()
+                    && resource.data.senderId == request.auth.uid
+                    && !('seenAt' in resource.data);
       }
     }
   }
