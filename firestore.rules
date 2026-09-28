@@ -7,11 +7,18 @@ service cloud.firestore {
     // Console — see the create/update rules on /users/{uid} below, which
     // never let a client set or change this field on any account, their
     // own included. Costs one extra document read wherever it's used.
+    // Both use .get(field, default) and exists(): reading a field that isn't
+    // on the doc (almost every profile has no isAdmin/suspended) is an
+    // ERROR in rules, and an error means deny — which silently blocked every
+    // normal user from posting a listing.
     function isAdmin() {
-      return isSignedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
+      return isSignedIn()
+          && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+          && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('isAdmin', false) == true;
     }
     function isSuspended(uid) {
-      return get(/databases/$(database)/documents/users/$(uid)).data.suspended == true;
+      return exists(/databases/$(database)/documents/users/$(uid))
+          && get(/databases/$(database)/documents/users/$(uid)).data.get('suspended', false) == true;
     }
 
     // ---- listings ----
@@ -131,7 +138,7 @@ service cloud.firestore {
       // moderation surface an admin has over another user's profile.
       allow update: if isSignedIn() && (
         (request.auth.uid == uid
-          && request.resource.data.role == resource.data.role // role fixed at creation
+          && request.resource.data.get('role', '') == resource.data.get('role', '') // role fixed at creation
           // Neither flag can be changed by the account itself — otherwise a
           // suspended user could just write suspended:false on their own doc.
           && request.resource.data.get('isAdmin', false) == resource.data.get('isAdmin', false)
