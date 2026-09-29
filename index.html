@@ -327,6 +327,19 @@ function App(){
   const[adminSearch,setAdminSearch]=useState("");
   const[adminUsersError,setAdminUsersError]=useState("");
   const[adminUserDetail,setAdminUserDetail]=useState(null);
+  const[reports,setReports]=useState([]);
+  const[reportsLoaded,setReportsLoaded]=useState(false);
+  const[reportsError,setReportsError]=useState("");
+  const[reportModal,setReportModal]=useState(null);
+  const[reportForm,setReportForm]=useState({reason:"",details:""});
+  const[reportBusy,setReportBusy]=useState(false);
+  const[blockedDocs,setBlockedDocs]=useState([]);
+  const blockedIds=new Set(blockedDocs.map(d=>d.id));
+  const[deleteOpen,setDeleteOpen]=useState(false);
+  const[deletePw,setDeletePw]=useState("");
+  const[deleteConfirmText,setDeleteConfirmText]=useState("");
+  const[deleteBusy,setDeleteBusy]=useState("");
+  const[pendingDeleteLink,setPendingDeleteLink]=useState(()=>new URLSearchParams(window.location.search).has("delete-account"));
 
   const msg=(text,type="ok")=>{setToast({text,type});setTimeout(()=>setToast(null),3500);};
   const upd=(k,v)=>setForm(f=>({...f,[k]:v}));
@@ -551,6 +564,7 @@ function App(){
   const openChat=async(listing)=>{
     if(!user){setTab("login");return;}
     if(listing.ownerId===user.uid){msg("This is your own listing","err");return;}
+    if(blockedIds.has(listing.ownerId)){msg("🚫 You've blocked this owner — unblock them in Edit Profile first","err");return;}
     try{
       const cid=chatIdFor(listing.id,user.uid,listing.ownerId);
       const ref=db.collection("chats").doc(cid);
@@ -566,15 +580,15 @@ function App(){
       if(!exists){
         await ref.set({listingId:listing.id,listingTitle:listing.title,participants:[user.uid,listing.ownerId],names:{[user.uid]:user.name,[listing.ownerId]:listing.ownerName||"Owner"},lastMessage:"",lastMessageAt:firebase.firestore.FieldValue.serverTimestamp(),createdAt:firebase.firestore.FieldValue.serverTimestamp()});
       }
-      setActiveChat({id:cid,listingTitle:listing.title,otherName:listing.ownerName||"Owner"});
+      setActiveChat({id:cid,listingTitle:listing.title,otherName:listing.ownerName||"Owner",otherUid:listing.ownerId});
       setSelected(null);
       setTab("chat");
-    }catch(e){msg("❌ Could not open chat: "+(e.message||"permission error — check Firestore rules"),"err");}
+    }catch(e){msg(e.code==="permission-denied"?"❌ This owner isn't accepting messages from you":"❌ Could not open chat: "+(e.message||"error"),"err");}
   };
 
   const openChatFromInbox=(c)=>{
     const otherUid=c.participants.find(p=>p!==user.uid);
-    setActiveChat({id:c.id,listingTitle:c.listingTitle,otherName:(c.names&&c.names[otherUid])||"User"});
+    setActiveChat({id:c.id,listingTitle:c.listingTitle,otherName:(c.names&&c.names[otherUid])||"User",otherUid});
     setTab("chat");
   };
 
@@ -725,6 +739,177 @@ function App(){
     if(tab==="admin"&&user?.isAdmin&&!adminUsersLoaded)loadAllUsers();
   },[tab,user]);
 
+  const loadReports=async()=>{
+    if(!user?.isAdmin)return;
+    setReportsError("");
+    try{
+      const snap=await db.collection("reports").get();
+      const list=snap.docs.map(d=>({id:d.id,...d.data()}));
+      list.sort((a,b)=>(b.createdAt?.toMillis?.()||0)-(a.createdAt?.toMillis?.()||0));
+      setReports(list);
+      setReportsLoaded(true);
+    }catch(e){
+      setReportsError(e.message||"permission error");
+      msg("❌ Could not load reports: "+e.message,"err");
+    }
+  };
+
+  const setReportStatus=async(id,status)=>{
+    try{
+      await db.collection("reports").doc(id).update({status,reviewedAt:firebase.firestore.FieldValue.serverTimestamp()});
+      setReports(rs=>rs.map(r=>r.id===id?{...r,status}:r));
+    }catch(e){msg("❌ Could not update report: "+e.message,"err");}
+  };
+
+  // ---- Report a listing or user ----
+  // Required by Play Store policy for apps with user-generated content.
+  // The doc id is reporter_type_target (enforced in firestore.rules), so
+  // one person can't flood the queue by reporting the same thing 50 times.
+  const REPORT_REASONS=[
+    {id:"fake",label:"Fake / doesn't exist"},
+    {id:"scam",label:"Scam or asking for advance money"},
+    {id:"wrong_price",label:"Wrong price or details"},
+    {id:"unavailable",label:"Already rented / sold"},
+    {id:"duplicate",label:"Duplicate listing"},
+    {id:"misleading",label:"Misleading photos"},
+    {id:"inappropriate",label:"Abusive or inappropriate"},
+    {id:"other",label:"Something else"},
+  ];
+  const openReport=(target)=>{
+    if(!user){msg("⚠️ Please log in to report","err");setSelected(null);setTab("login");return;}
+    setReportForm({reason:"",details:""});
+    setReportModal(target);
+  };
+  const submitReport=async()=>{
+    if(!user||!reportModal)return;
+    if(!reportForm.reason){msg("⚠️ Pick a reason","err");return;}
+    setReportBusy(true);
+    const{targetType,targetId,targetTitle,targetOwnerId}=reportModal;
+    const doc={reporterId:user.uid,targetType,targetId,reason:reportForm.reason,status:"pending",
+      targetTitle:(targetTitle||"").slice(0,120),createdAt:firebase.firestore.FieldValue.serverTimestamp()};
+    if(targetOwnerId)doc.targetOwnerId=targetOwnerId;
+    if(reportForm.details.trim())doc.details=reportForm.details.trim().slice(0,500);
+    try{
+      // Check first rather than guessing from a permission error — a
+      // permission error can also mean the rules aren't published.
+      const ref=db.collection("reports").doc(`${user.uid}_${targetType}_${targetId}`);
+      if((await ref.get()).exists){
+        msg("You've already reported this — it's being reviewed","err");
+        setReportModal(null);
+      }else{
+        await ref.set(doc);
+        msg("✅ Report sent. Thanks — we'll review it.");
+        setReportModal(null);
+      }
+    }catch(e){msg("❌ Could not send report: "+e.message,"err");}
+    setReportBusy(false);
+  };
+
+  // ---- Block users ----
+  // The blocked list lives in users/{me}/blocked. The UI hides their
+  // listings and chats, and firestore.rules stop them from messaging me,
+  // requesting visits or sending notifications — so it's not just cosmetic.
+  useEffect(()=>{
+    if(!user){setBlockedDocs([]);return;}
+    const unsub=db.collection("users").doc(user.uid).collection("blocked")
+      .onSnapshot(snap=>{setBlockedDocs(snap.docs.map(d=>({id:d.id,...d.data()})));},()=>{});
+    return unsub;
+  },[user]);
+
+  const blockUser=async(uid,name)=>{
+    if(!user||!uid||uid===user.uid)return;
+    if(!window.confirm(`Block ${name||"this user"}?\n\nThey won't be able to message you or request visits, and you won't see their listings. You can unblock them any time from Edit Profile.`))return;
+    try{
+      await db.collection("users").doc(user.uid).collection("blocked").doc(uid).set({name:(name||"User").slice(0,80),createdAt:firebase.firestore.FieldValue.serverTimestamp()});
+      msg("🚫 User blocked");
+      setSelected(null);
+      if(activeChat&&activeChat.otherUid===uid){setActiveChat(null);setTab("chatlist");}
+    }catch(e){msg("❌ Could not block: "+e.message,"err");}
+  };
+  const unblockUser=async(uid)=>{
+    if(!user)return;
+    try{
+      await db.collection("users").doc(user.uid).collection("blocked").doc(uid).delete();
+      msg("✅ Unblocked");
+    }catch(e){msg("❌ Could not unblock: "+e.message,"err");}
+  };
+
+  // ---- Delete account ----
+  // Required by Play Store policy: in-app, plus a web link
+  // (?delete-account) that lands here after login. Firebase refuses to
+  // delete an auth account without a recent login, so we re-authenticate
+  // FIRST — otherwise the data would be wiped and then the account delete
+  // would fail, leaving a half-deleted user.
+  useEffect(()=>{
+    if(!pendingDeleteLink)return;
+    if(user){
+      setTab("profile");setDeleteOpen(true);setPendingDeleteLink(false);
+      window.history.replaceState(null,"",window.location.pathname);
+    }else if(tab!=="login"){
+      setTab("login");
+      msg("🔐 Log in to delete your account");
+    }
+  },[pendingDeleteLink,user]);
+
+  const deleteAccount=async()=>{
+    const fbUser=auth.currentUser;
+    if(!fbUser||!user)return;
+    if(deleteConfirmText.trim().toUpperCase()!=="DELETE"){msg("⚠️ Type DELETE to confirm","err");return;}
+    const providers=(fbUser.providerData||[]).map(p=>p.providerId);
+    try{
+      setDeleteBusy("Confirming it's you...");
+      if(providers.includes("password")){
+        if(!deletePw){msg("⚠️ Enter your password","err");setDeleteBusy("");return;}
+        await fbUser.reauthenticateWithCredential(firebase.auth.EmailAuthProvider.credential(fbUser.email,deletePw));
+      }else if(providers.includes("google.com")){
+        await fbUser.reauthenticateWithPopup(googleProvider);
+      }
+    }catch(e){
+      setDeleteBusy("");
+      if(e.code==="auth/popup-closed-by-user"||e.code==="auth/cancelled-popup-request")return;
+      msg(e.code==="auth/wrong-password"||e.code==="auth/invalid-credential"||e.code==="auth/invalid-login-credentials"?"❌ Wrong password":"❌ "+(e.message||"Could not verify").replace("Firebase: ",""),"err");
+      return;
+    }
+    const uid=fbUser.uid;
+    const deleteAll=async(ref)=>{
+      const snap=await ref.get();
+      await Promise.all(snap.docs.map(d=>d.ref.delete()));
+    };
+    try{
+      setDeleteBusy("Deleting your listings...");
+      await deleteAll(db.collection("listings").where("ownerId","==",uid));
+      setDeleteBusy("Deleting saved items and notifications...");
+      const me=db.collection("users").doc(uid);
+      await deleteAll(me.collection("saved"));
+      await deleteAll(me.collection("notifications"));
+      await deleteAll(me.collection("blocked"));
+      // Visits can't be deleted (the other person keeps their record), but
+      // open ones are cancelled so no owner waits for someone who's gone.
+      setDeleteBusy("Cancelling open visits...");
+      const open=[...visitsAsSeeker,...visitsAsOwner].filter(v=>["pending","confirmed","rescheduled"].includes(v.status));
+      await Promise.all(open.map(v=>db.collection("visits").doc(v.id)
+        .update({status:"cancelled",updatedAt:firebase.firestore.FieldValue.serverTimestamp(),updatedBy:uid}).catch(()=>{})));
+      setDeleteBusy("Deleting your profile...");
+      try{
+        await me.delete();
+      }catch(e){
+        // Suspended accounts can't delete the profile doc (it would erase
+        // the suspension) — scrub the personal details instead.
+        await me.set({name:"Deleted user",phone:"",bio:"",picture:"",city:"",deleted:true},{merge:true});
+      }
+      setDeleteBusy("Deleting your login...");
+      await fbUser.delete();
+      try{localStorage.removeItem("gd_recent");}catch(e){}
+      setDeleteBusy("");setDeleteOpen(false);setDeletePw("");setDeleteConfirmText("");
+      setTab("browse");
+      msg("✅ Your account has been deleted");
+      load();
+    }catch(e){
+      setDeleteBusy("");
+      msg("❌ Deletion stopped: "+(e.message||"error").replace("Firebase: ","")+" — try again","err");
+    }
+  };
+
   // ---- In-app notifications ----
   // Scoped deliberately: only visit-related events write a notification here.
   // New chat messages already surface via the Messages badge in the drawer,
@@ -858,7 +1043,9 @@ function App(){
     return unsub;
   },[user]);
 
-  const unreadChatIds=new Set(chats.filter(c=>c.lastMessage&&tsMs(c.lastMessageAt)>(seenState.chats[c.id]||0)).map(c=>c.id));
+  const otherUidOf=c=>(c.participants||[]).find(p=>p!==user?.uid);
+  const visibleChats=chats.filter(c=>!blockedIds.has(otherUidOf(c)));
+  const unreadChatIds=new Set(visibleChats.filter(c=>c.lastMessage&&tsMs(c.lastMessageAt)>(seenState.chats[c.id]||0)).map(c=>c.id));
   const unseenVisitCount=[...visitsAsOwner,...visitsAsSeeker]
     .filter(v=>v.updatedBy!==user?.uid&&tsMs(v.updatedAt)>seenState.visits).length;
 
@@ -886,7 +1073,7 @@ function App(){
       setChatText("");
       await db.collection("chats").doc(activeChat.id).collection("messages").add({senderId:user.uid,text,createdAt:firebase.firestore.FieldValue.serverTimestamp()});
       await db.collection("chats").doc(activeChat.id).update({lastMessage:text,lastMessageAt:firebase.firestore.FieldValue.serverTimestamp()});
-    }catch(e){msg("❌ Message failed to send","err");}
+    }catch(e){msg(e.code==="permission-denied"?"❌ Message not delivered — this user isn't accepting messages from you":"❌ Message failed to send","err");}
     setChatSending(false);
   };
 
@@ -932,7 +1119,7 @@ function App(){
       const token=await fbUser.getIdToken();
       const res=await fetch(`${BASE}/users/${fbUser.uid}?key=${KEY}`,{headers:{Authorization:`Bearer ${token}`}});
       if(res.ok){
-        setTab("browse");
+        setTab(pendingDeleteLink?"profile":"browse");
       }else{
         setAuthForm(f=>({...f,name:fbUser.displayName||""}));
         setIsNewUser(true);
@@ -978,7 +1165,7 @@ function App(){
       const res=await fetch(`${BASE}/users/${cred.user.uid}?key=${KEY}`,{headers:{Authorization:`Bearer ${token}`}});
       if(res.ok){
         setEmailForm({name:"",email:"",password:"",role:"seeker"});
-        setTab("browse");
+        setTab(pendingDeleteLink?"profile":"browse");
       }else{
         setIsNewUser(true);
         setAuthStep("profile");
@@ -1085,6 +1272,7 @@ function App(){
     const q=search.toLowerCase();
     const cat=l.category||"rent";
     if(cat!==section)return false;
+    if(blockedIds.has(l.ownerId))return false;
     if(q&&![l.title,l.location,l.area,l.pincode].some(s=>(s||"").toLowerCase().includes(q)))return false;
     if(filter!=="all"&&l.roomType!==filter)return false;
     if((l.status||"available")!=="available")return false; // sold/rented/unavailable stay out of normal browse results
@@ -1835,8 +2023,9 @@ function App(){
             <div style={{display:"flex",gap:8,marginBottom:16}}>
               <button onClick={()=>setAdminTab("listings")} style={{flex:1,padding:9,borderRadius:9,border:`2px solid ${adminTab==="listings"?C.accent:C.border}`,background:adminTab==="listings"?"#6B908022":C.card,color:adminTab==="listings"?C.accent:C.muted,fontWeight:700,cursor:"pointer",fontSize:13}}>🏠 Listings ({listings.length})</button>
               <button onClick={()=>{setAdminTab("users");if(!adminUsersLoaded)loadAllUsers();}} style={{flex:1,padding:9,borderRadius:9,border:`2px solid ${adminTab==="users"?C.accent:C.border}`,background:adminTab==="users"?"#6B908022":C.card,color:adminTab==="users"?C.accent:C.muted,fontWeight:700,cursor:"pointer",fontSize:13}}>👤 Users ({allUsers.length})</button>
+              <button onClick={()=>{setAdminTab("reports");loadReports();if(!adminUsersLoaded)loadAllUsers();}} style={{flex:1,padding:9,borderRadius:9,border:`2px solid ${adminTab==="reports"?C.accent:C.border}`,background:adminTab==="reports"?"#6B908022":C.card,color:adminTab==="reports"?C.accent:C.muted,fontWeight:700,cursor:"pointer",fontSize:13}}>🚩 Reports{reportsLoaded?` (${reports.filter(r=>r.status==="pending").length})`:""}</button>
             </div>
-            <input style={{...S.inp,marginBottom:14}} placeholder={adminTab==="listings"?"Search by title, location or owner...":"Search by name, email or phone..."} value={adminSearch} onChange={e=>setAdminSearch(e.target.value)}/>
+            <input style={{...S.inp,marginBottom:14}} placeholder={adminTab==="listings"?"Search by title, location or owner...":adminTab==="reports"?"Search by title, reason or details...":"Search by name, email or phone..."} value={adminSearch} onChange={e=>setAdminSearch(e.target.value)}/>
 
             {adminTab==="listings"&&(()=>{
               const q=adminSearch.toLowerCase();
@@ -1859,6 +2048,57 @@ function App(){
                       <button onClick={e=>{e.stopPropagation();deleteListing(l.id);}} style={{flexShrink:0,padding:"7px 12px",background:"#E74C3C22",border:"1px solid #E74C3C44",color:"#E74C3C",borderRadius:7,fontSize:12,fontWeight:700,cursor:"pointer"}}>🗑️ Delete</button>
                     </div>
                   ))}
+                </div>
+              );
+            })()}
+
+            {adminTab==="reports"&&(()=>{
+              const q=adminSearch.toLowerCase();
+              const rows=reports.filter(r=>!q||[r.targetTitle,r.reason,r.details].some(s=>(s||"").toLowerCase().includes(q)));
+              const countFor=r=>reports.filter(x=>x.targetType===r.targetType&&x.targetId===r.targetId).length;
+              const reasonLabel=id=>REPORT_REASONS.find(x=>x.id===id)?.label||id;
+              const statusColor={pending:"#E67E22",reviewing:"#3498DB",resolved:C.green,rejected:C.muted};
+              return(
+                <div style={{display:"flex",flexDirection:"column",gap:8}}>
+                  {reportsError&&(
+                    <div style={{textAlign:"center",padding:24,color:"#E74C3C",fontSize:13}}>
+                      <div style={{marginBottom:10}}>Couldn't load reports: {reportsError}</div>
+                      <div style={{color:C.muted,marginBottom:12}}>If this says "permissions", the latest firestore.rules haven't been published in the Firebase console yet.</div>
+                      <button onClick={loadReports} style={{padding:"7px 16px",background:C.accent,border:"none",color:"#fff",borderRadius:7,fontSize:13,fontWeight:700,cursor:"pointer"}}>Retry</button>
+                    </div>
+                  )}
+                  {!reportsError&&rows.length===0&&<div style={{textAlign:"center",padding:30,color:C.muted}}>{reportsLoaded?"No reports 🎉":"Loading..."}</div>}
+                  {rows.map(r=>{
+                    const listing=r.targetType==="listing"?listings.find(l=>l.id===r.targetId):null;
+                    const targetUid=r.targetType==="user"?r.targetId:r.targetOwnerId;
+                    const targetUser=allUsers.find(u=>u.uid===targetUid);
+                    const n=countFor(r);
+                    return(
+                      <div key={r.id} style={{...S.dbx,marginBottom:0}}>
+                        <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:8,marginBottom:4}}>
+                          <div style={{minWidth:0}}>
+                            <div style={{fontWeight:700,fontSize:14}}>{r.targetType==="listing"?"🏠":"👤"} {r.targetTitle||"—"}</div>
+                            <div style={{fontSize:12,color:C.muted}}>{reasonLabel(r.reason)}{n>1?` • ${n} reports on this`:""} • {r.createdAt?.toDate?r.createdAt.toDate().toLocaleDateString():"—"}</div>
+                          </div>
+                          <select value={r.status||"pending"} onChange={e=>setReportStatus(r.id,e.target.value)} style={{flexShrink:0,padding:"5px 6px",borderRadius:7,border:`1px solid ${C.border}`,background:C.card,color:statusColor[r.status]||C.text,fontSize:12,fontWeight:700}}>
+                            {["pending","reviewing","resolved","rejected"].map(st=><option key={st} value={st}>{st}</option>)}
+                          </select>
+                        </div>
+                        {r.details&&<div style={{fontSize:13,color:C.text,background:C.surface,borderRadius:7,padding:"6px 9px",margin:"6px 0",whiteSpace:"pre-wrap",wordBreak:"break-word"}}>{r.details}</div>}
+                        <div style={{display:"flex",gap:6,flexWrap:"wrap",marginTop:6}}>
+                          {r.targetType==="listing"&&(listing?(
+                            <>
+                              <button onClick={()=>setSelected(listing)} style={{padding:"5px 10px",background:C.card,border:`1px solid ${C.border}`,color:C.text,borderRadius:7,fontSize:12,fontWeight:700,cursor:"pointer"}}>Open listing</button>
+                              <button onClick={()=>deleteListing(listing.id)} style={{padding:"5px 10px",background:"#E74C3C22",border:"1px solid #E74C3C44",color:"#E74C3C",borderRadius:7,fontSize:12,fontWeight:700,cursor:"pointer"}}>🗑️ Delete listing</button>
+                            </>
+                          ):<span style={{fontSize:12,color:C.dim}}>Listing already deleted</span>)}
+                          {targetUid&&(targetUser?(
+                            <button onClick={()=>setAdminUserDetail(targetUid)} style={{padding:"5px 10px",background:C.card,border:`1px solid ${C.border}`,color:C.text,borderRadius:7,fontSize:12,fontWeight:700,cursor:"pointer"}}>View {r.targetType==="listing"?"owner":"user"}{targetUser.suspended?" 🚫":""}</button>
+                          ):adminUsersLoaded&&<span style={{fontSize:12,color:C.dim}}>User account deleted</span>)}
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               );
             })()}
@@ -1928,6 +2168,50 @@ function App(){
               <button disabled={profileBusy} onClick={saveProfile} style={{...S.submitBtn,opacity:profileBusy?0.7:1,cursor:profileBusy?"not-allowed":"pointer"}}>
                 {profileBusy?"⏳ Saving...":"💾 Save Profile"}
               </button>
+            </div>
+
+            <div style={{background:C.surface,borderRadius:15,border:`1px solid ${C.border}`,padding:20,marginTop:14}}>
+              <div style={{fontSize:16,fontWeight:800,marginBottom:10}}>🚫 Blocked Users ({blockedDocs.length})</div>
+              {blockedDocs.length===0?(
+                <div style={{fontSize:13,color:C.muted}}>You haven't blocked anyone.</div>
+              ):blockedDocs.map(b=>(
+                <div key={b.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:10,padding:"8px 0",borderTop:`1px solid ${C.border}`}}>
+                  <div style={{fontSize:14,fontWeight:600}}>{b.name||"User"}</div>
+                  <button onClick={()=>unblockUser(b.id)} style={{padding:"6px 12px",background:C.card,border:`1px solid ${C.border}`,color:C.text,borderRadius:7,fontSize:12,fontWeight:700,cursor:"pointer"}}>Unblock</button>
+                </div>
+              ))}
+            </div>
+
+            <div style={{background:C.surface,borderRadius:15,border:"1px solid #E74C3C44",padding:20,marginTop:14}}>
+              <div style={{fontSize:16,fontWeight:800,color:"#E74C3C",marginBottom:6}}>⚠️ Delete Account</div>
+              {!deleteOpen?(
+                <>
+                  <div style={{fontSize:13,color:C.muted,marginBottom:12}}>Permanently delete your account and data. This cannot be undone.</div>
+                  <button onClick={()=>setDeleteOpen(true)} style={{width:"100%",padding:11,background:"#E74C3C22",border:"1px solid #E74C3C44",color:"#E74C3C",borderRadius:9,fontSize:14,fontWeight:800,cursor:"pointer"}}>Delete my account</button>
+                </>
+              ):(
+                <>
+                  <div style={{fontSize:13,color:C.text,marginBottom:6,fontWeight:700}}>This will permanently delete:</div>
+                  <ul style={{fontSize:13,color:C.muted,margin:"0 0 10px 18px",padding:0,lineHeight:1.6}}>
+                    <li>Your login and profile (name, phone, photo, bio, city)</li>
+                    <li>All your listings ({listings.filter(l=>l.ownerId===user.uid).length})</li>
+                    <li>Your saved properties, notifications and blocked list</li>
+                  </ul>
+                  <div style={{fontSize:13,color:C.muted,marginBottom:12}}>Messages you already sent stay visible to the person you sent them to, and past visit requests stay in their history (open ones are cancelled). Reports you filed are kept for safety review.</div>
+                  {(auth.currentUser?.providerData||[]).some(p=>p.providerId==="password")?(
+                    <>
+                      <div style={S.lbl}>Your password</div>
+                      <input type="password" style={{...S.inp,marginBottom:12}} value={deletePw} onChange={e=>setDeletePw(e.target.value)} autoComplete="current-password"/>
+                    </>
+                  ):(
+                    <div style={{fontSize:13,color:C.muted,marginBottom:12}}>You'll be asked to sign in with Google once more to confirm.</div>
+                  )}
+                  <div style={S.lbl}>Type DELETE to confirm</div>
+                  <input style={{...S.inp,marginBottom:12}} value={deleteConfirmText} onChange={e=>setDeleteConfirmText(e.target.value)} placeholder="DELETE"/>
+                  <button disabled={!!deleteBusy} onClick={deleteAccount} style={{width:"100%",padding:12,background:"#E74C3C",border:"none",color:"#fff",borderRadius:9,fontSize:15,fontWeight:800,cursor:deleteBusy?"not-allowed":"pointer",opacity:deleteBusy?0.7:1}}>{deleteBusy?`⏳ ${deleteBusy}`:"Permanently delete my account"}</button>
+                  {!deleteBusy&&<button onClick={()=>{setDeleteOpen(false);setDeletePw("");setDeleteConfirmText("");}} style={{width:"100%",padding:10,background:"transparent",border:"none",color:C.muted,fontSize:13,fontWeight:700,cursor:"pointer",marginTop:6}}>Cancel</button>}
+                </>
+              )}
             </div>
           </div>
         )}
@@ -2030,15 +2314,15 @@ function App(){
               <div style={{fontSize:20,fontWeight:800,marginBottom:3}}>Messages / संदेश</div>
               <div style={{fontSize:13,color:C.muted}}>Conversations about your listings and inquiries</div>
             </div>
-            {chats.length===0?(
+            {visibleChats.length===0?(
               <div style={{textAlign:"center",padding:"40px 20px",color:C.muted}}>
                 <div style={{fontSize:43,marginBottom:10}}>💬</div>
                 <div>No conversations yet</div>
               </div>
             ):(
               <div style={{display:"flex",flexDirection:"column",gap:8}}>
-                {chats.map(c=>{
-                  const otherUid=c.participants.find(p=>p!==user?.uid);
+                {visibleChats.map(c=>{
+                  const otherUid=otherUidOf(c);
                   const otherName=(c.names&&c.names[otherUid])||"User";
                   const unread=unreadChatIds.has(c.id);
                   return(
@@ -2063,10 +2347,14 @@ function App(){
           <div style={{maxWidth:600,margin:"0 auto"}}>
             <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:14}}>
               <button onClick={()=>{setTab("chatlist");setActiveChat(null);}} style={{background:C.card,border:`1px solid ${C.border}`,color:C.text,width:34,height:34,borderRadius:9,cursor:"pointer",fontSize:17}}>←</button>
-              <div>
+              <div style={{flex:1,minWidth:0}}>
                 <div style={{fontSize:16,fontWeight:800}}>{activeChat.otherName}</div>
                 <div style={{fontSize:12,color:C.muted}}>{activeChat.listingTitle}</div>
               </div>
+              {activeChat.otherUid&&(<>
+                <button onClick={()=>openReport({targetType:"user",targetId:activeChat.otherUid,targetTitle:activeChat.otherName})} style={{padding:"6px 10px",background:C.card,border:`1px solid ${C.border}`,color:C.muted,borderRadius:8,fontSize:12,fontWeight:700,cursor:"pointer"}}>🚩 Report</button>
+                <button onClick={()=>blockUser(activeChat.otherUid,activeChat.otherName)} style={{padding:"6px 10px",background:"#E74C3C11",border:"1px solid #E74C3C44",color:"#E74C3C",borderRadius:8,fontSize:12,fontWeight:700,cursor:"pointer"}}>🚫 Block</button>
+              </>)}
             </div>
             <div style={{background:C.surface,borderRadius:15,border:`1px solid ${C.border}`,padding:14,minHeight:340,maxHeight:440,overflowY:"auto",display:"flex",flexDirection:"column",gap:8,marginBottom:12}}>
               {chatMessages.length===0?(
@@ -2086,10 +2374,14 @@ function App(){
                 );
               })}
             </div>
+            {blockedIds.has(activeChat.otherUid)?(
+              <div style={{textAlign:"center",fontSize:13,color:C.muted,padding:10}}>You blocked this user. <span onClick={()=>unblockUser(activeChat.otherUid)} style={{color:C.accent,fontWeight:700,cursor:"pointer",textDecoration:"underline"}}>Unblock</span></div>
+            ):(
             <div style={{display:"flex",gap:8}}>
               <input style={S.inp} maxLength={2000} placeholder="Type a message..." value={chatText} onChange={e=>setChatText(e.target.value)} onKeyDown={e=>{if(e.key==="Enter")sendChatMessage();}}/>
               <button disabled={chatSending||!chatText.trim()} onClick={sendChatMessage} style={{padding:"10px 18px",background:`linear-gradient(135deg,${C.accent},${C.accentG})`,border:"none",borderRadius:9,color:"#fff",fontWeight:700,cursor:chatSending?"not-allowed":"pointer",fontSize:14,opacity:chatSending||!chatText.trim()?0.6:1}}>Send</button>
             </div>
+            )}
           </div>
         )}
 
@@ -2162,6 +2454,12 @@ function App(){
               <button style={{width:"100%",padding:"12px",background:"#8A9A5B22",border:"1px solid #8A9A5B55",color:"#5f6b40",borderRadius:9,fontSize:16,fontWeight:800,cursor:"pointer",marginTop:7}} onClick={()=>{setVisitModal(selected);setVisitForm({date:"",time:"",message:""});}}>📅 Schedule Visit</button>
             </>)}
             <button style={{width:"100%",padding:"12px",background:C.card,border:`1px solid ${C.border}`,color:C.text,borderRadius:9,fontSize:16,fontWeight:800,cursor:"pointer",marginTop:7}} onClick={()=>shareListing(selected)}>🔗 Share this Listing</button>
+            {selected.ownerId&&selected.ownerId!==user?.uid&&(
+              <div style={{display:"flex",gap:7,marginTop:7}}>
+                <button style={{flex:1,padding:"10px",background:"transparent",border:`1px solid ${C.border}`,color:C.muted,borderRadius:9,fontSize:13,fontWeight:700,cursor:"pointer"}} onClick={()=>openReport({targetType:"listing",targetId:selected.id,targetTitle:selected.title,targetOwnerId:selected.ownerId})}>🚩 Report listing</button>
+                {user&&<button style={{flex:1,padding:"10px",background:"transparent",border:"1px solid #E74C3C44",color:"#E74C3C",borderRadius:9,fontSize:13,fontWeight:700,cursor:"pointer"}} onClick={()=>blockUser(selected.ownerId,selected.ownerName)}>🚫 Block owner</button>}
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -2221,6 +2519,29 @@ function App(){
           </div>
         );
       })()}
+
+      {/* REPORT MODAL */}
+      {reportModal&&(
+        <div style={{position:"fixed",inset:0,background:"#00000055",backdropFilter:"blur(5px)",zIndex:220,display:"flex",alignItems:"center",justifyContent:"center",padding:14}} onClick={()=>setReportModal(null)}>
+          <div style={{background:C.surface,borderRadius:16,border:`1px solid ${C.border}`,padding:20,maxWidth:420,width:"100%",maxHeight:"90vh",overflowY:"auto"}} onClick={e=>e.stopPropagation()}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
+              <div style={{fontSize:18,fontWeight:800}}>🚩 Report {reportModal.targetType==="listing"?"Listing":"User"}</div>
+              <button style={{background:C.card,border:"none",color:C.muted,width:28,height:28,borderRadius:7,cursor:"pointer",fontSize:16}} onClick={()=>setReportModal(null)}>✕</button>
+            </div>
+            <div style={{fontSize:13,color:C.muted,marginBottom:14}}>{reportModal.targetTitle} — the {reportModal.targetType==="listing"?"owner":"user"} won't know who reported.</div>
+            <div style={{display:"flex",flexDirection:"column",gap:6,marginBottom:12}}>
+              {REPORT_REASONS.map(r=>(
+                <label key={r.id} style={{display:"flex",alignItems:"center",gap:8,padding:"9px 11px",borderRadius:9,border:`1px solid ${reportForm.reason===r.id?C.accent:C.border}`,background:reportForm.reason===r.id?"#6B908022":C.card,cursor:"pointer",fontSize:14}}>
+                  <input type="radio" name="reportReason" checked={reportForm.reason===r.id} onChange={()=>setReportForm(f=>({...f,reason:r.id}))} style={{accentColor:C.accent}}/>{r.label}
+                </label>
+              ))}
+            </div>
+            <div style={S.lbl}>More details (optional)</div>
+            <textarea style={{...S.inp,minHeight:70,resize:"vertical",marginBottom:14}} maxLength={500} value={reportForm.details} onChange={e=>setReportForm(f=>({...f,details:e.target.value}))} placeholder="What's wrong?"/>
+            <button disabled={reportBusy} style={{...S.submitBtn,opacity:reportBusy?0.7:1}} onClick={submitReport}>{reportBusy?"⏳ Sending...":"Send Report"}</button>
+          </div>
+        </div>
+      )}
 
       {/* SCHEDULE VISIT MODAL */}
       {visitModal&&(
