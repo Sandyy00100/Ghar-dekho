@@ -790,13 +790,18 @@ function App(){
     if(targetOwnerId)doc.targetOwnerId=targetOwnerId;
     if(reportForm.details.trim())doc.details=reportForm.details.trim().slice(0,500);
     try{
-      await db.collection("reports").doc(`${user.uid}_${targetType}_${targetId}`).set(doc);
-      msg("✅ Report sent. Thanks — we'll review it.");
-      setReportModal(null);
-    }catch(e){
-      // A repeat report is an update, which only admins may do.
-      msg(e.code==="permission-denied"?"You've already reported this — it's being reviewed":"❌ Could not send report: "+e.message,"err");
-    }
+      // Check first rather than guessing from a permission error — a
+      // permission error can also mean the rules aren't published.
+      const ref=db.collection("reports").doc(`${user.uid}_${targetType}_${targetId}`);
+      if((await ref.get()).exists){
+        msg("You've already reported this — it's being reviewed","err");
+        setReportModal(null);
+      }else{
+        await ref.set(doc);
+        msg("✅ Report sent. Thanks — we'll review it.");
+        setReportModal(null);
+      }
+    }catch(e){msg("❌ Could not send report: "+e.message,"err");}
     setReportBusy(false);
   };
 

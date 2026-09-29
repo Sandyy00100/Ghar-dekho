@@ -249,6 +249,9 @@ service cloud.firestore {
 
     match /reports/{reportId} {
       allow create: if isSignedIn() && validReport(reportId);
+      // A reporter may check their OWN report id (to tell "already
+      // reported" apart from a real error). A missing doc reveals nothing.
+      allow get: if isSignedIn() && (resource == null || resource.data.reporterId == request.auth.uid);
       allow read, delete: if isAdmin();
       allow update: if isAdmin()
                     && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status','reviewedAt'])
