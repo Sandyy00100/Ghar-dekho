@@ -1,14 +1,20 @@
 {
-  "name": "Ghar Dekho",
-  "short_name": "GharDekho",
-  "description": "Find rental rooms directly from owners, no broker fee",
+  "id": "/",
+  "name": "Ghar Dekho - घर देखो",
+  "short_name": "Ghar Dekho",
+  "description": "Find rooms, homes, plots, shops and study spaces directly from owners. No broker fee.",
+  "lang": "en-IN",
   "start_url": "/",
+  "scope": "/",
   "display": "standalone",
-  "background_color": "#F7F5F0",
-"theme_color": "#6B9080",
   "orientation": "portrait",
+  "background_color": "#F7F5F0",
+  "theme_color": "#6B9080",
+  "categories": ["lifestyle", "shopping", "business"],
   "icons": [
-    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" },
-    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png" }
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/icon-maskable-192.png", "sizes": "192x192", "type": "image/png", "purpose": "maskable" },
+    { "src": "/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
   ]
 }
