@@ -19,6 +19,12 @@ input,select,button{font-family:inherit}
 ::-webkit-scrollbar-thumb{background:#6B9080;border-radius:2px}
 </style>
   <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#6B9080"/>
+  <link rel="apple-touch-icon" href="/icon-192.png"/>
+  <script>
+  // Offline fallback only — see sw.js (it caches nothing else).
+  if("serviceWorker" in navigator){window.addEventListener("load",function(){navigator.serviceWorker.register("/sw.js").catch(function(){});});}
+  </script>
 </head>
 <body>
 <div id="root"></div>
