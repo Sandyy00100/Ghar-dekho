@@ -2197,7 +2197,7 @@ function App(){
                     <li>All your listings ({listings.filter(l=>l.ownerId===user.uid).length})</li>
                     <li>Your saved properties, notifications and blocked list</li>
                   </ul>
-                  <div style={{fontSize:13,color:C.muted,marginBottom:12}}>Messages you already sent stay visible to the person you sent them to, and past visit requests stay in their history (open ones are cancelled). Reports you filed are kept for safety review.</div>
+                  <div style={{fontSize:13,color:C.muted,marginBottom:12}}>Messages you already sent stay visible to the person you sent them to, and past visit requests stay in their history (open ones are cancelled). Reports you filed are kept for safety review. <a href="/privacy.html" style={{color:C.accent,fontWeight:700}}>Privacy Policy</a></div>
                   {(auth.currentUser?.providerData||[]).some(p=>p.providerId==="password")?(
                     <>
                       <div style={S.lbl}>Your password</div>
@@ -2277,7 +2277,7 @@ function App(){
               </>)}
 
               <div style={{fontSize:11,color:C.muted,textAlign:"center",marginTop:16,lineHeight:1.5}}>
-                By continuing you agree to our <span style={{color:C.accent,fontWeight:700,cursor:"pointer"}} onClick={()=>setTab("terms")}>Terms & Conditions</span>
+                By continuing you agree to our <span style={{color:C.accent,fontWeight:700,cursor:"pointer"}} onClick={()=>setTab("terms")}>Terms & Conditions</span> and <a href="/privacy.html" style={{color:C.accent,fontWeight:700,textDecoration:"none"}}>Privacy Policy</a>
               </div>
             </div>
           </div>
@@ -2637,6 +2637,7 @@ function App(){
                   <button onClick={()=>setLangPickerOpen(true)} style={{textAlign:"left",padding:"10px 8px",background:"transparent",border:"none",borderRadius:8,color:C.text,fontSize:16,fontWeight:600,cursor:"pointer"}}>🌐 {LANGS.find(l=>l.code===lang)?.native||"Language"}</button>
                   <button onClick={()=>{shareApp();setDrawerOpen(false);}} style={{textAlign:"left",padding:"10px 8px",background:"transparent",border:"none",borderRadius:8,color:C.text,fontSize:16,fontWeight:600,cursor:"pointer"}}>📤 {tr("shareApp")}</button>
                   <button onClick={()=>{setTab("terms");setDrawerOpen(false);}} style={{textAlign:"left",padding:"10px 8px",background:"transparent",border:"none",borderRadius:8,color:C.text,fontSize:16,fontWeight:600,cursor:"pointer"}}>📄 {tr("termsConditions")}</button>
+                  <a href="/privacy.html" style={{textAlign:"left",padding:"10px 8px",borderRadius:8,color:C.text,fontSize:16,fontWeight:600,textDecoration:"none"}}>🔒 Privacy Policy</a>
                   <button onClick={doLogout} style={{textAlign:"left",padding:"10px 8px",background:"transparent",border:"none",borderRadius:8,color:"#E74C3C",fontSize:16,fontWeight:600,cursor:"pointer"}}>🚪 {tr("logout")}</button>
                 </div>
               </>
@@ -2650,6 +2651,7 @@ function App(){
                   <button onClick={()=>setLangPickerOpen(true)} style={{textAlign:"left",padding:"10px 8px",background:"transparent",border:"none",borderRadius:8,color:C.text,fontSize:16,fontWeight:600,cursor:"pointer"}}>🌐 {LANGS.find(l=>l.code===lang)?.native||"Language"}</button>
                   <button onClick={()=>{shareApp();setDrawerOpen(false);}} style={{textAlign:"left",padding:"10px 8px",background:"transparent",border:"none",borderRadius:8,color:C.text,fontSize:16,fontWeight:600,cursor:"pointer"}}>📤 {tr("shareApp")}</button>
                   <button onClick={()=>{setTab("terms");setDrawerOpen(false);}} style={{textAlign:"left",padding:"10px 8px",background:"transparent",border:"none",borderRadius:8,color:C.text,fontSize:16,fontWeight:600,cursor:"pointer"}}>📄 {tr("termsConditions")}</button>
+                  <a href="/privacy.html" style={{textAlign:"left",padding:"10px 8px",borderRadius:8,color:C.text,fontSize:16,fontWeight:600,textDecoration:"none"}}>🔒 Privacy Policy</a>
                 </div>
               </div>
             )}
