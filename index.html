@@ -118,6 +118,14 @@ const toFS=(obj)=>{const f={};for(const[k,v]of Object.entries(obj)){if(v===null|
 const fromFS=(doc)=>{const o={id:doc.name?.split("/").pop()};for(const[k,v]of Object.entries(doc.fields||{})){if(v.stringValue!==undefined)o[k]=v.stringValue;else if(v.integerValue!==undefined)o[k]=Number(v.integerValue);else if(v.booleanValue!==undefined)o[k]=v.booleanValue;else if(v.arrayValue)o[k]=(v.arrayValue.values||[]).map(i=>i.stringValue||"");}return o;};
 
 const C={bg:"#F7F5F0",surface:"#FFFFFF",card:"#FBF9F5",border:"#E6E2D8",accent:"#6B9080",accentG:"#B08968",green:"#588157",text:"#3A3A3A",muted:"#8A8778",dim:"#C9C6BB"};
+// Rectangular red flag for "Report" -- no emoji has this shape (the red
+// flag emoji is a triangle, the black one isn't red), so it's a tiny SVG.
+const FlagIcon=({size=15})=>(
+  <svg width={Math.round(size*0.9)} height={size} viewBox="0 0 18 20" aria-hidden="true" style={{display:"inline-block",verticalAlign:"-0.15em"}}>
+    <rect x="1" y="1" width="2.2" height="18" rx="1.1" fill="#6B5B4B"/>
+    <rect x="3.2" y="2" width="13.8" height="9.5" rx="1" fill="#E53935"/>
+  </svg>
+);
 const ROOM_TYPES=[{id:"single",icon:"🛏️",label:"Single Room",hi:"एकल कमरा"},{id:"1bhk",icon:"🏠",label:"1 BHK",hi:"1 बीएचके"},{id:"2bhk",icon:"🏡",label:"2 BHK",hi:"2 बीएचके"},{id:"3bhk",icon:"🏘️",label:"3 BHK",hi:"3 बीएचके"},{id:"pg",icon:"🏨",label:"PG / Hostel",hi:"पीजी"},{id:"flat",icon:"🏢",label:"Full Flat",hi:"पूरा फ्लैट"},{id:"plot",icon:"📐",label:"Plot / Land",hi:"प्लॉट"},{id:"shop",icon:"🏪",label:"Shop",hi:"दुकान"}];
 const AMENITIES=[{id:"wifi",icon:"📶",label:"WiFi"},{id:"ac",icon:"❄️",label:"AC"},{id:"parking",icon:"🚗",label:"Parking"},{id:"water",icon:"🚰",label:"Water Supply"},{id:"geyser",icon:"🚿",label:"Geyser"},{id:"fridge",icon:"🧊",label:"Fridge"},{id:"washing",icon:"🫧",label:"Washing Machine"},{id:"gas",icon:"🍳",label:"Gas Stove"},{id:"cctv",icon:"📹",label:"CCTV"},{id:"lift",icon:"🛗",label:"Lift"},{id:"power",icon:"⚡",label:"Power Backup"},{id:"garden",icon:"🌿",label:"Garden"},{id:"guard",icon:"💂",label:"Security Guard"}];
 const STATUS_OPTS=[{id:"available",icon:"✅",label:"Available"},{id:"rented",icon:"🔑",label:"Rented Out"},{id:"sold",icon:"💰",label:"Sold"},{id:"unavailable",icon:"⛔",label:"Unavailable"}];
@@ -2023,7 +2031,7 @@ function App(){
             <div style={{display:"flex",gap:8,marginBottom:16}}>
               <button onClick={()=>setAdminTab("listings")} style={{flex:1,padding:9,borderRadius:9,border:`2px solid ${adminTab==="listings"?C.accent:C.border}`,background:adminTab==="listings"?"#6B908022":C.card,color:adminTab==="listings"?C.accent:C.muted,fontWeight:700,cursor:"pointer",fontSize:13}}>🏠 Listings ({listings.length})</button>
               <button onClick={()=>{setAdminTab("users");if(!adminUsersLoaded)loadAllUsers();}} style={{flex:1,padding:9,borderRadius:9,border:`2px solid ${adminTab==="users"?C.accent:C.border}`,background:adminTab==="users"?"#6B908022":C.card,color:adminTab==="users"?C.accent:C.muted,fontWeight:700,cursor:"pointer",fontSize:13}}>👤 Users ({allUsers.length})</button>
-              <button onClick={()=>{setAdminTab("reports");loadReports();if(!adminUsersLoaded)loadAllUsers();}} style={{flex:1,padding:9,borderRadius:9,border:`2px solid ${adminTab==="reports"?C.accent:C.border}`,background:adminTab==="reports"?"#6B908022":C.card,color:adminTab==="reports"?C.accent:C.muted,fontWeight:700,cursor:"pointer",fontSize:13}}>🚩 Reports{reportsLoaded?` (${reports.filter(r=>r.status==="pending").length})`:""}</button>
+              <button onClick={()=>{setAdminTab("reports");loadReports();if(!adminUsersLoaded)loadAllUsers();}} style={{flex:1,padding:9,borderRadius:9,border:`2px solid ${adminTab==="reports"?C.accent:C.border}`,background:adminTab==="reports"?"#6B908022":C.card,color:adminTab==="reports"?C.accent:C.muted,fontWeight:700,cursor:"pointer",fontSize:13}}><FlagIcon/> Reports{reportsLoaded?` (${reports.filter(r=>r.status==="pending").length})`:""}</button>
             </div>
             <input style={{...S.inp,marginBottom:14}} placeholder={adminTab==="listings"?"Search by title, location or owner...":adminTab==="reports"?"Search by title, reason or details...":"Search by name, email or phone..."} value={adminSearch} onChange={e=>setAdminSearch(e.target.value)}/>
 
@@ -2352,7 +2360,7 @@ function App(){
                 <div style={{fontSize:12,color:C.muted}}>{activeChat.listingTitle}</div>
               </div>
               {activeChat.otherUid&&(<>
-                <button onClick={()=>openReport({targetType:"user",targetId:activeChat.otherUid,targetTitle:activeChat.otherName})} style={{padding:"6px 10px",background:C.card,border:`1px solid ${C.border}`,color:C.muted,borderRadius:8,fontSize:12,fontWeight:700,cursor:"pointer"}}>🚩 Report</button>
+                <button onClick={()=>openReport({targetType:"user",targetId:activeChat.otherUid,targetTitle:activeChat.otherName})} style={{padding:"6px 10px",background:C.card,border:`1px solid ${C.border}`,color:C.muted,borderRadius:8,fontSize:12,fontWeight:700,cursor:"pointer"}}><FlagIcon/> Report</button>
                 <button onClick={()=>blockUser(activeChat.otherUid,activeChat.otherName)} style={{padding:"6px 10px",background:"#E74C3C11",border:"1px solid #E74C3C44",color:"#E74C3C",borderRadius:8,fontSize:12,fontWeight:700,cursor:"pointer"}}>🚫 Block</button>
               </>)}
             </div>
@@ -2456,7 +2464,7 @@ function App(){
             <button style={{width:"100%",padding:"12px",background:C.card,border:`1px solid ${C.border}`,color:C.text,borderRadius:9,fontSize:16,fontWeight:800,cursor:"pointer",marginTop:7}} onClick={()=>shareListing(selected)}>🔗 Share this Listing</button>
             {selected.ownerId&&selected.ownerId!==user?.uid&&(
               <div style={{display:"flex",gap:7,marginTop:7}}>
-                <button style={{flex:1,padding:"10px",background:"transparent",border:`1px solid ${C.border}`,color:C.muted,borderRadius:9,fontSize:13,fontWeight:700,cursor:"pointer"}} onClick={()=>openReport({targetType:"listing",targetId:selected.id,targetTitle:selected.title,targetOwnerId:selected.ownerId})}>🚩 Report listing</button>
+                <button style={{flex:1,padding:"10px",background:"transparent",border:`1px solid ${C.border}`,color:C.muted,borderRadius:9,fontSize:13,fontWeight:700,cursor:"pointer"}} onClick={()=>openReport({targetType:"listing",targetId:selected.id,targetTitle:selected.title,targetOwnerId:selected.ownerId})}><FlagIcon/> Report listing</button>
                 {user&&<button style={{flex:1,padding:"10px",background:"transparent",border:"1px solid #E74C3C44",color:"#E74C3C",borderRadius:9,fontSize:13,fontWeight:700,cursor:"pointer"}} onClick={()=>blockUser(selected.ownerId,selected.ownerName)}>🚫 Block owner</button>}
               </div>
             )}
@@ -2525,7 +2533,7 @@ function App(){
         <div style={{position:"fixed",inset:0,background:"#00000055",backdropFilter:"blur(5px)",zIndex:220,display:"flex",alignItems:"center",justifyContent:"center",padding:14}} onClick={()=>setReportModal(null)}>
           <div style={{background:C.surface,borderRadius:16,border:`1px solid ${C.border}`,padding:20,maxWidth:420,width:"100%",maxHeight:"90vh",overflowY:"auto"}} onClick={e=>e.stopPropagation()}>
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
-              <div style={{fontSize:18,fontWeight:800}}>🚩 Report {reportModal.targetType==="listing"?"Listing":"User"}</div>
+              <div style={{fontSize:18,fontWeight:800}}><FlagIcon/> Report {reportModal.targetType==="listing"?"Listing":"User"}</div>
               <button style={{background:C.card,border:"none",color:C.muted,width:28,height:28,borderRadius:7,cursor:"pointer",fontSize:16}} onClick={()=>setReportModal(null)}>✕</button>
             </div>
             <div style={{fontSize:13,color:C.muted,marginBottom:14}}>{reportModal.targetTitle} — the {reportModal.targetType==="listing"?"owner":"user"} won't know who reported.</div>
